@@ -218,17 +218,46 @@ function populateHhFormOptions() {
 function handleHhSkuChange() {
     const sku = (document.getElementById('hhEditSKU')?.value || '').toString().trim();
     const skuCtList = document.getElementById('hhSkuCtList');
+    const skuCtBtns = document.getElementById('hhSkuCtButtons');
+
     if (skuCtList) {
         const options = [...new Set(dsSpCtData
-            .filter(item => ((item.id_sp_ct || '').substring(0, 4) === sku))
+            .filter(item => ((item.id_sp_ct || '').substring(0, 4).toUpperCase() === sku.toUpperCase()))
             .map(item => item.id_sp_ct)
             .filter(Boolean))];
+
         skuCtList.innerHTML = options.map(v => `<option value="${escapeHtml(v)}">`).join('');
+
+        // Hiển thị dạng nút chọn nhanh
+        if (skuCtBtns) {
+            if (sku && options.length > 0) {
+                skuCtBtns.innerHTML = options.map(v => `
+                    <button type="button" onclick="setHhSkuCt('${escapeHtml(v)}')" 
+                        class="px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-[11px] font-bold hover:bg-blue-100 transition-all">
+                        ${escapeHtml(v)}
+                    </button>
+                `).join('');
+            } else {
+                skuCtBtns.innerHTML = '';
+            }
+        }
     }
     const currentSkuCt = (document.getElementById('hhEditSKUCT')?.value || '').toString().trim();
-    if (currentSkuCt && currentSkuCt.substring(0, 4) !== sku) {
+    if (currentSkuCt && currentSkuCt.substring(0, 4).toUpperCase() !== sku.toUpperCase()) {
         document.getElementById('hhEditSKUCT').value = '';
+        if (skuCtBtns) skuCtBtns.innerHTML = '';
     }
+}
+
+function setHhSkuCt(value) {
+    const input = document.getElementById('hhEditSKUCT');
+    if (input) {
+        input.value = value;
+        handleHhSkuCtChange();
+    }
+    // Xóa các nút sau khi chọn
+    const skuCtBtns = document.getElementById('hhSkuCtButtons');
+    if (skuCtBtns) skuCtBtns.innerHTML = '';
 }
 
 function handleHhSkuCtChange() {
@@ -545,6 +574,12 @@ function openNewHangHoanDrawer() {
     if (footer) footer.style.display = '';
     document.getElementById('hhDrawerOverlay').classList.remove('hidden');
     document.getElementById('hhDrawer').classList.add('open');
+
+    // Tự động focus vào ô MVD
+    setTimeout(() => {
+        const mvdInput = document.getElementById('hhEditMVD');
+        if (mvdInput) mvdInput.focus();
+    }, 400);
 }
 
 function closeHhDetailDrawer() {
@@ -647,11 +682,12 @@ async function saveHhDetail() {
             { range: `${CONFIG.hhbhSheetName}!D${rowIndex}`, values: [[newData.mvd_2]] },
             { range: `${CONFIG.hhbhSheetName}!E${rowIndex}`, values: [[newData.ma_gian]] },
             { range: `${CONFIG.hhbhSheetName}!J${rowIndex}`, values: [[newData.sku]] },
-            { range: `${CONFIG.hhbhSheetName}!J${rowIndex}`, values: [[newData.sku_ct]] },
-            { range: `${CONFIG.hhbhSheetName}!K${rowIndex}`, values: [[newData.slg]] },
-            { range: `${CONFIG.hhbhSheetName}!L${rowIndex}`, values: [[newData.ten_sp]] },
-            { range: `${CONFIG.hhbhSheetName}!N${rowIndex}`, values: [[newData.tinh_trang]] },
-            { range: `${CONFIG.hhbhSheetName}!T${rowIndex}`, values: [[newData.kho]] }
+            { range: `${CONFIG.hhbhSheetName}!K${rowIndex}`, values: [[newData.sku_ct]] },
+            { range: `${CONFIG.hhbhSheetName}!L${rowIndex}`, values: [[newData.slg]] },
+            { range: `${CONFIG.hhbhSheetName}!M${rowIndex}`, values: [[newData.ten_sp]] },
+            { range: `${CONFIG.hhbhSheetName}!O${rowIndex}`, values: [[newData.tinh_trang]] },
+            { range: `${CONFIG.hhbhSheetName}!T${rowIndex}`, values: [[(newData.mvd && newData.ma_gian) ? `${newData.mvd}-${newData.ma_gian}` : '']] },
+            { range: `${CONFIG.hhbhSheetName}!U${rowIndex}`, values: [[newData.kho]] }
         ];
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchUpdate`;
         const resp = await fetch(url, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: batchUpdates }) });
@@ -659,7 +695,6 @@ async function saveHhDetail() {
             Object.assign(item, newData, { rowIndex });
             filterHangHoanData();
             closeHhDetailDrawer();
-            alert('Cập nhật Hàng hoàn thành công!');
         } else {
             const errText = await resp.text();
             console.error('Save HH error:', errText);
@@ -2317,9 +2352,12 @@ function filterUDCTTable() {
         if (kh && item.khung_h !== kh) return false;
         if (mg && item.ma_gian !== mg) return false;
         if (selectedStatuses.size > 0 && !selectedStatuses.has(normalizeTrangThai(item.trang_thai))) return false;
+
         if (search) {
+            const searchTerms = search.split(',').map(s => s.trim()).filter(Boolean);
             const rowText = `${item.mvd} ${item.mdh} ${item.ten_sp} ${item.id_sp_ct}`.toLowerCase();
-            if (!rowText.includes(search)) return false;
+            const isMatch = searchTerms.some(term => rowText.includes(term));
+            if (!isMatch) return false;
         }
         return true;
     });
@@ -2686,17 +2724,73 @@ async function updateAllPricesBatch() {
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
-            if (resp.ok) successCount += chunk.length;
-            else console.error("Batch chunk failed:", await resp.text());
+            if (resp.ok) successCount += chunk.filter(c => c.range.includes('AE')).length;
         }
 
-        alert(`Đã cập nhật thành công đơn giá cho ${successCount}/${filteredUDCT.length} dòng.`);
         renderUDCTTable();
+        alert(`Đã cập nhật đơn giá cho ${successCount} đơn hàng thành công!`);
     } catch (err) {
-        console.error("Batch update error:", err);
-        alert("Có lỗi xảy ra khi cập nhật hàng loạt!");
+        console.error("Batch price update error:", err);
+        alert("Có lỗi xảy ra khi cập nhật giá hàng loạt.");
     } finally {
         loadingOverlay.classList.add('hidden');
+    }
+}
+
+async function batchUpdateUDCTStatus(statusValue) {
+    if (!filteredUDCT.length) return alert("Không có dữ liệu đang hiển thị để cập nhật.");
+    const actionName = statusValue === '2 HỦY' ? 'HỦY NHANH' : 'MAI GỌI';
+    if (!confirm(`Bạn có chắc muốn ${actionName} toàn bộ ${filteredUDCT.length} đơn hàng đang hiển thị?`)) return;
+
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+    try {
+        const token = await getAccessToken();
+        const updates = [];
+
+        filteredUDCT.forEach(item => {
+            const isHuy = (statusValue || '').toString().toLowerCase().includes('hủy');
+            item.trang_thai = statusValue;
+            if (isHuy) {
+                item.slg_xuat = 0;
+            } else {
+                item.slg_xuat = item.so_luong;
+            }
+
+            updates.push({
+                range: `${CONFIG.udctSheetName}!Y${item.rowIndex}`,
+                values: [[statusValue]]
+            });
+            updates.push({
+                range: `${CONFIG.udctSheetName}!S${item.rowIndex}`,
+                values: [[item.slg_xuat]]
+            });
+        });
+
+        // Chunking để đảm bảo ổn định
+        const chunkSize = 400;
+        for (let i = 0; i < updates.length; i += chunkSize) {
+            const chunk = updates.slice(i, i + chunkSize);
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchUpdate`;
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    valueInputOption: 'USER_ENTERED',
+                    data: chunk
+                })
+            });
+            if (!resp.ok) console.error("Batch status update error:", await resp.text());
+        }
+
+        renderUDCTTable();
+        alert(`Đã ${actionName} ${filteredUDCT.length} đơn hàng thành công!`);
+    } catch (err) {
+        console.error("Batch status update error:", err);
+        alert("Có lỗi xảy ra: " + err.message);
+    } finally {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
     }
 }
 
