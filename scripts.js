@@ -2030,26 +2030,12 @@ function normalizeSanLabel(v) {
         .trim();
 }
 
-function populateUDCTFilters() {
-    // Lấy tất cả các Sàn, Khung H, Mã Gian có trong udctData để không bị mất nút khi lọc
-    const sans = [...new Set(udctData.map(i => normalizeSanLabel(i.san)))].filter(Boolean).sort();
-    const khungHs = [...new Set(udctData.map(i => i.khung_h))].filter(Boolean).sort((a, b) => {
-        const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
-        const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
-        return numA - numB;
-    });
-    const maGians = [...new Set(udctData.map(i => i.ma_gian))].filter(Boolean).sort();
-
+function getUDCTBaseFilteredForStatusCounts() {
     const from = document.getElementById('filterUDCTFrom')?.value || '';
     const to = document.getElementById('filterUDCTTo')?.value || '';
-    const khSelection = document.getElementById('filterUDCTKhungH')?.value || '';
-    const mgSelection = document.getElementById('filterUDCTMaGian')?.value || '';
-    const sanSelection = document.getElementById('filterUDCTSan')?.value || '';
-    const ttSelection = document.getElementById('filterUDCTTrangThai')?.value || '';
     const search = (document.getElementById('filterUDCTSearch')?.value || '').toLowerCase();
-    const selectedStatuses = new Set((ttSelection || '').split('||').map(normalizeTrangThai).filter(Boolean));
 
-    function isMatchBase(item) {
+    return udctData.filter(item => {
         const rawDate = item.ngay ? item.ngay.split(' ')[0] : '';
         let itemDate = rawDate;
         if (rawDate.includes('/')) {
@@ -2059,13 +2045,30 @@ function populateUDCTFilters() {
         if (from && itemDate < from) return false;
         if (to && itemDate > to) return false;
         if (search) {
+            const searchTerms = search.split(',').map(s => s.trim()).filter(Boolean);
             const rowText = `${item.mvd} ${item.mdh} ${item.ten_sp} ${item.id_sp_ct}`.toLowerCase();
-            if (!rowText.includes(search)) return false;
+            if (!searchTerms.some(term => rowText.includes(term))) return false;
         }
         return true;
-    }
+    });
+}
 
-    const commonFiltered = udctData.filter(isMatchBase);
+function populateUDCTFilters() {
+    const sans = [...new Set(udctData.map(i => normalizeSanLabel(i.san)))].filter(Boolean).sort();
+    const khungHs = [...new Set(udctData.map(i => i.khung_h))].filter(Boolean).sort((a, b) => {
+        const numA = parseInt(a) || 0;
+        const numB = parseInt(b) || 0;
+        return numA - numB;
+    });
+    const maGians = [...new Set(udctData.map(i => i.ma_gian))].filter(Boolean).sort();
+
+    const khSelection = document.getElementById('filterUDCTKhungH')?.value || '';
+    const mgSelection = document.getElementById('filterUDCTMaGian')?.value || '';
+    const sanSelection = document.getElementById('filterUDCTSan')?.value || '';
+    const ttSelection = document.getElementById('filterUDCTTrangThai')?.value || '';
+    const selectedStatuses = new Set((ttSelection || '').split('||').map(normalizeTrangThai).filter(Boolean));
+
+    const commonFiltered = getUDCTBaseFilteredForStatusCounts();
 
     const fillSelect = (id, list, placeholder) => {
         const select = document.getElementById(id);
@@ -2079,7 +2082,6 @@ function populateUDCTFilters() {
     const renderBtns = (id, options, currentVal, countField) => {
         const container = document.getElementById(id + 'Buttons');
         if (!container) return;
-        // Tính counts dựa trên tập dữ liệu đã lọc các field khác
         const counts = options.reduce((acc, opt) => {
             acc[opt] = commonFiltered.filter(item => {
                 if (countField === 'san') {
@@ -2100,7 +2102,6 @@ function populateUDCTFilters() {
 
         let html = `<button onclick="setUDCTBtnFilter('${id}', '')" class="px-2 py-1.5 text-[11px] rounded-lg font-bold transition-all duration-200 ${currentVal === '' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-600'}">Tất cả</button>`;
         options.forEach(opt => {
-            // Nếu muốn không hiện số nếu badge = 0, có thể dùng condition, nhưng code cũ hiện 0.
             const badgeHtml = `<span class="ml-1 inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 text-[10px] font-bold leading-none text-red-600 bg-white border border-red-200 shadow-sm rounded-md">${counts[opt] || 0}</span>`;
             html += `<button onclick="setUDCTBtnFilter('${id}', '${opt}')" data-opt="${opt}" class="px-2 py-1.5 text-[11px] rounded-lg font-bold transition-all duration-200 flex items-center ${currentVal === opt ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-600'}">${opt} ${badgeHtml}</button>`;
         });
@@ -2144,7 +2145,6 @@ function populateUDCTFilters() {
 
     fillSelect('filterUDCTMaGian', maGians, 'Tất cả Mã gian');
 
-    // Populate datalist for Report's Mã Gian
     const mgList = document.getElementById('maGianList');
     if (mgList) {
         mgList.innerHTML = maGians.map(v => `<option value="${v}">`).join('');
@@ -2235,7 +2235,7 @@ function getUDCTBaseFilteredForStatusCounts() {
         }
         if (from && itemDate < from) return false;
         if (to && itemDate > to) return false;
-        if (san && item.san !== san) return false;
+        if (san && normalizeSanLabel(item.san) !== san) return false;
         if (kh && item.khung_h !== kh) return false;
         if (mg && item.ma_gian !== mg) return false;
         if (udctQuickStatusTab === 'cancelled') {
@@ -2247,8 +2247,9 @@ function getUDCTBaseFilteredForStatusCounts() {
             if (!(item.ghi_chu || '').toString().trim()) return false;
         }
         if (search) {
+            const searchTerms = search.split(',').map(s => s.trim()).filter(Boolean);
             const rowText = `${item.mvd} ${item.mdh} ${item.ten_sp} ${item.id_sp_ct}`.toLowerCase();
-            if (!rowText.includes(search)) return false;
+            if (!searchTerms.some(term => rowText.includes(term))) return false;
         }
         return true;
     });
@@ -2348,7 +2349,7 @@ function filterUDCTTable() {
         }
         if (from && itemDate < from) return false;
         if (to && itemDate > to) return false;
-        if (san && item.san !== san) return false;
+        if (san && normalizeSanLabel(item.san) !== san) return false;
         if (kh && item.khung_h !== kh) return false;
         if (mg && item.ma_gian !== mg) return false;
         if (selectedStatuses.size > 0 && !selectedStatuses.has(normalizeTrangThai(item.trang_thai))) return false;
@@ -2367,6 +2368,15 @@ function filterUDCTTable() {
         : udctQuickStatusTab === 'notes'
             ? base.filter(item => (item.ghi_chu || '').toString().trim())
             : base;
+
+    // Cập nhật badge Tổng dòng và Unique MVD
+    const totalRowsBadge = document.getElementById('udctTotalRowsBadge');
+    const uniqueMVDBadge = document.getElementById('udctUniqueMVDBadge');
+    if (totalRowsBadge) totalRowsBadge.textContent = filteredUDCT.length.toLocaleString('vi-VN');
+    if (uniqueMVDBadge) {
+        const uniqueMVDs = new Set(filteredUDCT.map(i => i.mvd).filter(v => v && v !== '-'));
+        uniqueMVDBadge.textContent = uniqueMVDs.size.toLocaleString('vi-VN');
+    }
 
     saveFiltersToCache();
     udctCurrentPage = 1;
@@ -2479,8 +2489,14 @@ function renderUDCTTable() {
                     <td class="px-3 py-2 text-[13px] text-slate-900 max-w-[6rem] truncate">${item.ten_sp || '-'}</td>
                     <td class="px-3 py-2 text-[13px] text-slate-900 font-semibold">${item.slg_xuat || '-'}</td>
                     <td class="px-3 py-2 text-[13px] text-slate-900">${parseFloat(item.don_gia_1 || 0).toLocaleString('vi-VN')}</td>
-                    ${currentUser && currentUser.role === 'kinhdoanh' ? '<td class="px-3 py-2 text-[13px] text-slate-400">-</td>' : `
                     <td class="px-3 py-2 text-[13px]">
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-medium ${item.trang_thai === '1 THAY THẾ' ? 'bg-green-100 text-green-700' : (item.trang_thai === '2 HỦY' ? 'bg-red-100 text-red-700' : (item.trang_thai === '3 HÊT HÀNG' ? 'bg-amber-100 text-amber-700' : (item.trang_thai === '4 MAI GỌI' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700')))}">
+                            ${item.trang_thai || '-'}
+                        </span>
+                    </td>
+                    <td class="px-3 py-2 text-[13px] text-slate-500 italic truncate max-w-[150px]">${item.ghi_chu || '-'}</td>
+                    ${currentUser && currentUser.role === 'kinhdoanh' ? '<td class="px-3 py-2 text-[13px] text-slate-400">-</td>' : `
+                    <td class="px-3 py-2 text-[13px] w-44">
                         <button onclick="event.stopPropagation(); updateUDCTPrice(${udctData.indexOf(item)})" class="p-1 px-2 text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-100" title="Up đơn giá">
                             <span class="text-[10px]">Up giá</span>
                         </button>
@@ -2494,12 +2510,6 @@ function renderUDCTTable() {
                             <span class="text-[10px]">4 MAI GỌI</span>
                         </button>
                     </td>`}
-                    <td class="px-3 py-2 text-[13px]">
-                        <span class="px-2 py-0.5 rounded-full text-[11px] font-medium ${item.trang_thai === '1 THAY THẾ' ? 'bg-green-100 text-green-700' : (item.trang_thai === '2 HỦY' ? 'bg-red-100 text-red-700' : (item.trang_thai === '3 HÊT HÀNG' ? 'bg-amber-100 text-amber-700' : (item.trang_thai === '4 MAI GỌI' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700')))}">
-                            ${item.trang_thai || '-'}
-                        </span>
-                    </td>
-                    <td class="px-3 py-2 text-[13px] text-slate-500 italic truncate max-w-[150px]">${item.ghi_chu || '-'}</td>
                 </tr>
             `).join('');
     const selectAll = document.getElementById('udctSelectAll');
@@ -2739,7 +2749,7 @@ async function updateAllPricesBatch() {
 
 async function batchUpdateUDCTStatus(statusValue) {
     if (!filteredUDCT.length) return alert("Không có dữ liệu đang hiển thị để cập nhật.");
-    const actionName = statusValue === '2 HỦY' ? 'HỦY NHANH' : 'MAI GỌI';
+    const actionName = statusValue === '2 HỦY' ? 'HỦY NHANH' : (statusValue === '4 MAI GỌI' ? 'MAI GỌI' : 'BỎ TRẠNG THÁI');
     if (!confirm(`Bạn có chắc muốn ${actionName} toàn bộ ${filteredUDCT.length} đơn hàng đang hiển thị?`)) return;
 
     const loadingOverlay = document.getElementById('loadingOverlay');
