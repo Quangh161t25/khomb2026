@@ -170,10 +170,13 @@ async function loadDsSpCtData() {
         const idxIdSp = findIdx(['id_sp', 'sku', 'id sp']);
         const idxIdSpCt = findIdx(['id_sp_ct', 'sku_ct', 'id sp ct']);
         const idxTen = findIdx(['ten', 'tên', 'ten_sp', 'tên sản phẩm']);
+        const idxGiaNhap = findIdx(['gia_nhap', 'giá nhập', 'gianhap', 'gia_mua', 'gia']);
+
         dsSpCtData = data.slice(1).map(row => ({
             id_sp: (idxIdSp !== -1 ? row[idxIdSp] : row[3] || '').toString().trim(),
             id_sp_ct: (idxIdSpCt !== -1 ? row[idxIdSpCt] : row[2] || '').toString().trim(),
-            ten: (idxTen !== -1 ? row[idxTen] : row[4] || '').toString().trim()
+            ten: (idxTen !== -1 ? row[idxTen] : row[4] || '').toString().trim(),
+            gia_nhap: (idxGiaNhap !== -1 ? row[idxGiaNhap] : 0)
         })).filter(item => item.id_sp || item.id_sp_ct || item.ten);
         populateHhFormOptions();
     } catch (error) {
@@ -1699,37 +1702,47 @@ function generateId(parts) {
     return parts.join(' | ');
 }
 
+let tokenRequestPromise = null;
 async function getAccessToken() {
     if (accessToken && Date.now() < tokenExpiry - 300000) return accessToken;
-    const header = { alg: "RS256", typ: "JWT" };
-    const now = Math.floor(Date.now() / 1000);
-    const payload = {
-        iss: CONFIG.serviceAccountEmail,
-        scope: CONFIG.scopes.join(" "),
-        aud: CONFIG.tokenUrl,
-        exp: now + 3600,
-        iat: now
-    };
-    const sJWT = KJUR.jws.JWS.sign("RS256", JSON.stringify(header), JSON.stringify(payload), CONFIG.privateKey);
+    if (tokenRequestPromise) return tokenRequestPromise;
 
-    try {
-        const response = await fetch(CONFIG.tokenUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${sJWT}`
-        });
-        const data = await response.json();
-        if (data.error) {
-            console.error("Token error:", data);
-            throw new Error(data.error_description || "Failed to get token");
+    tokenRequestPromise = (async () => {
+        try {
+            const header = { alg: "RS256", typ: "JWT" };
+            const now = Math.floor(Date.now() / 1000);
+            const payload = {
+                iss: CONFIG.serviceAccountEmail,
+                scope: CONFIG.scopes.join(" "),
+                aud: CONFIG.tokenUrl,
+                exp: now + 3600,
+                iat: now
+            };
+            const sJWT = KJUR.jws.JWS.sign("RS256", JSON.stringify(header), JSON.stringify(payload), CONFIG.privateKey);
+
+            try {
+                const response = await fetch(CONFIG.tokenUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${sJWT}`
+                });
+                const data = await response.json();
+                if (data.error) {
+                    console.error("Token error:", data);
+                    throw new Error(data.error_description || "Failed to get token");
+                }
+                accessToken = data.access_token;
+                tokenExpiry = Date.now() + (data.expires_in * 1000);
+                return accessToken;
+            } catch (err) {
+                console.error("Token fetch error:", err);
+                alert("Không thể xác thực với Google API: " + err.message);
+            }
+        } finally {
+            tokenRequestPromise = null;
         }
-        accessToken = data.access_token;
-        tokenExpiry = Date.now() + (data.expires_in * 1000);
-        return accessToken;
-    } catch (err) {
-        console.error("Token fetch error:", err);
-        alert("Không thể xác thực với Google API: " + err.message);
-    }
+    })();
+    return tokenRequestPromise;
 }
 
 async function fetchSheetData(sheetName) {
@@ -1816,6 +1829,53 @@ async function appendSheetData(sheetName, values) {
         return true;
     } catch (err) {
         console.error("Lỗi appendSheetData:", err);
+        return false;
+    }
+}
+
+async function updateSheetCell(sheetName, rowIndex, colIndex, value) {
+    try {
+        const token = await getAccessToken();
+        if (!token) return false;
+
+        // Convert colIndex (1-based) to Letter (A=1, B=2...)
+        let colLetter = "";
+        let temp = colIndex;
+        while (temp > 0) {
+            let mod = (temp - 1) % 26;
+            colLetter = String.fromCharCode(65 + mod) + colLetter;
+            temp = Math.floor((temp - mod) / 26);
+        }
+
+        const range = `${sheetName}!${colLetter}${rowIndex}`;
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${range}?valueInputOption=USER_ENTERED`;
+
+        const resp = await fetch(url, {
+            method: "PUT",
+            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ values: [[value]] })
+        });
+
+        return resp.ok;
+    } catch (err) {
+        console.error("Lỗi updateSheetCell:", err);
+        return false;
+    }
+}
+
+async function updateSheetValue(sheetName, range, value) {
+    try {
+        const token = await getAccessToken();
+        if (!token) return false;
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${sheetName}!${range}?valueInputOption=USER_ENTERED`;
+        const resp = await fetch(url, {
+            method: "PUT",
+            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ values: [[value]] })
+        });
+        return resp.ok;
+    } catch (err) {
+        console.error("Lỗi updateSheetValue:", err);
         return false;
     }
 }
@@ -2242,7 +2302,8 @@ function filterUDCTTable() {
     const mg = document.getElementById('filterUDCTMaGian').value;
     const tt = document.getElementById('filterUDCTTrangThai').value;
     const selectedStatuses = new Set((tt || '').split('||').map(normalizeTrangThai).filter(Boolean));
-    const search = document.getElementById('filterUDCTSearch').value.toLowerCase();
+    const searchInput = document.getElementById('filterUDCTSearch');
+    const search = searchInput ? searchInput.value.toLowerCase() : '';
 
     const base = udctData.filter(item => {
         const rawDate = item.ngay ? item.ngay.split(' ')[0] : '';
@@ -2549,11 +2610,21 @@ async function updateUDCTPrice(originalIndex, silent = false) {
             }
             renderUDCTTable();
             console.log(`Updated row ${item.rowIndex} price to ${newPrice}`);
+        } else if (suggestionType === 'row_add') {
+            const idInput = document.getElementById('row_add_id_sp_ct');
+            const tenInput = document.getElementById('row_add_ten');
+            const giaInput = document.getElementById('row_add_gia_nhap');
+            if (idInput) idInput.value = id;
+            if (tenInput) tenInput.value = ten;
+            if (giaInput) giaInput.value = gia || 0;
+            // Optional: auto focus sl
+            const slInput = document.getElementById('row_add_sl');
+            if (slInput) slInput.focus();
+        } else {
+            if (!silent) alert(`Lỗi khi cập nhật Google Sheet cho dòng ${item.rowIndex}`);
         }
-    } else {
-        if (!silent) alert(`Lỗi khi cập nhật Google Sheet cho dòng ${item.rowIndex}`);
+        return success;
     }
-    return success;
 }
 
 async function updateAllPricesBatch() {
@@ -2983,7 +3054,20 @@ async function filterReport() {
     }
 
     if (!udctData || udctData.length === 0) {
-        alert('Chưa có dữ liệu đơn chi tiết. Vui lòng vào module Đơn chi tiết để tải dữ liệu trước.');
+        // Tự động thử tải dữ liệu nếu chưa có
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+        try {
+            await loadUDCTData();
+        } catch (err) {
+            console.error("Auto load UDCT failed:", err);
+        } finally {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+        }
+    }
+
+    if (!udctData || udctData.length === 0) {
+        alert('Dữ liệu đang được tải hoặc chưa có. Vui lòng đợi trong giây lát hoặc kiểm tra kết nối.');
         return;
     }
 
@@ -3770,9 +3854,16 @@ async function fetchDHCTData() {
             headers: { "Authorization": `Bearer ${token}` }
         });
 
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error?.message || `HTTP ${response.status}`);
+        }
+
         const result = await response.json();
         if (result.values && result.values.length > 0) {
-            dhctData = result.values.slice(1).map(row => ({
+            dhctData = result.values.slice(1).map((row, idx) => ({
+                rowIndex: idx + 2,
+                id_dh_ct: (row[0] || '').toString().trim(),
                 id_dh: row[1], // Cột B
                 ngay: row[2],  // Cột C
                 truong: row[3], // Cột D
@@ -3781,7 +3872,8 @@ async function fetchDHCTData() {
                 kho: row[6],     // Cột G
                 id_sp_ct: row[7], // Cột H
                 ten: row[10],     // Cột K
-                so_luong: row[11] // Cột L
+                so_luong: row[11], // Cột L
+                gia_nhap: row[12]  // Cột M
             }));
             renderDHCTTable();
             renderUniqueDHCTTable();
@@ -3790,14 +3882,15 @@ async function fetchDHCTData() {
         }
     } catch (err) {
         console.error("Lỗi tải DH_CT:", err);
-        alert("Không thể tải dữ liệu từ sheet DH_CT.");
+        alert("Không thể tải dữ liệu từ sheet DH_CT: " + err.message);
     } finally {
         if (loadingOverlay) loadingOverlay.classList.add('hidden');
     }
 }
 
 function renderDHCTTable() {
-    const searchTerm = document.getElementById('filterDHCTSearch').value.toLowerCase().trim();
+    const searchInput = document.getElementById('filterDHCTSearch');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
     const tableBody = document.getElementById('dhctTableBody');
     if (!tableBody) return;
 
@@ -3805,7 +3898,11 @@ function renderDHCTTable() {
         (item.id_dh && item.id_dh.toString().toLowerCase().includes(searchTerm)) ||
         (item.ten && item.ten.toLowerCase().includes(searchTerm)) ||
         (item.id_sp_ct && item.id_sp_ct.toString().toLowerCase().includes(searchTerm))
-    );
+    ).sort((a, b) => {
+        const da = toYMD(a.ngay);
+        const db = toYMD(b.ngay);
+        return db.localeCompare(da);
+    });
 
     if (filtered.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-slate-500">Không tìm thấy kết quả phù hợp.</td></tr>';
@@ -3827,97 +3924,495 @@ function renderDHCTTable() {
             `).join('');
 }
 
+let currentUDCTMasterKey = null;
+let currentUDCTSelectedItem = null;
+
 function renderUniqueDHCTTable() {
-    const searchInput = document.getElementById('filterUniqueDHCTSearch');
-    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
-    const tableBody = document.getElementById('uniqueDHCTTableBody');
-    if (!tableBody) return;
+    const tbody = document.getElementById('udctMasterList');
+    if (!tbody) return;
 
     if (!dhctData || dhctData.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-slate-500">Chưa có dữ liệu DH_CT.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="2" class="text-center py-10 text-slate-400 italic">Chưa có dữ liệu DH_CT</td></tr>';
         return;
     }
 
     const grouped = {};
     dhctData.forEach(item => {
-        const ngay = item.ngay ? item.ngay.toString().trim() : '';
-        const truong = item.truong ? item.truong.toString().trim() : '';
-        const ncc = item.ncc ? item.ncc.toString().trim() : '';
+        const ngay = (item.ngay || '').toString().trim().split(' ')[0];
+        const truong = (item.truong || '').toString().trim();
+        const ncc = (item.ncc || '').toString().trim();
         const key = `${ngay}|${truong}|${ncc}`;
-
         if (!grouped[key]) {
             grouped[key] = { ngay, truong, ncc, count: 0 };
         }
         grouped[key].count++;
     });
 
-    let uniqueList = Object.values(grouped);
-
-    uniqueList.sort((a, b) => {
-        const parseDate = (dStr) => {
-            if (!dStr) return 0;
-            const parts = dStr.split('/');
-            if (parts.length === 3) {
-                // dd/mm/yyyy -> yyyy, mm-1, dd
-                return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
-            }
-            const partsDash = dStr.split('-');
-            if (partsDash.length === 3) {
-                // yyyy-mm-dd
-                return new Date(partsDash[0], partsDash[1] - 1, partsDash[2]).getTime();
-            }
-            return 0;
-        };
-        return parseDate(b.ngay) - parseDate(a.ngay);
+    const sortedList = Object.values(grouped).sort((a, b) => {
+        const da = toYMD(a.ngay);
+        const db = toYMD(b.ngay);
+        return db.localeCompare(da) || a.truong.localeCompare(b.truong);
     });
-
-    if (searchTerm) {
-        uniqueList = uniqueList.filter(item =>
-            item.ngay.toLowerCase().includes(searchTerm) ||
-            item.truong.toLowerCase().includes(searchTerm) ||
-            item.ncc.toLowerCase().includes(searchTerm)
-        );
-    }
-
-    if (uniqueList.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="3" class="text-center py-8 text-slate-500">Không tìm thấy kết quả phù hợp.</td></tr>';
-        return;
-    }
 
     let html = '';
     let currentDate = null;
 
-    uniqueList.forEach(item => {
+    sortedList.forEach(item => {
+        const key = `${item.ngay}|${item.truong}|${item.ncc}`;
         if (item.ngay !== currentDate) {
+            const countForDate = sortedList.filter(x => x.ngay === item.ngay).length;
             html += `
-                <tr class="bg-blue-50/60 border-b border-slate-200">
-                    <td class="px-4 py-3 text-sm font-bold text-blue-800" colspan="3">
-                        <div class="flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            Ngày: ${item.ngay || 'Trống'}
-                        </div>
+                <tr class="bg-slate-50 border-y border-slate-200">
+                    <td colspan="2" class="px-2 py-1.5 text-[10px] font-bold text-slate-500 flex items-center gap-1.5">
+                        <span class="text-slate-700">${item.ngay}</span> 
+                        <span class="bg-slate-200 px-1 rounded text-[9px] min-w-[14px] text-center text-slate-600">${countForDate}</span>
                     </td>
                 </tr>
             `;
             currentDate = item.ngay;
         }
 
+        const isActive = currentUDCTMasterKey === key;
         html += `
-            <tr onselectstart="return false" ondblclick="openUniqueDHCTModal('${item.ngay.replace(/'/g, "\\'")}', '${item.truong.replace(/'/g, "\\'")}', '${item.ncc.replace(/'/g, "\\'")}')" class="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer select-none">
-                <td class="px-4 py-3 text-sm text-slate-700 font-medium pl-10 whitespace-nowrap">↳ ${item.truong}</td>
-                <td class="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">${item.ncc}</td>
-                <td class="px-4 py-3 text-sm text-right font-bold text-slate-900 whitespace-nowrap">
-                    <span class="bg-slate-100 px-2.5 py-1 rounded-md text-slate-700 border border-slate-200 shadow-sm">${item.count}</span>
+            <tr onclick="selectUDCTMasterRow('${key.replace(/'/g, "\\'")}')" 
+                class="border-b border-slate-100 cursor-pointer transition-colors ${isActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-600'}">
+                <td class="px-3 py-2.5 font-bold uppercase leading-tight text-[10px] w-20">${item.truong}</td>
+                <td class="px-3 py-2.5 uppercase leading-tight text-[10px] font-medium">${item.ncc}</td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+
+    // Auto select first row if none selected
+    if (!currentUDCTMasterKey && sortedList.length > 0) {
+        selectUDCTMasterRow(`${sortedList[0].ngay}|${sortedList[0].truong}|${sortedList[0].ncc}`);
+    }
+}
+
+function selectUDCTMasterRow(key) {
+    currentUDCTMasterKey = key;
+
+    // Update active UI state for master list
+    document.querySelectorAll('#udctMasterList tr').forEach(tr => {
+        if (tr.getAttribute('onclick')?.includes(`'${key}'`)) {
+            tr.classList.add('bg-blue-50', 'text-blue-700');
+            tr.classList.remove('text-slate-600');
+        } else if (!tr.classList.contains('bg-slate-50')) {
+            tr.classList.remove('bg-blue-50', 'text-blue-700');
+            tr.classList.add('text-slate-600');
+        }
+    });
+
+    const parts = key.split('|');
+    renderUDCTSubDetails(parts[0], parts[1], parts[2]);
+}
+
+function renderUDCTSubDetails(ngay, truong, ncc) {
+    const tbody = document.getElementById('udctSubDetailList');
+    if (!tbody) return;
+
+    const filtered = dhctData.filter(item =>
+        (item.ngay || '').toString().trim().split(' ')[0] === ngay &&
+        (item.truong || '').toString().trim() === truong &&
+        (item.ncc || '').toString().trim() === ncc
+    );
+
+    let html = '';
+
+    // Render existing items
+    filtered.forEach(item => {
+        const isSelected = currentUDCTSelectedItem && currentUDCTSelectedItem.rowIndex === item.rowIndex;
+        const sl = parseFloat(item.so_luong) || 0;
+        const gia = parseFloat(item.gia_nhap) || 0;
+        const thanhTien = sl * gia;
+
+        html += `
+            <tr data-id="${item.id_dh_ct}" 
+                class="border-b border-slate-100 hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50' : ''}">
+                <td class="p-0 text-center">
+                    <button onclick="toggleUDCTRowKho('${item.id_dh_ct}', '${item.kho || 'KHO'}')"
+                            class="w-11 h-7 text-[9px] font-bold rounded border-none transition-all ${(item.kho || 'KHO') === 'BH' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}">
+                        ${item.kho || 'KHO'}
+                    </button>
+                </td>
+                <td class="p-0 w-24">
+                    <input type="text" value="${item.id_sp_ct || ''}" 
+                           oninput="handleIdSpCtInput(this, 'row')"
+                           onchange="saveUDCTRowInline('${item.id_dh_ct}', 'id_sp_ct', this.value)"
+                           autocomplete="off"
+                           class="w-full h-10 px-2 bg-transparent text-[11px] font-bold text-slate-900 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded uppercase">
+                </td>
+                <td class="p-0">
+                    <input type="text" value="${item.ten || ''}" 
+                           onchange="saveUDCTRowInline('${item.id_dh_ct}', 'ten', this.value)"
+                           class="w-full h-10 px-2 bg-transparent text-[11px] text-slate-600 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded">
+                </td>
+                <td class="p-0 w-20">
+                    <input type="number" value="${sl}" 
+                           onchange="saveUDCTRowInline('${item.id_dh_ct}', 'so_luong', this.value)"
+                           class="w-full h-10 px-2 bg-transparent text-[11px] font-bold text-slate-900 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded text-right">
+                </td>
+                <td class="p-0 w-24">
+                    <input type="number" value="${gia}" 
+                           onchange="saveUDCTRowInline('${item.id_dh_ct}', 'gia_nhap', this.value)"
+                           class="w-full h-10 px-2 bg-transparent text-[11px] text-slate-600 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded text-right">
+                </td>
+                <td class="px-2 py-2.5 text-right font-bold text-rose-600 text-[11px] w-32 relative">
+                    <div class="flex items-center justify-end gap-2">
+                        <span>${thanhTien.toLocaleString()}</span>
+                        <button onclick="event.stopPropagation(); currentUDCTSelectedItem = dhctData.find(x => x.id_dh_ct === '${item.id_dh_ct}'); deleteUDCTDetail()" 
+                                class="text-rose-400 hover:text-rose-600 p-1 transition-all" title="Xóa dòng này">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;
     });
 
-    tableBody.innerHTML = html;
+    // Persistent "Add New" row
+    html += `
+        <tr class="bg-blue-50/20 hover:bg-blue-50 transition-colors border-t border-dashed border-blue-300">
+            <td class="p-0 text-center">
+                <button id="row_add_kho_btn" onclick="this.textContent = (this.textContent.trim() === 'KHO' ? 'BH' : 'KHO'); this.classList.toggle('bg-amber-100'); this.classList.toggle('text-amber-700'); this.classList.toggle('bg-blue-100'); this.classList.toggle('text-blue-700');" 
+                        class="w-11 h-8 text-[9px] font-bold rounded bg-blue-100 text-blue-700 transition-all">
+                    KHO
+                </button>
+            </td>
+            <td class="p-0 w-24">
+                <input type="text" id="row_add_id_sp_ct" placeholder="Nhập mã sp..." 
+                    oninput="handleIdSpCtInput(this, 'row_add')"
+                    onkeydown="if(event.key==='Enter') saveUDCTRowNew()"
+                    autocomplete="off"
+                    class="w-full h-11 px-2 bg-transparent text-[11px] font-bold text-blue-600 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded uppercase placeholder:text-blue-300">
+            </td>
+            <td class="p-0">
+                <input type="text" id="row_add_ten" placeholder="Tên sản phẩm..."
+                    onkeydown="if(event.key==='Enter') saveUDCTRowNew()"
+                    class="w-full h-11 px-2 bg-transparent text-[11px] text-slate-500 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded">
+            </td>
+            <td class="p-0">
+                <input type="number" id="row_add_sl" value="1"
+                    onkeydown="if(event.key==='Enter') saveUDCTRowNew()"
+                    class="w-full h-11 px-2 bg-transparent text-[11px] font-bold text-slate-900 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded text-right">
+            </td>
+            <td class="p-0">
+                <input type="number" id="row_add_gia_nhap" value="0"
+                    onkeydown="if(event.key==='Enter') saveUDCTRowNew()"
+                    class="w-full h-11 px-2 bg-transparent text-[11px] text-slate-600 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded text-right">
+            </td>
+            <td class="p-0 text-center">
+            </td>
+        </tr>
+    `;
+    tbody.innerHTML = html;
 }
 
+async function saveUDCTRowNew() {
+    if (!currentUDCTMasterKey) {
+        alert('Vui lòng chọn đơn hàng bên trái trước!');
+        return;
+    }
+
+    const id_sp_ct = document.getElementById('row_add_id_sp_ct').value.trim();
+    const ten = document.getElementById('row_add_ten').value.trim();
+    const sl = parseFloat(document.getElementById('row_add_sl').value) || 0;
+    const gia = parseFloat(document.getElementById('row_add_gia_nhap').value) || 0;
+    const kho = document.getElementById('row_add_kho_btn')?.textContent?.trim() || 'KHO';
+
+    if (!id_sp_ct) {
+        alert('Vui lòng nhập ID Sản phẩm!');
+        document.getElementById('row_add_id_sp_ct').focus();
+        return;
+    }
+
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+    try {
+        const parts = currentUDCTMasterKey.split('|');
+        const ngay = parts[0];
+        const truong = parts[1];
+        const ncc = parts[2];
+
+        const id_dh_ct = 'CT-' + Date.now().toString().slice(-6);
+        const id_dh = 'DH-' + Date.now().toString().slice(-4);
+
+        const newRow = [
+            id_dh_ct, id_dh, ngay, truong, ncc, '', kho, id_sp_ct,
+            '', '', ten, sl, gia, sl * gia, '', ''
+        ];
+
+        const success = await appendSheetData(CONFIG.dhctSheetName, [newRow]);
+        if (success) {
+            await fetchDHCTData(); // Reload from Sheet
+            selectUDCTMasterRow(currentUDCTMasterKey);
+            // Autofocus back to SKU input for next item
+            setTimeout(() => {
+                const skuInput = document.getElementById('row_add_id_sp_ct');
+                if (skuInput) skuInput.focus();
+            }, 100);
+        }
+    } catch (err) {
+        console.error('Save New Inline Row Error:', err);
+        alert('Lỗi: ' + err.message);
+    } finally {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    }
+}
+
+async function toggleUDCTRowKho(id_dh_ct, currentKho) {
+    const nextKho = currentKho === 'KHO' ? 'BH' : 'KHO';
+    await saveUDCTRowInline(id_dh_ct, 'kho', nextKho);
+    // UI update will happen automatically if saveUDCTRowInline re-renders, 
+    // but we can also manually flip its class if needed for immediate feel.
+    selectUDCTMasterRow(currentUDCTMasterKey);
+}
+
+async function saveUDCTRowInline(id_dh_ct, field, value) {
+    const item = dhctData.find(x => x.id_dh_ct === String(id_dh_ct));
+    if (!item) return;
+
+    // Update local data
+    item[field] = value;
+
+    // Auto-update Details panel if this row is currently selected
+    // Auto-update Details panel if it exists (for backward compatibility or other modules)
+    if (currentUDCTSelectedItem?.id_dh_ct === id_dh_ct) {
+        const inputId = `detail_${field}`;
+        const inputEl = document.getElementById(inputId);
+        if (inputEl) inputEl.value = value;
+
+        // Re-calculate thanh_tien in details if present
+        const ttEl = document.getElementById('detail_thanh_tien');
+        if (ttEl) {
+            const sl = parseFloat(item.so_luong) || 0;
+            const gia = parseFloat(item.gia_nhap) || 0;
+            ttEl.textContent = (sl * gia).toLocaleString();
+        }
+    }
+
+    // Save to server
+    try {
+        const rowIndex = item.rowIndex;
+        // Mapping fields to columns: kho->G(7), id_sp_ct->H(8), ten->K(11), so_luong->L(12), gia_nhap->M(13)
+        const colMap = {
+            'kho': 7,
+            'id_sp_ct': 8,
+            'ten': 11,
+            'so_luong': 12,
+            'gia_nhap': 13
+        };
+        const col = colMap[field];
+        if (col) {
+            await updateSheetCell(CONFIG.dhctSheetName, rowIndex, col, value);
+            // Re-render only if needed, but since it's an input, the value is already there.
+            // Just update the row's Thanh Tien label
+            const sl = parseFloat(item.so_luong) || 0;
+            const gia = parseFloat(item.gia_nhap) || 0;
+            const tr = document.querySelector(`#udctSubDetailList tr[data-id="${id_dh_ct}"]`);
+            if (tr) {
+                const ttCell = tr.querySelector('td:last-child');
+                if (ttCell) ttCell.textContent = (sl * gia).toLocaleString();
+            }
+        }
+    } catch (err) {
+        console.error('Inline save failed:', err);
+    }
+}
+
+function prepareAddUDCTSubDetail() {
+    if (!currentUDCTMasterKey) {
+        alert('Vui lòng chọn đơn hàng bên trái trước!');
+        return;
+    }
+
+    currentUDCTSelectedItem = null; // Clear selection for add mode
+    const parts = currentUDCTMasterKey.split('|');
+
+    const content = document.getElementById('udctDetailContent');
+    const empty = document.getElementById('udctDetailEmpty');
+    const addBtn = document.getElementById('btnSaveNewUDCTItem');
+
+    if (content) content.classList.remove('hidden');
+    if (empty) empty.classList.add('hidden');
+    if (addBtn) addBtn.classList.remove('hidden'); // Show "Add New" button
+
+    const idDhEl = document.getElementById('detail_id_dh');
+    if (idDhEl) idDhEl.textContent = 'Mới...';
+    const khoEl = document.getElementById('detail_kho');
+    if (khoEl) khoEl.textContent = 'Tự động';
+
+    const idSpEl = document.getElementById('detail_id_sp_ct');
+    if (idSpEl) idSpEl.value = '';
+    const tenEl = document.getElementById('detail_ten');
+    if (tenEl) tenEl.value = '';
+    const slEl = document.getElementById('detail_sl');
+    if (slEl) slEl.value = 1;
+    const giaEl = document.getElementById('detail_gia_nhap');
+    if (giaEl) giaEl.value = 0;
+    const ttEl = document.getElementById('detail_thanh_tien');
+    if (ttEl) ttEl.textContent = '0';
+
+    // Highlight the add row in table (optional redraw)
+    renderUDCTSubDetails(parts[0], parts[1], parts[2]);
+}
+
+async function saveUDCTDetail() {
+    if (!currentUDCTSelectedItem) return; // Không lưu nếu đang ở chế độ thêm mới
+
+    const id_sp_ct = document.getElementById('detail_id_sp_ct')?.value?.trim();
+    const ten = document.getElementById('detail_ten')?.value?.trim();
+    const sl = parseFloat(document.getElementById('detail_sl')?.value) || 0;
+    const gia = parseFloat(document.getElementById('detail_gia_nhap')?.value) || 0;
+
+    // Update local data
+    currentUDCTSelectedItem.id_sp_ct = id_sp_ct;
+    currentUDCTSelectedItem.ten = ten;
+    currentUDCTSelectedItem.so_luong = sl;
+    currentUDCTSelectedItem.gia_nhap = gia;
+
+    // Update UI
+    const ttEl = document.getElementById('detail_thanh_tien');
+    if (ttEl) ttEl.textContent = (sl * gia).toLocaleString();
+
+    if (currentUDCTMasterKey) {
+        const p = currentUDCTMasterKey.split('|');
+        renderUDCTSubDetails(p[0], p[1], p[2]);
+    }
+
+    // Save to server
+    try {
+        const rowIndex = currentUDCTSelectedItem.rowIndex;
+        // Map: H(8), K(11), L(12), M(13) -> index-wise they are: H(7), K(10), L(11), M(12)
+        const updates = [
+            { row: rowIndex, col: 8, value: id_sp_ct }, // Cột H
+            { row: rowIndex, col: 11, value: ten },    // Cột K
+            { row: rowIndex, col: 12, value: sl },     // Cột L
+            { row: rowIndex, col: 13, value: gia }      // Cột M
+        ];
+
+        for (const up of updates) {
+            await updateSheetCell(CONFIG.dhctSheetName, up.row, up.col, up.value);
+        }
+    } catch (err) {
+        console.error('Save detail failed:', err);
+    }
+}
+
+async function addNewUDCTSubDetail() {
+    if (!currentUDCTMasterKey) return;
+
+    const parts = currentUDCTMasterKey.split('|');
+    const ngay = parts[0];
+    const truong = parts[1];
+    const ncc = parts[2];
+
+    const id_sp_ct = document.getElementById('detail_id_sp_ct').value.trim();
+    const ten = document.getElementById('detail_ten').value.trim();
+    const sl = parseFloat(document.getElementById('detail_sl').value) || 0;
+    const gia = parseFloat(document.getElementById('detail_gia_nhap').value) || 0;
+
+    if (!id_sp_ct) {
+        alert('Vui lòng nhập ID Sản phẩm!');
+        return;
+    }
+
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+    try {
+        const id_dh_ct = 'CT-' + Date.now().toString().slice(-6);
+        const id_dh = 'DH-' + Date.now().toString().slice(-4);
+
+        const newRow = [
+            id_dh_ct, id_dh, ngay, truong, ncc, '', '', id_sp_ct,
+            '', '', ten, sl, gia, sl * gia, '', ''
+        ];
+
+        const success = await appendSheetData(CONFIG.dhctSheetName, [newRow]);
+        if (success) {
+            await fetchDHCTData(); // Reload all
+            // Re-select master row to refresh UI
+            selectUDCTMasterRow(currentUDCTMasterKey);
+        }
+    } catch (err) {
+        alert('Lỗi thêm sản phẩm: ' + err.message);
+    } finally {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    }
+}
+
+async function deleteUDCTDetail() {
+    if (!currentUDCTSelectedItem) return;
+    if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này khỏi đơn hàng?')) return;
+
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+    try {
+        const token = await getAccessToken();
+        const sheetId = await fetchSheetMeta(CONFIG.dhctSheetName, token);
+        if (sheetId === null) throw new Error('Không lấy được sheetId');
+
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}:batchUpdate`;
+        const body = {
+            requests: [{
+                deleteDimension: {
+                    range: {
+                        sheetId,
+                        dimension: 'ROWS',
+                        startIndex: currentUDCTSelectedItem.rowIndex - 1,
+                        endIndex: currentUDCTSelectedItem.rowIndex
+                    }
+                }
+            }]
+        };
+
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (resp.ok) {
+            dhctData = dhctData.filter(x => x.id_dh_ct !== currentUDCTSelectedItem.id_dh_ct);
+            // Re-render
+            const masterKey = currentUDCTMasterKey;
+            renderUniqueDHCTTable();
+            if (masterKey) selectUDCTMasterRow(masterKey);
+        } else {
+            alert('Lỗi khi xóa dòng trên Google Sheets.');
+        }
+    } catch (err) {
+        console.error('Delete UDCT Detail Error:', err);
+        alert('Có lỗi xảy ra khi xóa.');
+    } finally {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    }
+}
+
+function adjustUDCTDetailSL(delta) {
+    const input = document.getElementById('detail_sl');
+    if (!input) return;
+    let val = parseFloat(input.value) || 0;
+    val += delta;
+    if (val < 0) val = 0;
+    input.value = val;
+
+    const price = currentUDCTSelectedItem ? (parseFloat(currentUDCTSelectedItem.don_gia) || 0) : 0;
+    document.getElementById('detail_thanh_tien').textContent = (price * val).toLocaleString();
+}
+
+// Giữ lại các hàm cũ đề phòng link ngoài gọi
 function openUniqueDHCTModal(ngay, truong, ncc) {
-    const overlay = document.getElementById('uniqueDHCTDetailOverlay');
+    const key = `${ngay}|${truong}|${ncc}`;
+    switchModule('unique_dh_ct');
+    selectUDCTMasterRow(key);
+}
+
+function closeUniqueDHCTModal() {
     if (!overlay) return;
 
     document.getElementById('uniqueDHCTModalTitle').textContent = `${ngay} | ${truong} | ${ncc}`;
@@ -3928,7 +4423,7 @@ function openUniqueDHCTModal(ngay, truong, ncc) {
         (item.ngay ? item.ngay.toString().trim() : '') === ngay &&
         (item.truong ? item.truong.toString().trim() : '') === truong &&
         (item.ncc ? item.ncc.toString().trim() : '') === ncc
-    );
+    ).sort((a, b) => (b.id_dh_ct || '').localeCompare(a.id_dh_ct || ''));
 
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-slate-500">Không có dữ liệu chi tiết</td></tr>';
@@ -4260,6 +4755,13 @@ window.onload = async () => {
                 updateUserProfileUI();
                 applyRoleUI(currentUser.role);
 
+                // Khởi động tải dữ liệu ngay từ đầu để tránh lỗi "Chưa có dữ liệu"
+                loadUDCTData();
+                loadSanphamData();
+                loadDsSpCtData();
+                fetchDHCTData(); // Thêm luôn DH_CT mới
+
+
                 // Chuyển nhanh qua module đang yêu cầu (nếu có)
                 const urlParams = new URLSearchParams(window.location.search);
                 const link = urlParams.get('link');
@@ -4314,4 +4816,193 @@ window.onload = async () => {
 
 window.addEventListener('resize', () => {
     if (window.innerWidth > 1024) closeMobileSidebar();
+});
+
+// LOGIC THÊM ĐƠN HÀNG MỚI (MODAL)
+function openAddDHCTModal() {
+    const modal = document.getElementById('addDHCTModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('addDHCTNgay').value = today;
+        document.getElementById('addDHCTTruong').value = '';
+        document.getElementById('addDHCTNcc').value = '';
+
+        // Set default Type to NHẬP
+        const nhapBtn = Array.from(document.querySelectorAll('#addDHCTTruongBtns button')).find(b => b.textContent.trim() === 'NHẬP');
+        if (nhapBtn) {
+            selectAddDHCTTruong(nhapBtn, 'NHẬP');
+        } else {
+            document.getElementById('addDHCTTruong').value = 'NHẬP';
+        }
+
+        // Suggesst NCC buttons from existing data
+        const nccSet = new Set();
+        dhctData.forEach(item => { if (item.ncc) nccSet.add(item.ncc.trim()); });
+        const distinctNccs = Array.from(nccSet).sort().slice(0, 20); // Top 20 alphabetic
+        const nccBox = document.getElementById('addDHCTNccSuggestions');
+        if (nccBox) {
+            nccBox.innerHTML = distinctNccs.map(ncc => `
+                <button onclick="document.getElementById('addDHCTNcc').value='${ncc.replace(/'/g, "\\'")}'"
+                    class="px-2 py-1 bg-slate-50 border border-slate-200 hover:border-primary hover:text-primary rounded-lg text-[10px] font-medium text-slate-500 transition-all">
+                    ${ncc}
+                </button>
+            `).join('');
+        }
+    }
+}
+
+function selectAddDHCTTruong(btn, value) {
+    document.getElementById('addDHCTTruong').value = value;
+    // UI Feedback
+    document.querySelectorAll('#addDHCTTruongBtns button').forEach(b => {
+        b.classList.remove('bg-emerald-500', 'bg-rose-500', 'text-white', 'border-transparent');
+        b.classList.add('text-slate-600', 'border-slate-200');
+    });
+
+    if (value === 'NHẬP') {
+        btn.classList.add('bg-emerald-500', 'text-white', 'border-transparent');
+        btn.classList.remove('text-slate-600', 'border-slate-200');
+    } else {
+        btn.classList.add('bg-rose-500', 'text-white', 'border-transparent');
+        btn.classList.remove('text-slate-600', 'border-slate-200');
+    }
+}
+
+function closeAddDHCTModal() {
+    const modal = document.getElementById('addDHCTModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function saveNewDHCT() {
+    const ngay = document.getElementById('addDHCTNgay').value;
+    const truong = document.getElementById('addDHCTTruong').value.trim();
+    const ncc = document.getElementById('addDHCTNcc').value.trim();
+
+    if (!ngay || !truong || !ncc) {
+        alert('Vui lòng nhập đầy đủ Ngày, Trường và NCC!');
+        return;
+    }
+
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+    try {
+        const id_dh_ct = 'CT-' + Date.now().toString().slice(-6);
+        const id_dh = 'DH-' + Date.now().toString().slice(-4);
+
+        const [y, m, d] = ngay.split('-');
+        const dateFormatted = `${d}/${m}/${y}`;
+
+        // Header: id_dh_ct(A), id_dh(B), ngay(C), truong(D), ncc(E)
+        const newRow = [
+            id_dh_ct,
+            id_dh,
+            dateFormatted,
+            truong,
+            ncc,
+            '', '', '', '', '', '', '', '', '', '', ''
+        ];
+
+        const success = await appendSheetData(CONFIG.dhctSheetName, [newRow]);
+        if (success) {
+            closeAddDHCTModal();
+            // Load lại dữ liệu để Master List cập nhật
+            await fetchDHCTData();
+        } else {
+            throw new Error('Không thể ghi dữ liệu vào Google Sheets.');
+        }
+    } catch (err) {
+        console.error('Save New DHCT Error:', err);
+        alert('Có lỗi xảy ra khi lưu: ' + err.message);
+    } finally {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    }
+}
+
+// --- LOGIC GỢI Ý ID_SP_CT ---
+let suggestionTarget = null;
+let suggestionType = 'row';
+
+function handleIdSpCtInput(input, type) {
+    suggestionTarget = input;
+    suggestionType = type;
+    const val = input.value.trim().toLowerCase();
+    const sugBox = document.getElementById('spctSuggestions');
+
+    if (!val || !dsSpCtData || dsSpCtData.length === 0) {
+        if (sugBox) sugBox.classList.add('hidden');
+        return;
+    }
+
+    const matches = dsSpCtData.filter(item =>
+        (item.id_sp_ct || '').toLowerCase().includes(val) ||
+        (item.ten || '').toLowerCase().includes(val)
+    ).slice(0, 30);
+
+    if (matches.length === 0) {
+        if (sugBox) sugBox.classList.add('hidden');
+        return;
+    }
+
+    const rect = input.getBoundingClientRect();
+    sugBox.style.left = `${rect.left}px`;
+    sugBox.style.top = `${rect.bottom + window.scrollY}px`;
+    sugBox.style.width = `${Math.max(rect.width, 320)}px`;
+    sugBox.classList.remove('hidden');
+
+    sugBox.innerHTML = matches.map(m => `
+        <div onclick="selectSpCtSuggestion('${m.id_sp_ct}', '${(m.ten || '').replace(/'/g, "\\'")}', '${m.gia_nhap || 0}')" 
+             class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-slate-50 last:border-0 group transition-colors">
+            <div class="font-bold text-primary group-hover:text-blue-700">${m.id_sp_ct}</div>
+            <div class="text-[10px] text-slate-500 truncate">${m.ten}</div>
+            <div class="text-[9px] text-slate-400 italic">Giá: ${(parseFloat(m.gia_nhap) || 0).toLocaleString()}</div>
+        </div>
+    `).join('');
+}
+
+function selectSpCtSuggestion(id, ten, gia) {
+    if (!suggestionTarget) return;
+
+    suggestionTarget.value = id;
+    const sugBox = document.getElementById('spctSuggestions');
+    if (sugBox) sugBox.classList.add('hidden');
+
+    if (suggestionType === 'detail') {
+        const tenInput = document.getElementById('detail_ten');
+        const giaInput = document.getElementById('detail_gia_nhap');
+        if (tenInput) tenInput.value = ten;
+        if (giaInput) giaInput.value = gia || 0;
+        // Trigger auto-save
+        saveUDCTDetail();
+    } else if (suggestionType === 'row_add') {
+        const tenInput = document.getElementById('row_add_ten');
+        const giaInput = document.getElementById('row_add_gia_nhap');
+        if (tenInput) tenInput.value = ten;
+        if (giaInput) giaInput.value = gia || 0;
+        // Auto-save immediately for rapid entry
+        saveUDCTRowNew();
+    } else {
+        // Row mode (existing item)
+        const tr = suggestionTarget.closest('tr');
+        if (tr) {
+            const idRow = tr.getAttribute('data-id');
+            const tenInput = tr.querySelector('input[onchange*="\'ten\'"]');
+            const giaInput = tr.querySelector('input[onchange*="\'gia_nhap\'"]');
+            if (tenInput) tenInput.value = ten;
+            if (giaInput) giaInput.value = gia || 0;
+
+            // Trigger inline save for ALL fields
+            saveUDCTRowInline(idRow, 'id_sp_ct', id);
+            saveUDCTRowInline(idRow, 'ten', ten);
+            saveUDCTRowInline(idRow, 'gia_nhap', gia || 0);
+        }
+    }
+}
+
+document.addEventListener('mousedown', (e) => {
+    const sugBox = document.getElementById('spctSuggestions');
+    if (sugBox && !sugBox.contains(e.target) && e.target !== suggestionTarget) {
+        sugBox.classList.add('hidden');
+    }
 });
