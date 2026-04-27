@@ -639,7 +639,6 @@ async function saveHhDetail() {
             }
             await fetchHangHoanData();
             closeHhDetailDrawer();
-            alert('Thêm mới Hàng hoàn thành công!');
             return;
         }
         const rowIndex = item.rowIndex || (hangHoanData.indexOf(item) + 2);
@@ -3954,6 +3953,13 @@ function renderUniqueDHCTTable() {
         return db.localeCompare(da) || a.truong.localeCompare(b.truong);
     });
 
+    // Lấy ngày hôm nay định dạng DD/MM/YYYY để check ẩn hiện nút copy
+    const now = new Date();
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    const todayStr = `${d}/${m}/${y}`;
+
     let html = '';
     let currentDate = null;
 
@@ -3973,11 +3979,26 @@ function renderUniqueDHCTTable() {
         }
 
         const isActive = currentUDCTMasterKey === key;
+
+        // Kiểm tra xem đơn hàng này (truong & ncc) đã có trong ngày hôm nay chưa
+        const existsToday = sortedList.some(x => x.ngay.includes(todayStr) && x.truong === item.truong && x.ncc === item.ncc);
+        const isNotToday = !item.ngay.includes(todayStr);
+
         html += `
             <tr onclick="selectUDCTMasterRow('${key.replace(/'/g, "\\'")}')" 
-                class="border-b border-slate-100 cursor-pointer transition-colors ${isActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-600'}">
+                class="border-b border-slate-100 cursor-pointer transition-colors ${isActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-600'} group">
                 <td class="px-3 py-2.5 font-bold uppercase leading-tight text-[10px] w-20">${item.truong}</td>
-                <td class="px-3 py-2.5 uppercase leading-tight text-[10px] font-medium">${item.ncc}</td>
+                <td class="px-3 py-2.5 uppercase leading-tight text-[10px] font-medium flex items-center justify-between">
+                    <span>${item.ncc}</span>
+                    ${(isNotToday && !existsToday) ? `
+                    <button onclick="event.stopPropagation(); copyDHCTGroup('${key.replace(/'/g, "\\'")}')" 
+                            class="p-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors opacity-0 group-hover:opacity-100" 
+                            title="Copy sang hôm nay">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                        </svg>
+                    </button>` : ''}
+                </td>
             </tr>
         `;
     });
@@ -3987,6 +4008,66 @@ function renderUniqueDHCTTable() {
     // Auto select first row if none selected
     if (!currentUDCTMasterKey && sortedList.length > 0) {
         selectUDCTMasterRow(`${sortedList[0].ngay}|${sortedList[0].truong}|${sortedList[0].ncc}`);
+    }
+}
+
+async function copyDHCTGroup(key) {
+    if (!confirm('Bạn muốn copy đơn hàng này sang ngày hôm nay?')) return;
+
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+    try {
+        const parts = key.split('|');
+        const oldNgay = parts[0];
+        const truong = parts[1];
+        const ncc = parts[2];
+
+        // Tìm các dòng thuộc nhóm này
+        const itemsToCopy = dhctData.filter(item =>
+            (item.ngay || '').toString().trim().split(' ')[0] === oldNgay &&
+            (item.truong || '').toString().trim() === truong &&
+            (item.ncc || '').toString().trim() === ncc
+        );
+
+        if (itemsToCopy.length === 0) {
+            alert('Không tìm thấy dữ liệu để copy.');
+            return;
+        }
+
+        const now = new Date();
+        const d = String(now.getDate()).padStart(2, '0');
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const y = now.getFullYear();
+        const todayStr = `${d}/${m}/${y}`;
+
+        const newRows = itemsToCopy.map((item, idx) => {
+            const id_dh_ct = 'CT-' + (Date.now() + idx).toString().slice(-6);
+            const id_dh = 'DH-' + (Date.now() + idx).toString().slice(-4);
+            const sl = parseFloat(item.so_luong) || 0;
+            const gia = parseFloat(item.gia_nhap) || 0;
+
+            // Cấu trúc: [id_dh_ct, id_dh, ngay, truong, ncc, ghi_chu, kho, id_sp_ct, _, _, ten, sl, gia, thanh_tien, _, _]
+            return [
+                id_dh_ct, id_dh, todayStr, truong, ncc, item.ghi_chu || '', item.kho || 'KHO', item.id_sp_ct || '',
+                '', '', item.ten || '', sl, gia, sl * gia, '', ''
+            ];
+        });
+
+        const success = await appendSheetData(CONFIG.dhctSheetName, newRows);
+        if (success) {
+            await fetchDHCTData(); // Reload từ Sheet
+            const newKey = `${todayStr}|${truong}|${ncc}`;
+            currentUDCTMasterKey = newKey;
+            renderUniqueDHCTTable();
+            selectUDCTMasterRow(newKey);
+            alert(`Đã copy ${itemsToCopy.length} dòng sang ngày ${todayStr}`);
+        }
+    } catch (err) {
+        console.error('Copy DHCT Group Error:', err);
+        alert('Lỗi khi copy: ' + err.message);
+    } finally {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
     }
 }
 
