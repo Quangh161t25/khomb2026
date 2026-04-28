@@ -8,11 +8,14 @@ const CONFIG = {
     dhctSheetName: "DH_CT",
     hhbhSheetName: "HH_BH",
     hhNvDienSheetName: "HH_NV_DIEN",
+    imgbbApiKey: "1bad1429a242d7040fda3f2cfddb3a25",
     serviceAccountEmail: "test-gia-ason@api-test-sheet-161.iam.gserviceaccount.com",
     privateKey: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC3NN84hLTkQPZd\nLj7niXZTICq7nHsuTn3J6r2Paq12m70/lYSmrwh1i0EStr9bO19QM8cevGlslwGr\nWSVOLJlc6+w1HGPKvRXtA41kYV9MYIvpzIPQtkFE7Hxq71QyBARcv39Lfzze6Ioj\n3G8VBvAKFLAnCUr97GHRv+KbCTFxPZupd3PEB+xS5ZUlzdBCEZvDid3iXaaEJJ+l\nTd1apAGQHjtnDTLOkiTa8zf7X5ebALwnI9MziOdN8VyprHXGhkachPbKyrG0QwEs\n2jtiI6Y5ULsBPjNefoavH8MKU5DEAT9h0fZ7KfsKYVMDuXqmEKBs0D3B4Z6aDZQW\nwT2dDRZDAgMBAAECggEAEIuVoSzZVuFhaz1GI9ji0IacjvO50cIq7M8Zrj4/F756\nEw6PIhKENafAb7U4INm2AnzUMO8CqL9Jpxs85qUM3W4JysSByqLUiRW2184amIyb\nj7jCXfLBTQn8AbHgrUepl5d/vBmFYMgon/mqjbNiGDb4FZgEQSkie5o6fi/dWp5d\nNahbZl+WTOB/znhAfKh/zferHNxldR/ERmwOubZUerkqysWiBigc3ovpLSUof9ur\nz3hNPPp0CKQjF40xuQc6FYTHUHMLuMvp78PXuc/mYqQmZ8VOGhU+faGtZ4m+QJly\ndF5dS8U5cwKEF+ptuAUiWSahn6INb9yKn3+FcsW0UQKBgQDb8N4eWFvbgpRo/vxo\nwBN2u2TWubj6clcrq/1a+VR0njC28Can0ogJHhrFhPxVs5D/rugs3HlbyAXJFptY\nV0DZPCwBxGU5P5RbGjXWWEUXjp4ISKQD8WKfVlXNr79TqLdOg2NZBYQAi06Cpo/T\nPV9l7LSG2Tj/9WdvD7W2wvrpaQKBgQDVPjpJN6xh7+sHtSU0mjKvrqigpHbuSQ/o\nXpUaWSIpJffm5QpFPAOcTT5mHZCyllicJQIrfPSY+sH8n+sF03CUqVkV4Q2UqfOf\npFaLDB4P6SQ8iesZyF4VKFrj/cAvRJmp0e5W/DRnFkoEp+8c+nrru2+Dzm9kb7Uq\n0CiltqYAywKBgBtcfrV1to+7Ue0x84KwintV2rifyDRX7yI+tjkQFYKgf1zyyUxN\nc6D2vsvdvGqI+TvlrXqPPwW8/4NBrbeyux2LT8o0fYc+sp0WyKXOu2Gv21caelUH\nPYam/eultn6Y2Z0J2V0kw4Qx0GWOhQv5cZnDdb3k3iNxixmU8b03ynEpAoGBAKEA\n7O0fNe50QRZ+tOq0ihSPYQ55XrqnO3WNBDLynZJH8pbI1CpWF7vJrpVXOUs9rQWo\nA61mGR/wJMtiywaJEHWOL48PbzuR3jno0NcHfSMyOoPi9jlvSWncIFQH4TVPLF5F\n/Rh8L+ytrZE6YpWUoX6e9KGmGgDRPw5mQGpuL4RlAoGADe9n080SXlsUk4nHVjUz\nEfv7EBoBkgOpqb9T1foRfJl46NxmmTOYV3iGIhjwcDskEg284k4iq/gH6EEFyEBc\nVz13jzB1nBgjfezFesVQz7bA/+Wik6HZtxAxVg38BKMt+Q1tYw9wOjbGPqOn++VC\nsR2Sh8e3h3Knd6j1tceRIFU=\n-----END PRIVATE KEY-----\n",
     tokenUrl: "https://oauth2.googleapis.com/token",
     scopes: ["https://www.googleapis.com/auth/spreadsheets"]
 };
+
+let isUploading = false;
 
 // Chạy ngay khi DOM vừa tải để tránh chớp màn hình đăng nhập
 document.addEventListener('DOMContentLoaded', () => {
@@ -294,6 +297,32 @@ function handleHhSkuCtChange() {
 async function scanQrToInput(inputId) {
     const inputEl = document.getElementById(inputId);
     if (!inputEl) return;
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+
+    const video = document.createElement('video');
+    video.style.cssText = 'max-width:90vw;max-height:70vh;border-radius:12px;border:3px solid #fff;box-shadow:0 0 20px rgba(0,0,0,0.5);';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = 'Hủy / Tắt Camera';
+    closeBtn.style.cssText = 'margin-top:20px;padding:12px 24px;background:#ef4444;color:#fff;border:none;border-radius:30px;font-weight:bold;font-size:14px;cursor:pointer;box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); transition: all 0.2s;';
+    closeBtn.onmouseover = () => closeBtn.style.transform = 'scale(1.05)';
+    closeBtn.onmouseout = () => closeBtn.style.transform = 'scale(1)';
+
+    overlay.appendChild(video);
+    overlay.appendChild(closeBtn);
+    document.body.appendChild(overlay);
+
+    let stream;
+    let isStopped = false;
+
+    closeBtn.onclick = () => {
+        isStopped = true;
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        overlay.remove();
+    };
+
     if (!('BarcodeDetector' in window) || !navigator.mediaDevices?.getUserMedia) {
         const manual = prompt('Thiết bị không hỗ trợ quét QR tự động. Dán mã tại đây:');
         if (manual) {
@@ -301,23 +330,18 @@ async function scanQrToInput(inputId) {
             inputEl.dispatchEvent(new Event('input', { bubbles: true }));
             inputEl.dispatchEvent(new Event('change', { bubbles: true }));
         }
+        overlay.remove();
         return;
     }
-    let stream;
-    const video = document.createElement('video');
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;';
-    video.style.cssText = 'max-width:92vw;max-height:78vh;border-radius:8px;border:2px solid #fff;';
-    overlay.appendChild(video);
-    document.body.appendChild(overlay);
+
     try {
-        const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13'] }); // Thêm cả barcode
+        const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13'] });
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         video.srcObject = stream;
         video.setAttribute('playsinline', 'true');
         await video.play();
-        const started = Date.now();
-        while (Date.now() - started < 30000) {
+
+        while (!isStopped) {
             const barcodes = await detector.detect(video);
             if (barcodes.length) {
                 inputEl.value = (barcodes[0].rawValue || '').trim();
@@ -325,11 +349,11 @@ async function scanQrToInput(inputId) {
                 inputEl.dispatchEvent(new Event('change', { bubbles: true }));
                 break;
             }
-            await new Promise(r => setTimeout(r, 180));
+            await new Promise(r => setTimeout(r, 150));
         }
     } catch (err) {
         console.error('QR scan error:', err);
-        const manual = prompt('Không quét được QR. Dán mã tại đây:');
+        const manual = prompt('Lỗi camera / Không quét được. Dán mã tại đây:');
         if (manual) {
             inputEl.value = manual.trim();
             inputEl.dispatchEvent(new Event('input', { bubbles: true }));
@@ -337,7 +361,7 @@ async function scanQrToInput(inputId) {
         }
     } finally {
         if (stream) stream.getTracks().forEach(t => t.stop());
-        overlay.remove();
+        if (overlay.parentNode) overlay.remove();
     }
 }
 
@@ -353,46 +377,60 @@ async function uploadImageHh(input, index) {
     const file = input.files[0];
     if (!file) return;
 
-    const previewContainer = document.getElementById(`hhImagePreview${index}`);
-    const hiddenInput = document.getElementById(`hhEditAnh${index}`);
-    const apiKey = '1bad1429a242d7040fda3f2cfddb3a25';
+    // Chặn tự động lưu trong khi đang upload
+    isUploading = true;
 
-    previewContainer.innerHTML = `
-        <div class="flex flex-col items-center">
-            <div class="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <span class="text-[8px] text-primary mt-1 font-bold">Uploading...</span>
-        </div>
-    `;
-    previewContainer.classList.add('pointer-events-none');
+    const statusLabel = document.getElementById('saveStatus');
+    if (statusLabel) {
+        statusLabel.textContent = "Đang tải ảnh lên ImgBB...";
+        statusLabel.style.display = 'block';
+    }
 
     try {
         const formData = new FormData();
         formData.append('image', file);
 
-        const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+        // 1. Gửi ảnh lên ImgBB
+        const response = await fetch(`https://api.imgbb.com/1/upload?key=${CONFIG.imgbbApiKey}`, {
             method: 'POST',
             body: formData
         });
 
         const result = await response.json();
+
         if (result.success) {
-            hiddenInput.value = result.data.url;
+            const directUrl = result.data.url;
+
+            // 2. Cập nhật link vào ô Input tương ứng
+            const targetInput = document.getElementById(`hhEditAnh${index}`);
+            if (targetInput) {
+                targetInput.value = directUrl;
+            }
+
+            // 3. Cập nhật preview và lưu dữ liệu
             refreshHhImagePreviews();
+            isUploading = false;
+            await saveHhDetail();
         } else {
-            alert('Lỗi upload: ' + result.error.message);
+            alert("Lỗi tải ảnh lên ImgBB: " + (result.error?.message || "Không xác định"));
+            isUploading = false;
             refreshHhImagePreviews();
         }
-    } catch (error) {
-        console.error('Image upload error:', error);
-        alert('Lỗi khi tải ảnh lên.');
+    } catch (err) {
+        console.error("Upload error:", err);
+        alert("Lỗi kết nối khi tải ảnh: " + err.message);
+        isUploading = false;
         refreshHhImagePreviews();
     } finally {
-        previewContainer.classList.remove('pointer-events-none');
-        input.value = '';
+        if (statusLabel) {
+            statusLabel.style.display = 'none';
+        }
+        input.value = ""; // Reset input file
     }
 }
 
 function refreshHhImagePreviews() {
+    // Luôn quét qua 3 ô tiềm năng để đảm bảo đồng bộ
     for (let i = 1; i <= 3; i++) {
         const urlEl = document.getElementById(`hhEditAnh${i}`);
         const preview = document.getElementById(`hhImagePreview${i}`);
@@ -401,8 +439,8 @@ function refreshHhImagePreviews() {
         if (url) {
             preview.innerHTML = `
                 <img src="${url}" class="w-full h-full object-cover">
-                <button onclick="event.stopPropagation(); removeHhImage(${i})" class="absolute top-0 right-0 p-1 bg-rose-500 text-white rounded-bl-lg hover:bg-rose-600 transition-colors">
-                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <button onclick="event.stopPropagation(); removeHhImage(${i})" class="absolute top-0 right-0 p-1.5 bg-rose-500 text-white rounded-bl-lg hover:bg-rose-600 transition-all shadow-md">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
@@ -412,12 +450,14 @@ function refreshHhImagePreviews() {
         } else {
             preview.innerHTML = `
                 <div class="text-center p-2">
-                    <svg class="w-5 h-5 mx-auto text-slate-400 group-hover:text-primary transition-colors"
+                    <svg class="w-8 h-8 mx-auto text-slate-300 group-hover:text-primary transition-colors"
                         fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 4v16m8-8H4" />
+                            d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <span class="text-[8px] text-slate-400 block mt-1">Ảnh ${i}</span>
+                    <span class="text-[10px] text-slate-400 block mt-1 font-bold">Chạm để tải ảnh</span>
                 </div>
             `;
             preview.classList.add('border-dashed');
@@ -427,7 +467,8 @@ function refreshHhImagePreviews() {
 }
 
 function removeHhImage(index) {
-    document.getElementById(`hhEditAnh${index}`).value = '';
+    const el = document.getElementById(`hhEditAnh${index}`);
+    if (el) el.value = '';
     refreshHhImagePreviews();
 }
 
@@ -721,6 +762,10 @@ async function saveHhDetail() {
         alert('Tài khoản KINHDOANH không được sửa Dữ liệu Hàng hoàn.');
         return;
     }
+    if (isUploading) {
+        console.warn('Đang upload ảnh, vui lòng đợi...');
+        return;
+    }
     const isCreateMode = hhDrawerMode === 'create';
     if (!isCreateMode && currentHangHoanEditIndex === -1) return;
     const item = !isCreateMode ? hangHoanData[currentHangHoanEditIndex] : null;
@@ -786,8 +831,6 @@ async function saveHhDetail() {
                 '',
                 '',
                 '',
-                '',
-                '',
                 ''
             ]];
             const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${CONFIG.hhbhSheetName}!A:Z:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
@@ -834,8 +877,8 @@ async function saveHhDetail() {
             alert('Lỗi khi lưu dữ liệu Hàng hoàn vào Google Sheet.');
         }
     } catch (err) {
-        console.error(err);
-        alert('Đã xảy ra lỗi khi lưu Hàng hoàn.');
+        console.error("Save HH Detail Error:", err);
+        alert('Đã xảy ra lỗi khi lưu Hàng hoàn: ' + (err.message || 'Lỗi không xác định'));
     } finally {
         loadingOverlay.classList.add('hidden');
     }
