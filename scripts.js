@@ -291,12 +291,16 @@ function handleHhSkuCtChange() {
     handleHhSkuChange();
 }
 
-async function scanQrForHhMvd() {
-    const mvdInput = document.getElementById('hhEditMVD');
-    if (!mvdInput) return;
+async function scanQrToInput(inputId) {
+    const inputEl = document.getElementById(inputId);
+    if (!inputEl) return;
     if (!('BarcodeDetector' in window) || !navigator.mediaDevices?.getUserMedia) {
-        const manual = prompt('Thiết bị không hỗ trợ quét QR tự động. Dán mã MVD tại đây:');
-        if (manual) mvdInput.value = manual.trim();
+        const manual = prompt('Thiết bị không hỗ trợ quét QR tự động. Dán mã tại đây:');
+        if (manual) {
+            inputEl.value = manual.trim();
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+            inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
         return;
     }
     let stream;
@@ -307,7 +311,7 @@ async function scanQrForHhMvd() {
     overlay.appendChild(video);
     document.body.appendChild(overlay);
     try {
-        const detector = new BarcodeDetector({ formats: ['qr_code'] });
+        const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13'] }); // Thêm cả barcode
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         video.srcObject = stream;
         video.setAttribute('playsinline', 'true');
@@ -316,19 +320,115 @@ async function scanQrForHhMvd() {
         while (Date.now() - started < 30000) {
             const barcodes = await detector.detect(video);
             if (barcodes.length) {
-                mvdInput.value = (barcodes[0].rawValue || '').trim();
+                inputEl.value = (barcodes[0].rawValue || '').trim();
+                inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                inputEl.dispatchEvent(new Event('change', { bubbles: true }));
                 break;
             }
             await new Promise(r => setTimeout(r, 180));
         }
     } catch (err) {
         console.error('QR scan error:', err);
-        const manual = prompt('Không quét được QR. Dán mã MVD tại đây:');
-        if (manual) mvdInput.value = manual.trim();
+        const manual = prompt('Không quét được QR. Dán mã tại đây:');
+        if (manual) {
+            inputEl.value = manual.trim();
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+            inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
     } finally {
         if (stream) stream.getTracks().forEach(t => t.stop());
         overlay.remove();
     }
+}
+
+async function scanQrForHhMvd() {
+    await scanQrToInput('hhEditMVD');
+}
+
+async function scanQrForHhMvd2() {
+    await scanQrToInput('hhEditMVD2');
+}
+
+async function uploadImageHh(input, index) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const previewContainer = document.getElementById(`hhImagePreview${index}`);
+    const hiddenInput = document.getElementById(`hhEditAnh${index}`);
+    const apiKey = '1bad1429a242d7040fda3f2cfddb3a25';
+
+    previewContainer.innerHTML = `
+        <div class="flex flex-col items-center">
+            <div class="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <span class="text-[8px] text-primary mt-1 font-bold">Uploading...</span>
+        </div>
+    `;
+    previewContainer.classList.add('pointer-events-none');
+
+    try {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            hiddenInput.value = result.data.url;
+            refreshHhImagePreviews();
+        } else {
+            alert('Lỗi upload: ' + result.error.message);
+            refreshHhImagePreviews();
+        }
+    } catch (error) {
+        console.error('Image upload error:', error);
+        alert('Lỗi khi tải ảnh lên.');
+        refreshHhImagePreviews();
+    } finally {
+        previewContainer.classList.remove('pointer-events-none');
+        input.value = '';
+    }
+}
+
+function refreshHhImagePreviews() {
+    for (let i = 1; i <= 3; i++) {
+        const urlEl = document.getElementById(`hhEditAnh${i}`);
+        const preview = document.getElementById(`hhImagePreview${i}`);
+        if (!urlEl || !preview) continue;
+        const url = urlEl.value;
+        if (url) {
+            preview.innerHTML = `
+                <img src="${url}" class="w-full h-full object-cover">
+                <button onclick="event.stopPropagation(); removeHhImage(${i})" class="absolute top-0 right-0 p-1 bg-rose-500 text-white rounded-bl-lg hover:bg-rose-600 transition-colors">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            `;
+            preview.classList.remove('border-dashed');
+            preview.classList.add('border-solid', 'border-primary/20');
+        } else {
+            preview.innerHTML = `
+                <div class="text-center p-2">
+                    <svg class="w-5 h-5 mx-auto text-slate-400 group-hover:text-primary transition-colors"
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span class="text-[8px] text-slate-400 block mt-1">Ảnh ${i}</span>
+                </div>
+            `;
+            preview.classList.add('border-dashed');
+            preview.classList.remove('border-solid', 'border-primary/20');
+        }
+    }
+}
+
+function removeHhImage(index) {
+    document.getElementById(`hhEditAnh${index}`).value = '';
+    refreshHhImagePreviews();
 }
 
 async function appendHangHoanQuickByMvd(mvdRaw) {
@@ -544,6 +644,9 @@ function openHhDetail(index) {
     document.getElementById('hhEditMVD').value = item.mvd || '';
     document.getElementById('hhEditMVD2').value = item.mvd_2 || '';
     document.getElementById('hhEditMaGian').value = item.ma_gian || '';
+    document.getElementById('hhEditAnh1').value = item.anh_1 || '';
+    document.getElementById('hhEditAnh2').value = item.anh_2 || '';
+    document.getElementById('hhEditAnh3').value = item.anh_3 || '';
     document.getElementById('hhEditSKU').value = item.sku || '';
     document.getElementById('hhEditSKUCT').value = item.sku_ct || '';
     document.getElementById('hhEditSLG').value = item.slg || '';
@@ -552,6 +655,7 @@ function openHhDetail(index) {
     document.getElementById('hhEditKho').value = item.kho || '';
     populateHhFormOptions();
     renderHhKhoButtons(item.kho || 'KHO');
+    refreshHhImagePreviews();
     ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = isKinhDoanh;
@@ -576,6 +680,9 @@ function openNewHangHoanDrawer() {
     document.getElementById('hhEditMVD').value = '';
     document.getElementById('hhEditMVD2').value = '';
     document.getElementById('hhEditMaGian').value = '';
+    document.getElementById('hhEditAnh1').value = '';
+    document.getElementById('hhEditAnh2').value = '';
+    document.getElementById('hhEditAnh3').value = '';
     document.getElementById('hhEditSKU').value = '';
     document.getElementById('hhEditSKUCT').value = '';
     document.getElementById('hhEditSLG').value = '1';
@@ -584,6 +691,7 @@ function openNewHangHoanDrawer() {
     document.getElementById('hhEditKho').value = 'KHO';
     populateHhFormOptions();
     renderHhKhoButtons('KHO');
+    refreshHhImagePreviews();
     ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = false;
@@ -630,7 +738,10 @@ async function saveHhDetail() {
             slg: document.getElementById('hhEditSLG').value,
             tinh_trang: document.getElementById('hhEditTinhTrang').value,
             ten_sp: document.getElementById('hhEditTenSP').value,
-            kho: document.getElementById('hhEditKho').value
+            kho: document.getElementById('hhEditKho').value,
+            anh_1: document.getElementById('hhEditAnh1').value,
+            anh_2: document.getElementById('hhEditAnh2').value,
+            anh_3: document.getElementById('hhEditAnh3').value
         };
         if (newData.sku_ct && !newData.ten_sp) {
             const matchedSp = dsSpCtData.find(i => (i.id_sp_ct || '') === newData.sku_ct);
@@ -656,10 +767,10 @@ async function saveHhDetail() {
                 mvd,
                 mvd2,
                 maGian,
-                '',
-                '',
-                '',
-                '',
+                newData.anh_1 || '',
+                newData.anh_2 || '',
+                newData.anh_3 || '',
+                '', // anh_4
                 newData.sku || '',
                 newData.sku_ct || '',
                 newData.slg || '1',
@@ -700,6 +811,9 @@ async function saveHhDetail() {
             { range: `${CONFIG.hhbhSheetName}!C${rowIndex}`, values: [[newData.mvd]] },
             { range: `${CONFIG.hhbhSheetName}!D${rowIndex}`, values: [[newData.mvd_2]] },
             { range: `${CONFIG.hhbhSheetName}!E${rowIndex}`, values: [[newData.ma_gian]] },
+            { range: `${CONFIG.hhbhSheetName}!F${rowIndex}`, values: [[newData.anh_1]] },
+            { range: `${CONFIG.hhbhSheetName}!G${rowIndex}`, values: [[newData.anh_2]] },
+            { range: `${CONFIG.hhbhSheetName}!H${rowIndex}`, values: [[newData.anh_3]] },
             { range: `${CONFIG.hhbhSheetName}!J${rowIndex}`, values: [[newData.sku]] },
             { range: `${CONFIG.hhbhSheetName}!K${rowIndex}`, values: [[newData.sku_ct]] },
             { range: `${CONFIG.hhbhSheetName}!L${rowIndex}`, values: [[newData.slg]] },
