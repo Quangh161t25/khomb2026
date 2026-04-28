@@ -614,6 +614,64 @@ async function startContinuousMvdScan() {
     }
 }
 
+async function startHHSearchQrScan() {
+    if (!('BarcodeDetector' in window) || !navigator.mediaDevices?.getUserMedia) {
+        alert('Thiết bị chưa hỗ trợ quét QR/Barcode.');
+        return;
+    }
+    const overlay = document.createElement('div');
+    overlay.id = 'qrSearchOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;';
+    overlay.innerHTML = `
+        <div style="color:#fff;font-weight:bold;font-size:18px;">QUÉT MVD ĐỂ TÌM KIẾM</div>
+        <video id="qrSearchVideo" style="width:90vw;max-height:65vh;border:3px solid #fff;border-radius:16px;object-fit:cover;"></video>
+        <button id="qrSearchCloseBtn" style="padding:12px 30px;background:#ef4444;color:#fff;border-radius:12px;border:none;font-weight:bold;font-size:16px;box-shadow:0 10px 15px -3px rgba(0,0,0,0.1);">ĐÓNG</button>
+    `;
+    document.body.appendChild(overlay);
+    const video = document.getElementById('qrSearchVideo');
+    let running = true;
+    let stream = null;
+
+    document.getElementById('qrSearchCloseBtn').onclick = () => {
+        running = false;
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        overlay.remove();
+    };
+
+    try {
+        const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13', 'code_39'] });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        video.srcObject = stream;
+        video.setAttribute('playsinline', 'true');
+        await video.play();
+
+        while (running) {
+            const codes = await detector.detect(video);
+            if (codes.length) {
+                const val = (codes[0].rawValue || '').trim();
+                if (val) {
+                    const searchInput = document.getElementById('filterHHSearch');
+                    if (searchInput) {
+                        searchInput.value = val;
+                        filterHangHoanData();
+                        // Thông báo ngắn gọn
+                        statusNotify('Đã nhập mã: ' + val, 'success');
+                    }
+                    running = false;
+                    break;
+                }
+            }
+            await new Promise(r => setTimeout(r, 150));
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Lỗi camera: ' + err.message);
+    } finally {
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        overlay.remove();
+    }
+}
+
 async function fetchHangHoanData() {
     const loadingOverlay = document.getElementById('loadingOverlay');
     const tbody = document.getElementById('hangHoanTableBody');
@@ -631,7 +689,7 @@ async function fetchHangHoanData() {
             hangHoanData = result.values.slice(1).map((row, idx) => ({
                 rowIndex: idx + 2,
                 id: row[0] || '',
-                ngay_nhan: row[1] || '',
+                ngay_nhan: toYMD(row[1] || ''),
                 mvd: row[2] || '',
                 mvd_2: row[3] || '',
                 ma_gian: row[4] || '',
@@ -915,40 +973,50 @@ async function saveHhDetail() {
 
 function buildSkuTongMap(data) {
     const byMvd = new Map();
-    data.forEach(item => {
-        const key = (item.mvd || '').toString().trim();
-        if (!key) return;
+    const sourceData = (typeof hangHoanData !== 'undefined' && hangHoanData.length) ? hangHoanData : data;
+
+    sourceData.forEach(item => {
+        const mvd = (item.mvd || '').toString().trim();
+        const ngay = (item.ngay_nhan || '').toString().trim();
+        if (!mvd || !ngay) return;
+
+        // Key kết hợp Ngày nhận và MVD
+        const key = `${ngay}|${mvd}`;
+
         if (!byMvd.has(key)) {
-            byMvd.set(key, { ma_gian: '', lines: new Map() });
+            byMvd.set(key, { ma_gian: '', items: [] });
         }
         const bucket = byMvd.get(key);
         if (!bucket.ma_gian && item.ma_gian) bucket.ma_gian = (item.ma_gian || '').toString().trim();
 
         const skuVal = (item.sku || '').toString().trim();
         if (!skuVal) return;
-        const slgVal = parseFloat(item.slg) || 0;
-        const prev = bucket.lines.get(skuVal) || 0;
-        bucket.lines.set(skuVal, prev + slgVal);
+        const slgVal = (item.slg || '0').toString().trim();
+        bucket.items.push(`${skuVal} x ${slgVal}`);
     });
 
     const result = new Map();
-    byMvd.forEach((bucket, mvd) => {
-        const skuTong = [...bucket.lines.entries()]
-            .map(([sku, slg]) => `${sku} x ${slg.toLocaleString('vi-VN')}`)
-            .join(' + ');
-        result.set(mvd, { ma_gian: bucket.ma_gian || '', skuTong });
+    byMvd.forEach((bucket, key) => {
+        const skuTong = bucket.items.join(' + ');
+        result.set(key, { ma_gian: bucket.ma_gian || '', skuTong });
     });
     return result;
 }
 
 function getSkuTongForItem(item, skuTongMap) {
-    const key = (item.mvd || '').toString().trim();
-    return key ? (skuTongMap.get(key)?.skuTong || '') : '';
+    const mvd = (item.mvd || '').toString().trim();
+    const ngay = (item.ngay_nhan || '').toString().trim();
+    if (!mvd || !ngay) return '';
+    const key = `${ngay}|${mvd}`;
+    return skuTongMap.get(key)?.skuTong || '';
 }
 
 function getMaGianForItem(item, skuTongMap) {
-    const key = (item.mvd || '').toString().trim();
-    return key ? (skuTongMap.get(key)?.ma_gian || item.ma_gian || '') : (item.ma_gian || '');
+    const mvd = (item.mvd || '').toString().trim();
+    const ngay = (item.ngay_nhan || '').toString().trim();
+    if (!mvd || !ngay) return item.ma_gian || '';
+    const key = `${ngay}|${mvd}`;
+    return skuTongMap.get(key)?.ma_gian || item.ma_gian || '';
 }
 
 function renderHangHoanTable() {
@@ -970,9 +1038,10 @@ function renderHangHoanTable() {
             : '<span class="text-xs text-slate-400">Không có</span>';
         const skuTong = getSkuTongForItem(item, skuTongMap);
         const maGian = getMaGianForItem(item, skuTongMap);
+        const displayNgay = formatYmdToDmy(item.ngay_nhan) || item.ngay_nhan;
         return `
                     <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer" ondblclick="openHhDetail(${index})">
-                        <td class="px-3 py-2 text-sm text-slate-700">${escapeHtml(item.ngay_nhan)}</td>
+                        <td class="px-3 py-2 text-sm text-slate-700">${escapeHtml(displayNgay)}</td>
                         <td class="px-3 py-2 text-sm font-medium text-slate-900">${escapeHtml(item.mvd)}</td>
                         <td class="px-3 py-2 text-sm text-slate-700">${escapeHtml(item.mvd_2)}</td>
                         <td class="px-3 py-2 text-sm text-slate-700">${escapeHtml(maGian)}</td>
@@ -980,8 +1049,8 @@ function renderHangHoanTable() {
                         <td class="px-3 py-2 text-sm text-slate-700">${escapeHtml(item.sku_ct)}</td>
                         <td class="px-3 py-2 text-sm text-right font-semibold text-slate-900">${(parseFloat(item.slg) || 0).toLocaleString('vi-VN')}</td>
                         <td class="px-3 py-2 text-sm text-slate-700 max-w-[240px] truncate" title="${escapeHtml(item.ten_sp)}">${escapeHtml(item.ten_sp)}</td>
-                        <td class="px-3 py-2 text-sm text-slate-700">${escapeHtml(item.tinh_trang)}</td>
                         <td class="px-3 py-2 text-sm text-slate-700">${escapeHtml(item.kho)}</td>
+                        <td class="px-3 py-2 text-sm text-slate-700">${escapeHtml(item.tinh_trang)}</td>
                         <td class="px-3 py-2 text-sm text-slate-700 max-w-[260px] truncate" title="${escapeHtml(skuTong)}">${escapeHtml(skuTong || '-')}</td>
                         <td class="px-3 py-2 text-sm">${imgHtml}</td>
                     </tr>
@@ -996,15 +1065,23 @@ function exportHangHoanSummaryToExcel() {
     }
 
     const skuTongMap = buildSkuTongMap(filteredHangHoanData);
-    const uniqueMvds = [...new Set(filteredHangHoanData
-        .map(item => (item.mvd || '').toString().trim())
-        .filter(Boolean))];
 
-    const headers = ['MVD', 'MVD 2', 'Mã gian', 'SKU tổng'];
-    const excelData = [headers, ...uniqueMvds.map(mvd => {
-        const info = skuTongMap.get(mvd) || { ma_gian: '', skuTong: '' };
-        const firstRow = filteredHangHoanData.find(item => (item.mvd || '').toString().trim() === mvd) || {};
-        return [mvd, firstRow.mvd_2 || '', info.ma_gian || '', info.skuTong || ''];
+    // Lấy danh sách các cặp (Ngày | MVD) duy nhất từ dữ liệu đang lọc
+    const uniqueKeys = [...new Set(filteredHangHoanData
+        .map(item => `${(item.ngay_nhan || '').toString().trim()}|${(item.mvd || '').toString().trim()}`)
+        .filter(k => k.split('|')[1]))];
+
+    const headers = ['Ngày nhận', 'MVD', 'MVD 2', 'Mã gian', 'SKU tổng'];
+    const excelData = [headers, ...uniqueKeys.map(key => {
+        const [ngay, mvd] = key.split('|');
+        const info = skuTongMap.get(key) || { ma_gian: '', skuTong: '' };
+        const displayNgay = formatYmdToDmy(ngay) || ngay;
+        // Tìm dòng đầu tiên khớp với cặp Ngày-MVD để lấy MVD 2
+        const firstRow = filteredHangHoanData.find(item =>
+            (item.ngay_nhan || '').toString().trim() === ngay &&
+            (item.mvd || '').toString().trim() === mvd
+        ) || {};
+        return [displayNgay, mvd, firstRow.mvd_2 || '', info.ma_gian || '', info.skuTong || ''];
     })];
 
     const ws = XLSX.utils.aoa_to_sheet(excelData);
@@ -1025,7 +1102,7 @@ function exportHangHoanToExcel() {
     const headers = ['Ngày nhận', 'MVD', 'MVD 2', 'Mã gian', 'SKU', 'SKU CT', 'SKU tổng', 'SLG', 'Tên SP', 'Tình trạng', 'Kho', 'Ảnh 1', 'Ảnh 2', 'Ảnh 3', 'Ngày xử lý', 'Ghi chú', 'Trạng thái', 'SKU-SLG', 'ID NV', 'UDT', 'MVD-Gian', 'LB3', 'ID ĐH', 'ID ĐH CT', 'STT', 'Đánh dấu'];
     const skuTongMap = buildSkuTongMap(filteredHangHoanData);
     const excelData = [headers, ...filteredHangHoanData.map(item => [
-        item.ngay_nhan || '', item.mvd || '', item.mvd_2 || '', item.ma_gian || '', item.sku || '', item.sku_ct || '', getSkuTongForItem(item, skuTongMap) || '', item.slg || '', item.ten_sp || '', item.tinh_trang || '', item.kho || '',
+        formatYmdToDmy(item.ngay_nhan) || item.ngay_nhan, item.mvd || '', item.mvd_2 || '', item.ma_gian || '', item.sku || '', item.sku_ct || '', getSkuTongForItem(item, skuTongMap) || '', item.slg || '', item.ten_sp || '', item.tinh_trang || '', item.kho || '',
         item.anh_1 || '', item.anh_2 || '', item.anh_3 || '', item.ngay_xly || '', item.ghi_chu || '', item.trang_thai || '', item.sku_slg || '', item.id_nv || '', item.udt || '',
         item.mvd_gian || '', item.lb3 || '', item.id_dh || '', item.id_dh_ct || '', item.stt || '', item.danh_dau || ''
     ])];
@@ -1470,12 +1547,7 @@ function parseDmyToYmd(dmy) {
     return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
 }
 
-function formatYmdToDmy(ymd) {
-    if (!ymd) return '';
-    const parts = String(ymd).trim().split('-');
-    if (parts.length !== 3) return '';
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-}
+// Duplicate formatYmdToDmy logic removed here to use the consolidated version at top
 
 function shiftDateValueByDays(currentValue, deltaDays) {
     const current = currentValue || getTodayYmd();
@@ -1491,6 +1563,13 @@ function changeHHShopNgayTra(step) {
     const currentRaw = document.getElementById('hhShopEditNgayTraRaw')?.value || getTodayYmd();
     setHHShopNgayTraRaw(shiftDateValueByDays(currentRaw, step));
     return false;
+}
+
+function shiftHHFilterDate(id, delta) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = shiftDateValueByDays(el.value, delta);
+    filterHangHoanData();
 }
 
 function shiftHHShopNgayTra(which, step) {
@@ -4507,13 +4586,19 @@ async function copyDHCTGroup(key) {
         const y = now.getFullYear();
         const todayStr = `${d}/${m}/${y}`;
 
+        const orderIdMap = {};
+
         const newRows = itemsToCopy.map((item, idx) => {
+            const key = `${todayStr}|${truong}|${ncc}`;
+            if (!orderIdMap[key]) {
+                orderIdMap[key] = 'DH-' + (Date.now() + idx).toString().slice(-4);
+            }
             const id_dh_ct = 'CT-' + (Date.now() + idx).toString().slice(-6);
-            const id_dh = 'DH-' + (Date.now() + idx).toString().slice(-4);
+            const id_dh = orderIdMap[key];
             const sl = parseFloat(item.so_luong) || 0;
             const gia = parseFloat(item.gia_nhap) || 0;
 
-            // Cấu trúc: [id_dh_ct, id_dh, ngay, truong, ncc, ghi_chu, kho, id_sp_ct, _, _, ten, sl, gia, thanh_tien, _, _]
+            // Cấu trúc (16 cột): [id_dh_ct, id_dh, ngay, truong, ncc, ghi_chu, kho, id_sp_ct, _, _, ten, sl, gia, thanh_tien, _, _]
             return [
                 id_dh_ct, id_dh, todayStr, truong, ncc, item.ghi_chu || '', item.kho || 'KHO', item.id_sp_ct || '',
                 '', '', item.ten || '', sl, gia, sl * gia, '', ''
@@ -4764,7 +4849,7 @@ async function handleExcelUploadUniqueDHCT(files) {
     try {
         const file = files[0];
         const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data);
+        const workbook = XLSX.read(data, { cellDates: true });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const excelData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "" });
 
@@ -4781,7 +4866,7 @@ async function handleExcelUploadUniqueDHCT(files) {
             truong: findCol(['truong', 'trường', 'platform']),
             ncc: findCol(['ncc', 'nha cung cap', 'nhà cung cấp']),
             kho: findCol(['kho', 'warehouse']),
-            id_sp_ct: findCol(['id_sp_ct', 'sku', 'mã sp', 'ma sp']),
+            id_sp_ct: findCol(['id_sp_ct', 'sku', 'mã sp', 'ma sp', 'id sp ct']),
             ten: findCol(['ten', 'tên', 'product', 'tên sản phẩm']),
             sl: findCol(['so_luong', 'sl', 'số lượng', 'quantity']),
             gia: findCol(['gia_nhap', 'gia', 'giá', 'giá nhập']),
@@ -4803,14 +4888,42 @@ async function handleExcelUploadUniqueDHCT(files) {
             defNgay = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
         }
 
+        const orderIdMap = {};
         rows.forEach((row, idx) => {
             const id_sp_ct = colIdx.id_sp_ct !== -1 ? (row[colIdx.id_sp_ct] || '').toString().trim() : '';
             if (!id_sp_ct) return;
 
-            let ngay = colIdx.ngay !== -1 && row[colIdx.ngay] ? (row[colIdx.ngay] || '').toString().trim() : defNgay;
-            if (ngay.includes('-')) {
-                const ps = ngay.split('-');
-                if (ps.length === 3 && ps[0].length === 4) ngay = `${ps[2]}/${ps[1]}/${ps[0]}`;
+            let rawNgay = colIdx.ngay !== -1 ? row[colIdx.ngay] : null;
+            let ngay = defNgay;
+            if (rawNgay) {
+                let val = rawNgay;
+                // Nếu là chuỗi số thì chuyển sang số
+                if (typeof val === 'string' && val.trim() !== "" && !isNaN(val) && !val.includes('/') && !val.includes('-')) {
+                    val = parseFloat(val);
+                }
+
+                if (typeof val === 'number') {
+                    // Xử lý số serial date từ Excel
+                    try {
+                        const d = XLSX.SSF.parse_date_code(val);
+                        ngay = `${String(d.d).padStart(2, '0')}/${String(d.m).padStart(2, '0')}/${d.y}`;
+                    } catch (e) {
+                        const dt = new Date(Math.round((val - 25569) * 86400 * 1000));
+                        ngay = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
+                    }
+                } else if (val instanceof Date) {
+                    ngay = `${String(val.getDate()).padStart(2, '0')}/${String(val.getMonth() + 1).padStart(2, '0')}/${val.getFullYear()}`;
+                } else {
+                    ngay = String(val).trim();
+                    if (ngay.includes('-')) {
+                        const ps = ngay.split('-');
+                        if (ps.length === 3 && ps[0].length === 4) {
+                            ngay = `${ps[2]}/${ps[1]}/${ps[0]}`;
+                        } else {
+                            ngay = ngay.replace(/-/g, '/');
+                        }
+                    }
+                }
             }
 
             const truong = colIdx.truong !== -1 && row[colIdx.truong] ? (row[colIdx.truong] || '').toString().trim() : defTruong;
@@ -4833,9 +4946,15 @@ async function handleExcelUploadUniqueDHCT(files) {
                 }
             }
 
-            const id_dh_ct = 'CT-' + (now + idx).toString().slice(-6);
-            const id_dh = 'DH-' + (now + idx).toString().slice(-4);
+            const key = `${ngay}|${truong}|${ncc}`;
+            if (!orderIdMap[key]) {
+                orderIdMap[key] = 'DH-' + (now + idx).toString().slice(-4);
+            }
 
+            const id_dh_ct = 'CT-' + (now + idx).toString().slice(-6);
+            const id_dh = orderIdMap[key];
+
+            // Cấu trúc 16 cột: [id_dh_ct(0), id_dh(1), ngay(2), truong(3), ncc(4), ghi_chu(5), kho(6), id_sp_ct(7), _, _, ten(10), sl(11), gia(12), thanh_tien(13), _, _]
             appendValues.push([
                 id_dh_ct, id_dh, ngay, truong, ncc, ghi_chu, kho, id_sp_ct,
                 '', '', ten, sl, gia, sl * gia, '', ''
@@ -4934,7 +5053,7 @@ async function saveUDCTRowInline(id_dh_ct, field, value) {
     // Save to server
     try {
         const rowIndex = item.rowIndex;
-        // Mapping fields to columns: kho->G(7), id_sp_ct->H(8), ten->K(11), so_luong->L(12), gia_nhap->M(13)
+        // Mapping fields to columns (1-based): kho->G(7), id_sp_ct->H(8), ten->K(11), so_luong->L(12), gia_nhap->M(13)
         const colMap = {
             'kho': 7,
             'id_sp_ct': 8,
@@ -5636,7 +5755,7 @@ async function saveNewDHCT() {
         const [y, m, d] = ngay.split('-');
         const dateFormatted = `${d}/${m}/${y}`;
 
-        // Header: id_dh_ct(A), id_dh(B), ngay(C), truong(D), ncc(E)
+        // Header (12 cột): id_dh_ct(0), id_dh(1), ngay(2), truong(3), ncc(4)
         const newRow = [
             id_dh_ct,
             id_dh,
