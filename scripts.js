@@ -213,6 +213,25 @@ function populateHhFormOptions() {
         skuList.innerHTML = uniqueSku.map(v => `<option value="${escapeHtml(v)}">`).join('');
     }
     handleHhSkuChange();
+
+    // HH SHOP ĐIỀN suggestions
+    const hhShopMaGianList = document.getElementById('hhShopMaGianList');
+    const hhShopSkuList = document.getElementById('hhShopSkuList');
+    if (hhShopMaGianList) {
+        const uniqueMaGian = [...new Set([
+            ...hangHoanData.map(i => (i.ma_gian || '').toString().trim()),
+            ...hhShopDienData.map(i => (i.ma_gian || '').toString().trim()),
+            ...udctData.map(i => (i.ma_gian || '').toString().trim())
+        ].filter(Boolean))].sort();
+        hhShopMaGianList.innerHTML = uniqueMaGian.map(v => `<option value="${escapeHtml(v)}">`).join('');
+    }
+    if (hhShopSkuList) {
+        const uniqueSku = [...new Set([
+            ...dsSpCtData.map(i => (i.id_sp || '').toString().trim()),
+            ...hhShopDienData.map(i => (i.sku || '').toString().trim())
+        ].filter(Boolean))].sort();
+        hhShopSkuList.innerHTML = uniqueSku.map(v => `<option value="${escapeHtml(v)}">`).join('');
+    }
 }
 
 function handleHhSkuChange() {
@@ -1101,6 +1120,7 @@ function markHHShopMvdTraManual(isManual) {
 }
 
 function scheduleHHShopAutoSave() {
+    if (currentHHShopRowIndex < 0) return; // Không tự động lưu khi đang thêm mới
     clearTimeout(window.hhShopAutoSaveTimer);
     window.hhShopAutoSaveTimer = setTimeout(() => {
         saveHHShopDien();
@@ -1140,8 +1160,7 @@ async function setHHShopXacNhan(value) {
         const body = {
             valueInputOption: 'USER_ENTERED',
             data: [
-                { range: `${CONFIG.hhNvDienSheetName}!K${item.rowIndex}`, values: [[nextValue]] },
-                { range: `${CONFIG.hhNvDienSheetName}!L${item.rowIndex}`, values: [[new Date().toISOString()]] }
+                { range: `${CONFIG.hhNvDienSheetName}!K${item.rowIndex}`, values: [[nextValue]] }
             ]
         };
         const resp = await fetch(url, {
@@ -1151,7 +1170,6 @@ async function setHHShopXacNhan(value) {
         });
         if (!resp.ok) throw new Error(await resp.text());
         item.xac_nhan = nextValue;
-        item.udt = new Date().toISOString();
         renderHHShopDienTable();
     } catch (error) {
         console.error(error);
@@ -1251,6 +1269,28 @@ function openHHShopNgayTraPicker() {
     if (!picker.showPicker) picker.click();
 }
 
+function getTodayYmd() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function parseDmyToYmd(dmy) {
+    if (!dmy) return '';
+    const parts = String(dmy).trim().split('/');
+    if (parts.length !== 3) return '';
+    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+}
+
+function formatYmdToDmy(ymd) {
+    if (!ymd) return '';
+    const parts = String(ymd).trim().split('-');
+    if (parts.length !== 3) return '';
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
 function shiftDateValueByDays(currentValue, deltaDays) {
     const current = currentValue || getTodayYmd();
     const dt = new Date(`${current}T00:00:00`);
@@ -1277,6 +1317,7 @@ function shiftHHShopNgayTra(which, step) {
 }
 
 function openHHShopNewDrawer() {
+    currentHHShopRowIndex = -1;
     document.getElementById('hhShopEditMVD').value = '';
     document.getElementById('hhShopEditMDH').value = '';
     document.getElementById('hhShopEditMaGian').value = '';
@@ -1310,6 +1351,7 @@ async function saveHHShopDien() {
     const mvd = (document.getElementById('hhShopEditMVD').value || '').toString().trim();
     if (!mvd) return alert('Vui lòng nhập MVD.');
     const mdh = document.getElementById('hhShopEditMDH').value || '';
+    const maGian = document.getElementById('hhShopEditMaGian').value || '';
     const sku = document.getElementById('hhShopEditSKU').value || '';
     const hoanTra = document.getElementById('hhShopEditHoanTra').value || 'hoàn';
     const ngayTraRaw = document.getElementById('hhShopEditNgayTraRaw').value || parseDmyToYmd(document.getElementById('hhShopEditNgayTra').value) || getTodayYmd();
@@ -1321,18 +1363,13 @@ async function saveHHShopDien() {
     const rawGhiChu = (document.getElementById('hhShopEditGhiChu').value || '').trim();
     const ghiChu = rawGhiChu || `[${hoanTra.toUpperCase()}] MVD ${mvd}${mdh ? ` | MDH: ${mdh}` : ''}`;
     const xacNhan = (document.getElementById('hhShopEditXacNhan').value || '').toString().trim();
-    const udt = new Date().toISOString();
 
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.classList.remove('hidden');
     try {
         const token = await getAccessToken();
         if (!token) return;
-        const maGian = (() => {
-            const linked = udctData.find(item => (item.mvd || '').toString().trim() === mvd);
-            return (linked?.ma_gian || '').toString().trim();
-        })();
-        const values = [[`${Date.now()}`, mvd, mdh, maGian, sku, hoanTra, ngayTra, mvdTra, skuTra, ghiChu, xacNhan, udt]];
+        const values = [[`${Date.now()}`, mvd, mdh, maGian, sku, hoanTra, ngayTra, mvdTra, skuTra, ghiChu, xacNhan, ""]];
         const isUpdate = currentHHShopRowIndex >= 0 && hhShopDienData[currentHHShopRowIndex];
         const url = isUpdate
             ? `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${CONFIG.hhNvDienSheetName}!A${hhShopDienData[currentHHShopRowIndex].rowIndex}:L${hhShopDienData[currentHHShopRowIndex].rowIndex}?valueInputOption=USER_ENTERED`
@@ -1350,6 +1387,7 @@ async function saveHHShopDien() {
             alert('Lỗi khi lưu HH SHOP ĐIỀN.');
             return;
         }
+        closeHHShopDrawer();
         await fetchHHShopDienData();
     } catch (error) {
         console.error(error);
@@ -1554,14 +1592,21 @@ function openDetailDrawer(originalIndex) {
     renderEditTrangThaiButtons(item.trang_thai || '');
     document.getElementById('editGhiChu').value = item.ghi_chu || '';
 
-    ['editSoLuong', 'editDonGia', 'editIdSP', 'editIdSPCT', 'editGhiChu'].forEach(id => {
+    ['editSoLuong', 'editDonGia', 'editIdSP', 'editIdSPCT'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = isKinhDoanh;
     });
+    const ghiChuEl = document.getElementById('editGhiChu');
+    if (ghiChuEl) ghiChuEl.disabled = false; // KINHDOANH luôn được sửa ghi chú
+
     const ttButtons = document.getElementById('editTrangThaiButtons');
     if (ttButtons) ttButtons.style.pointerEvents = isKinhDoanh ? 'none' : '';
+
     const footer = document.querySelector('#detailDrawer .pt-4.border-t.border-slate-200.flex.gap-3');
     if (footer) footer.style.display = isKinhDoanh ? 'none' : '';
+
+    const kdFooter = document.getElementById('kdGhiChuFooter');
+    if (kdFooter) kdFooter.classList.toggle('hidden', !isKinhDoanh);
 
     handleIdSPChange();
     handleIdSPCTChange();
@@ -1572,6 +1617,38 @@ function openDetailDrawer(originalIndex) {
 
     document.getElementById('detailDrawerOverlay').classList.remove('hidden');
     document.getElementById('detailDrawer').classList.add('open');
+}
+
+async function saveKDGhiChu() {
+    if (currentEditRowIndex === -1) return;
+    const item = udctData[currentEditRowIndex];
+    if (!item) return;
+    const newGhiChu = document.getElementById('editGhiChu').value;
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+    try {
+        const token = await getAccessToken();
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchUpdate`;
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                valueInputOption: 'USER_ENTERED',
+                data: [{ range: `${CONFIG.udctSheetName}!AA${item.rowIndex}`, values: [[newGhiChu]] }]
+            })
+        });
+        if (resp.ok) {
+            item.ghi_chu = newGhiChu;
+            renderUDCTTable();
+            closeDetailDrawer();
+        } else {
+            alert('Lỗi khi lưu ghi chú.');
+        }
+    } catch (err) {
+        alert('Lỗi: ' + err.message);
+    } finally {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    }
 }
 
 function closeDetailDrawer() {
@@ -1688,14 +1765,32 @@ async function saveRowDetail(showLoading = false) {
 function handleIdSPChange() {
     const idSpVal = document.getElementById('editIdSP').value.trim();
     const idSpCtList = document.getElementById('idSpCtList');
+    const buttonContainer = document.getElementById('editIdSPCTButtons');
     if (!idSpCtList) return;
 
     let filteredMã = sanphamData.map(sp => sp.sku_con || '');
     if (idSpVal) {
-        filteredMã = filteredMã.filter(ma => ma.startsWith(idSpVal));
+        const searchVal = idSpVal.toLowerCase();
+        filteredMã = filteredMã.filter(ma => (ma || '').toString().toLowerCase().startsWith(searchVal));
     }
     const uniqueMã = [...new Set(filteredMã)].filter(Boolean);
+
+    // Update Datalist
     idSpCtList.innerHTML = uniqueMã.map(ma => `<option value="${ma}">`).join('');
+
+    // Update Buttons
+    if (buttonContainer) {
+        if (idSpVal && uniqueMã.length > 0) {
+            buttonContainer.innerHTML = uniqueMã.slice(0, 15).map(ma => `
+                <button onclick="selectIdSPCTSuggestion('${ma}')" 
+                        class="px-2 py-1 bg-blue-50 text-[10px] font-bold text-blue-600 rounded border border-blue-100 hover:bg-blue-100 transition-all">
+                    ${ma}
+                </button>
+            `).join('');
+        } else {
+            buttonContainer.innerHTML = '';
+        }
+    }
 
     // Clear current ID SP CT if it doesn't match the new prefix
     const currentCt = document.getElementById('editIdSPCT').value.trim();
@@ -1705,11 +1800,20 @@ function handleIdSPChange() {
     }
 }
 
+function selectIdSPCTSuggestion(val) {
+    const input = document.getElementById('editIdSPCT');
+    if (input) {
+        input.value = val;
+        handleIdSPCTChange();
+        if (typeof scheduleUDCTAutoSave === 'function') scheduleUDCTAutoSave();
+    }
+}
+
 function handleIdSPCTChange() {
-    const currentCt = document.getElementById('editIdSPCT').value.trim();
+    const currentCt = document.getElementById('editIdSPCT').value.trim().toLowerCase();
     if (!currentCt) return;
 
-    const sp = sanphamData.find(item => (item.sku_con || '').toString() === currentCt);
+    const sp = sanphamData.find(item => (item.sku_con || '').toString().toLowerCase() === currentCt);
     if (sp) {
         document.getElementById('drawerTenSP').textContent = sp.ten_sp || 'N/A';
     }
@@ -2030,28 +2134,7 @@ function normalizeSanLabel(v) {
         .trim();
 }
 
-function getUDCTBaseFilteredForStatusCounts() {
-    const from = document.getElementById('filterUDCTFrom')?.value || '';
-    const to = document.getElementById('filterUDCTTo')?.value || '';
-    const search = (document.getElementById('filterUDCTSearch')?.value || '').toLowerCase();
 
-    return udctData.filter(item => {
-        const rawDate = item.ngay ? item.ngay.split(' ')[0] : '';
-        let itemDate = rawDate;
-        if (rawDate.includes('/')) {
-            const [d, m, y] = rawDate.split('/');
-            itemDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-        }
-        if (from && itemDate < from) return false;
-        if (to && itemDate > to) return false;
-        if (search) {
-            const searchTerms = search.split(',').map(s => s.trim()).filter(Boolean);
-            const rowText = `${item.mvd} ${item.mdh} ${item.ten_sp} ${item.id_sp_ct}`.toLowerCase();
-            if (!searchTerms.some(term => rowText.includes(term))) return false;
-        }
-        return true;
-    });
-}
 
 function populateUDCTFilters() {
     const sans = [...new Set(udctData.map(i => normalizeSanLabel(i.san)))].filter(Boolean).sort();
@@ -2061,6 +2144,8 @@ function populateUDCTFilters() {
         return numA - numB;
     });
     const maGians = [...new Set(udctData.map(i => i.ma_gian))].filter(Boolean).sort();
+    const idSps = [...new Set(udctData.map(i => i.id_sp))].filter(Boolean).sort();
+    const idSpCts = [...new Set(udctData.map(i => i.id_sp_ct))].filter(Boolean).sort();
 
     const khSelection = document.getElementById('filterUDCTKhungH')?.value || '';
     const mgSelection = document.getElementById('filterUDCTMaGian')?.value || '';
@@ -2149,6 +2234,28 @@ function populateUDCTFilters() {
     if (mgList) {
         mgList.innerHTML = maGians.map(v => `<option value="${v}">`).join('');
     }
+    const idSpList = document.getElementById('udctIdSpList');
+    if (idSpList) {
+        idSpList.innerHTML = idSps.map(v => `<option value="${v}">`).join('');
+    }
+    const idSpCtList = document.getElementById('udctIdSpCtList');
+    if (idSpCtList) {
+        idSpCtList.innerHTML = idSpCts.map(v => `<option value="${v}">`).join('');
+    }
+
+    // Update Tab Badges
+    const counts = {
+        duplicate: 0,
+        notes: commonFiltered.filter(i => (i.ghi_chu || '').toString().trim()).length,
+        noSku: commonFiltered.filter(i => !(i.id_sp_ct || '').toString().trim()).length
+    };
+    const mvdCounts = {};
+    commonFiltered.forEach(i => { if (i.mvd && i.mvd !== '-') mvdCounts[i.mvd] = (mvdCounts[i.mvd] || 0) + 1; });
+    counts.duplicate = commonFiltered.filter(i => i.mvd && i.mvd !== '-' && mvdCounts[i.mvd] > 1).length;
+
+    if (document.getElementById('udctDuplicateCountBadge')) document.getElementById('udctDuplicateCountBadge').textContent = counts.duplicate;
+    if (document.getElementById('udctNotesCountBadge')) document.getElementById('udctNotesCountBadge').textContent = counts.notes;
+    if (document.getElementById('udctNoSkuCountBadge')) document.getElementById('udctNoSkuCountBadge').textContent = counts.noSku;
 }
 
 function setUDCTBtnFilter(id, val) {
@@ -2218,12 +2325,67 @@ function normalizeTrangThai(v) {
     return (v || '').toString().trim().toUpperCase();
 }
 
+async function saveUDCTMainInline(rowIndex, field, value) {
+    const item = udctData.find(i => Number(i.rowIndex) === Number(rowIndex));
+    if (!item) return;
+
+    // Chuẩn hóa giá trị
+    const val = value.trim();
+    item[field] = val;
+
+    try {
+        const token = await getAccessToken();
+        const updates = [];
+
+        if (field === 'id_sp_ct') {
+            // Cập nhật mã (Cột Q - Index 16)
+            updates.push({
+                range: `${CONFIG.udctSheetName}!Q${rowIndex}`,
+                values: [[val]]
+            });
+
+            // Tìm thông tin sản phẩm để cập nhật nốt Tên và Giá
+            if (sanphamData && sanphamData.length > 0) {
+                const sp = sanphamData.find(s => (s.sku_con || '').toString().toLowerCase() === val.toLowerCase());
+                if (sp) {
+                    item.ten_sp = sp.ten_sp;
+                    item.id_sp = (sp.sku_con || '').substring(0, 4); // Cập nhật cả ID SP (Cột P)
+                    item.don_gia_1 = sp.gia_ban;
+
+                    updates.push({ range: `${CONFIG.udctSheetName}!R${rowIndex}`, values: [[item.ten_sp]] });
+                    updates.push({ range: `${CONFIG.udctSheetName}!P${rowIndex}`, values: [[item.id_sp]] });
+                    updates.push({ range: `${CONFIG.udctSheetName}!AE${rowIndex}`, values: [[item.don_gia_1]] });
+                }
+            }
+        }
+
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchUpdate`;
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: updates })
+        });
+
+        if (resp.ok) {
+            renderUDCTTable();
+        } else {
+            console.error("Save Main Inline Error:", await resp.text());
+            alert('Lỗi khi lưu dữ liệu trực tiếp.');
+        }
+    } catch (err) {
+        console.error("Save Main Inline Exception:", err);
+        alert('Có lỗi khi lưu: ' + err.message);
+    }
+}
+
 function getUDCTBaseFilteredForStatusCounts() {
     const from = document.getElementById('filterUDCTFrom')?.value || '';
     const to = document.getElementById('filterUDCTTo')?.value || '';
     const san = document.getElementById('filterUDCTSan')?.value || '';
     const kh = document.getElementById('filterUDCTKhungH')?.value || '';
     const mg = document.getElementById('filterUDCTMaGian')?.value || '';
+    const idSp = document.getElementById('filterUDCTIdSp')?.value || '';
+    const idSpCt = document.getElementById('filterUDCTIdSpCt')?.value || '';
     const search = (document.getElementById('filterUDCTSearch')?.value || '').toLowerCase();
 
     return udctData.filter(item => {
@@ -2238,6 +2400,8 @@ function getUDCTBaseFilteredForStatusCounts() {
         if (san && normalizeSanLabel(item.san) !== san) return false;
         if (kh && item.khung_h !== kh) return false;
         if (mg && item.ma_gian !== mg) return false;
+        if (idSp && item.id_sp !== idSp) return false;
+        if (idSpCt && item.id_sp_ct !== idSpCt) return false;
         if (udctQuickStatusTab === 'cancelled') {
             if (!(item.trang_thai || '').toLowerCase().includes('hủy') && !(item.tinh_trang || '').toLowerCase().includes('hủy')) {
                 return false;
@@ -2257,32 +2421,22 @@ function getUDCTBaseFilteredForStatusCounts() {
 
 function setUDCTQuickTab(tab) {
     udctQuickStatusTab = tab;
-    const tabAll = document.getElementById('udctTabAll');
-    const tabCancelled = document.getElementById('udctTabCancelled');
-    const tabDuplicate = document.getElementById('udctTabDuplicate');
-    const tabNotes = document.getElementById('udctTabNotes');
+    const tabs = {
+        all: document.getElementById('udctTabAll'),
+        cancelled: document.getElementById('udctTabCancelled'),
+        duplicate: document.getElementById('udctTabDuplicate'),
+        notes: document.getElementById('udctTabNotes'),
+        noSku: document.getElementById('udctTabNoSku')
+    };
 
-    if (tab === 'all') {
-        tabAll.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-primary text-primary transition-colors";
-        tabCancelled.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors";
-        tabDuplicate.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors";
-        tabNotes.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors";
-    } else if (tab === 'cancelled') {
-        tabCancelled.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-primary text-primary transition-colors";
-        tabAll.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors";
-        tabDuplicate.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors";
-        tabNotes.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors";
-    } else if (tab === 'notes') {
-        tabNotes.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-primary text-primary transition-colors";
-        tabAll.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors";
-        tabCancelled.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors";
-        tabDuplicate.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors";
-    } else {
-        tabDuplicate.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-primary text-primary transition-colors";
-        tabAll.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors";
-        tabCancelled.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors";
-        tabNotes.className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors";
-    }
+    Object.keys(tabs).forEach(k => {
+        if (!tabs[k]) return;
+        if (k === tab) {
+            tabs[k].className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-primary text-primary transition-colors";
+        } else {
+            tabs[k].className = "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors";
+        }
+    });
     filterUDCTTable();
 }
 
@@ -2335,6 +2489,8 @@ function filterUDCTTable() {
     const san = document.getElementById('filterUDCTSan').value;
     const kh = document.getElementById('filterUDCTKhungH').value;
     const mg = document.getElementById('filterUDCTMaGian').value;
+    const idSp = document.getElementById('filterUDCTIdSp')?.value || '';
+    const idSpCt = document.getElementById('filterUDCTIdSpCt')?.value || '';
     const tt = document.getElementById('filterUDCTTrangThai').value;
     const selectedStatuses = new Set((tt || '').split('||').map(normalizeTrangThai).filter(Boolean));
     const searchInput = document.getElementById('filterUDCTSearch');
@@ -2352,6 +2508,8 @@ function filterUDCTTable() {
         if (san && normalizeSanLabel(item.san) !== san) return false;
         if (kh && item.khung_h !== kh) return false;
         if (mg && item.ma_gian !== mg) return false;
+        if (idSp && item.id_sp !== idSp) return false;
+        if (idSpCt && item.id_sp_ct !== idSpCt) return false;
         if (selectedStatuses.size > 0 && !selectedStatuses.has(normalizeTrangThai(item.trang_thai))) return false;
 
         if (search) {
@@ -2367,7 +2525,15 @@ function filterUDCTTable() {
         ? base.filter(item => (item.trang_thai || '').toLowerCase().includes('hủy') || (item.tinh_trang || '').toLowerCase().includes('hủy'))
         : udctQuickStatusTab === 'notes'
             ? base.filter(item => (item.ghi_chu || '').toString().trim())
-            : base;
+            : udctQuickStatusTab === 'noSku'
+                ? base.filter(item => !(item.id_sp_ct || '').toString().trim())
+                : udctQuickStatusTab === 'duplicate'
+                    ? (() => {
+                        const mvdCounts = {};
+                        base.forEach(i => { if (i.mvd && i.mvd !== '-') mvdCounts[i.mvd] = (mvdCounts[i.mvd] || 0) + 1; });
+                        return base.filter(i => i.mvd && i.mvd !== '-' && mvdCounts[i.mvd] > 1);
+                    })()
+                    : base;
 
     // Cập nhật badge Tổng dòng và Unique MVD
     const totalRowsBadge = document.getElementById('udctTotalRowsBadge');
@@ -2468,9 +2634,7 @@ function renderUDCTTable() {
 
     tbody.innerHTML = pageData.map((item) => `
                 <tr ondblclick="openDetailDrawer(${udctData.indexOf(item)})" class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer group">
-                    <td class="px-2 py-2 text-center">
-                        <input type="checkbox" ${udctSelectedRows.has(item.rowIndex) ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleUDCTRowSelection(${item.rowIndex}, this.checked)" class="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/30 cursor-pointer">
-                    </td>
+
                     <td class="px-3 py-2 text-[13px] text-slate-900">${item.ngay || '-'}</td>
                     <td class="px-3 py-2 text-[13px] text-slate-900">${item.san || '-'}</td>
                     <td class="px-3 py-2 text-[13px] text-slate-900">${item.khung_h || '-'}</td>
@@ -2485,7 +2649,25 @@ function renderUDCTTable() {
                     <td class="px-3 py-2 text-[13px] text-slate-500 font-mono">${item.sku_shop_up || '-'}</td>
                     <td class="px-3 py-2 text-[13px] text-slate-900">${item.so_luong || '-'}</td>
                     <td class="px-3 py-2 text-[13px] text-slate-500">${item.id_sp || '-'}</td>
-                    <td class="px-3 py-2 text-[13px] text-slate-500">${item.id_sp_ct || '-'}</td>
+                    <td class="px-3 py-2 text-[13px] text-slate-500 hover:bg-white transition-colors" onclick="event.stopPropagation()">
+                        <input type="text" value="${item.id_sp_ct || ''}" 
+                               onchange="saveUDCTMainInline('${item.rowIndex}', 'id_sp_ct', this.value)"
+                               class="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded px-1 outline-none font-bold text-blue-600 h-8">
+                        ${(() => {
+            const idSp = item.id_sp || '';
+            const isMissing = !item.id_sp_ct || item.id_sp_ct === '-' || item.id_sp_ct === '';
+            if (!isMissing || !idSp || !sanphamData) return '';
+            const matches = sanphamData.filter(s =>
+                (s.sku_con || '').toString().startsWith(idSp) &&
+                (s.sku_con || '').toString().length > 5
+            ).slice(0, 3);
+            return matches.length > 0 ? `
+                                <div class="flex flex-wrap gap-1 mt-1">
+                                    ${matches.map(m => `<button onclick="saveUDCTMainInline('${item.rowIndex}', 'id_sp_ct', '${m.sku_con}')" class="px-1.5 py-0.5 bg-blue-50 text-[9px] font-bold text-blue-600 rounded border border-blue-100 hover:bg-blue-100 transition-all whitespace-nowrap">${m.sku_con}</button>`).join('')}
+                                </div>
+                            ` : '';
+        })()}
+                    </td>
                     <td class="px-3 py-2 text-[13px] text-slate-900 max-w-[6rem] truncate">${item.ten_sp || '-'}</td>
                     <td class="px-3 py-2 text-[13px] text-slate-900 font-semibold">${item.slg_xuat || '-'}</td>
                     <td class="px-3 py-2 text-[13px] text-slate-900">${parseFloat(item.don_gia_1 || 0).toLocaleString('vi-VN')}</td>
@@ -2512,10 +2694,7 @@ function renderUDCTTable() {
                     </td>`}
                 </tr>
             `).join('');
-    const selectAll = document.getElementById('udctSelectAll');
-    if (selectAll) {
-        selectAll.checked = pageData.length > 0 && pageData.every(item => udctSelectedRows.has(item.rowIndex));
-    }
+
 }
 
 function copyUniqueMVD() {
@@ -4069,6 +4248,7 @@ function renderUniqueDHCTTable() {
 
     sortedList.forEach(item => {
         const key = `${item.ngay}|${item.truong}|${item.ncc}`;
+        const isKinhDoanh = currentUser && currentUser.role === 'kinhdoanh';
         if (item.ngay !== currentDate) {
             const countForDate = sortedList.filter(x => x.ngay === item.ngay).length;
             html += `
@@ -4094,7 +4274,7 @@ function renderUniqueDHCTTable() {
                 <td class="px-3 py-2.5 font-bold uppercase leading-tight text-[10px] w-20">${item.truong}</td>
                 <td class="px-3 py-2.5 uppercase leading-tight text-[10px] font-medium flex items-center justify-between">
                     <span>${item.ncc}</span>
-                    ${(isNotToday && !existsToday) ? `
+                    ${(isNotToday && !existsToday && !isKinhDoanh) ? `
                     <button onclick="event.stopPropagation(); copyDHCTGroup('${key.replace(/'/g, "\\'")}')" 
                             class="p-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors opacity-0 group-hover:opacity-100" 
                             title="Copy sang hôm nay">
@@ -4175,6 +4355,38 @@ async function copyDHCTGroup(key) {
     }
 }
 
+function getTopUDCTIdSpCts() {
+    if (!dhctData) return [];
+    const counts = {};
+    dhctData.forEach(item => {
+        const id = (item.id_sp_ct || '').toString().trim();
+        if (id) counts[id] = (counts[id] || 0) + 1;
+    });
+    return Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(e => e[0]);
+}
+
+function quickFillIdSpCt(id) {
+    const input = document.getElementById('row_add_id_sp_ct');
+    if (input) {
+        input.value = id;
+        // Tự động tìm thông tin sản phẩm và điền nốt các cột khác
+        if (dsSpCtData && dsSpCtData.length > 0) {
+            const searchId = id.toString().trim().toLowerCase();
+            const match = dsSpCtData.find(m => (m.id_sp_ct || '').toString().trim().toLowerCase() === searchId);
+            if (match) {
+                selectSpCtSuggestion(match.id_sp_ct, (match.ten || '').replace(/'/g, "\\'"), match.gia_nhap || 0);
+            } else {
+                handleIdSpCtInput(input, 'row_add');
+            }
+        } else {
+            handleIdSpCtInput(input, 'row_add');
+        }
+    }
+}
+
 function selectUDCTMasterRow(key) {
     currentUDCTMasterKey = key;
 
@@ -4202,6 +4414,7 @@ function renderUDCTSubDetails(ngay, truong, ncc) {
         (item.truong || '').toString().trim() === truong &&
         (item.ncc || '').toString().trim() === ncc
     );
+    const isKinhDoanh = currentUser && currentUser.role === 'kinhdoanh';
 
     let html = '';
 
@@ -4216,40 +4429,46 @@ function renderUDCTSubDetails(ngay, truong, ncc) {
             <tr data-id="${item.id_dh_ct}" 
                 class="border-b border-slate-100 hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50' : ''}">
                 <td class="p-0 text-center">
-                    <button onclick="toggleUDCTRowKho('${item.id_dh_ct}', '${item.kho || 'KHO'}')"
+                    <button onclick="${isKinhDoanh ? '' : `toggleUDCTRowKho('${item.id_dh_ct}', '${item.kho || 'KHO'}')`}"
+                            ${isKinhDoanh ? 'style="pointer-events:none"' : ''}
                             class="w-11 h-7 text-[9px] font-bold rounded border-none transition-all ${(item.kho || 'KHO') === 'BH' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}">
                         ${item.kho || 'KHO'}
                     </button>
                 </td>
                 <td class="p-0 w-24">
                     <input type="text" value="${item.id_sp_ct || ''}" 
+                           ${isKinhDoanh ? 'disabled' : ''}
                            oninput="handleIdSpCtInput(this, 'row')"
                            onchange="saveUDCTRowInline('${item.id_dh_ct}', 'id_sp_ct', this.value)"
                            autocomplete="off"
-                           class="w-full h-10 px-2 bg-transparent text-[11px] font-bold text-slate-900 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded uppercase">
+                           class="w-full h-10 px-2 bg-transparent text-[11px] font-bold text-slate-900 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded uppercase disabled:opacity-80">
                 </td>
                 <td class="p-0">
                     <input type="text" value="${item.ten || ''}" 
+                           ${isKinhDoanh ? 'disabled' : ''}
                            onchange="saveUDCTRowInline('${item.id_dh_ct}', 'ten', this.value)"
-                           class="w-full h-10 px-2 bg-transparent text-[11px] text-slate-600 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded">
+                           class="w-full h-10 px-2 bg-transparent text-[11px] text-slate-600 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded disabled:opacity-80">
                 </td>
                 <td class="p-0 w-20">
                     <input type="number" value="${sl}" 
+                           ${isKinhDoanh ? 'disabled' : ''}
                            onchange="saveUDCTRowInline('${item.id_dh_ct}', 'so_luong', this.value)"
-                           class="w-full h-10 px-2 bg-transparent text-[11px] font-bold text-slate-900 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded text-right">
+                           class="w-full h-10 px-2 bg-transparent text-[11px] font-bold text-slate-900 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded text-right disabled:opacity-80">
                 </td>
                 <td class="p-0 w-24">
                     <input type="number" value="${gia}" 
+                           ${isKinhDoanh ? 'disabled' : ''}
                            onchange="saveUDCTRowInline('${item.id_dh_ct}', 'gia_nhap', this.value)"
-                           class="w-full h-10 px-2 bg-transparent text-[11px] text-slate-600 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded text-right">
+                           class="w-full h-10 px-2 bg-transparent text-[11px] text-slate-600 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded text-right disabled:opacity-80">
                 </td>
                 <td class="px-2 py-2.5 text-right font-bold text-rose-600 text-[11px] w-32 relative">
                     <div class="flex items-center justify-end gap-2">
                         <span>${thanhTien.toLocaleString()}</span>
+                        ${isKinhDoanh ? '' : `
                         <button onclick="event.stopPropagation(); currentUDCTSelectedItem = dhctData.find(x => x.id_dh_ct === '${item.id_dh_ct}'); deleteUDCTDetail()" 
                                 class="text-rose-400 hover:text-rose-600 p-1 transition-all" title="Xóa dòng này">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
+                        </button>`}
                     </div>
                 </td>
             </tr>
@@ -4257,40 +4476,50 @@ function renderUDCTSubDetails(ngay, truong, ncc) {
     });
 
     // Persistent "Add New" row
-    html += `
-        <tr class="bg-blue-50/20 hover:bg-blue-50 transition-colors border-t border-dashed border-blue-300">
-            <td class="p-0 text-center">
-                <button id="row_add_kho_btn" onclick="this.textContent = (this.textContent.trim() === 'KHO' ? 'BH' : 'KHO'); this.classList.toggle('bg-amber-100'); this.classList.toggle('text-amber-700'); this.classList.toggle('bg-blue-100'); this.classList.toggle('text-blue-700');" 
-                        class="w-11 h-8 text-[9px] font-bold rounded bg-blue-100 text-blue-700 transition-all">
-                    KHO
-                </button>
-            </td>
-            <td class="p-0 w-24">
-                <input type="text" id="row_add_id_sp_ct" placeholder="Nhập mã sp..." 
-                    oninput="handleIdSpCtInput(this, 'row_add')"
-                    onkeydown="if(event.key==='Enter') saveUDCTRowNew()"
-                    autocomplete="off"
-                    class="w-full h-11 px-2 bg-transparent text-[11px] font-bold text-blue-600 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded uppercase placeholder:text-blue-300">
-            </td>
-            <td class="p-0">
-                <input type="text" id="row_add_ten" placeholder="Tên sản phẩm..."
-                    onkeydown="if(event.key==='Enter') saveUDCTRowNew()"
-                    class="w-full h-11 px-2 bg-transparent text-[11px] text-slate-500 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded">
-            </td>
-            <td class="p-0">
-                <input type="number" id="row_add_sl" value="1"
-                    onkeydown="if(event.key==='Enter') saveUDCTRowNew()"
-                    class="w-full h-11 px-2 bg-transparent text-[11px] font-bold text-slate-900 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded text-right">
-            </td>
-            <td class="p-0">
-                <input type="number" id="row_add_gia_nhap" value="0"
-                    onkeydown="if(event.key==='Enter') saveUDCTRowNew()"
-                    class="w-full h-11 px-2 bg-transparent text-[11px] text-slate-600 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded text-right">
-            </td>
-            <td class="p-0 text-center">
-            </td>
-        </tr>
-    `;
+    if (!isKinhDoanh) {
+        html += `
+            <tr class="bg-blue-50/20 hover:bg-blue-50 transition-colors border-t border-dashed border-blue-300">
+                <td class="p-0 text-center">
+                    <button id="row_add_kho_btn" onclick="this.textContent = (this.textContent.trim() === 'KHO' ? 'BH' : 'KHO'); this.classList.toggle('bg-amber-100'); this.classList.toggle('text-amber-700'); this.classList.toggle('bg-blue-100'); this.classList.toggle('text-blue-700');" 
+                            class="w-11 h-8 text-[9px] font-bold rounded bg-blue-100 text-blue-700 transition-all">
+                        KHO
+                    </button>
+                </td>
+                <td class="p-0 w-24 align-top">
+                    <input type="text" id="row_add_id_sp_ct" placeholder="Nhập mã sp..." 
+                        oninput="handleIdSpCtInput(this, 'row_add')"
+                        onkeydown="if(event.key==='Enter') saveUDCTRowNew()"
+                        autocomplete="off"
+                        class="w-full h-11 px-2 bg-transparent text-[11px] font-bold text-blue-600 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded uppercase placeholder:text-blue-300">
+                    <div class="flex flex-wrap gap-1 px-1 pb-1 overflow-x-auto max-h-20 no-scrollbar">
+                        ${getTopUDCTIdSpCts().map(id => `
+                            <button onclick="quickFillIdSpCt('${id}')" 
+                                    class="px-1.5 py-0.5 whitespace-nowrap bg-blue-50 text-[9px] font-bold text-blue-600 rounded border border-blue-100 hover:bg-blue-100 transition-colors">
+                                ${id}
+                            </button>
+                        `).join('')}
+                    </div>
+                </td>
+                <td class="p-0">
+                    <input type="text" id="row_add_ten" placeholder="Tên sản phẩm..."
+                        onkeydown="if(event.key==='Enter') saveUDCTRowNew()"
+                        class="w-full h-11 px-2 bg-transparent text-[11px] text-slate-500 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded">
+                </td>
+                <td class="p-0">
+                    <input type="number" id="row_add_sl" value="1"
+                        onkeydown="if(event.key==='Enter') saveUDCTRowNew()"
+                        class="w-full h-11 px-2 bg-transparent text-[11px] font-bold text-slate-900 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded text-right">
+                </td>
+                <td class="p-0">
+                    <input type="number" id="row_add_gia_nhap" value="0"
+                        onkeydown="if(event.key==='Enter') saveUDCTRowNew()"
+                        class="w-full h-11 px-2 bg-transparent text-[11px] text-slate-600 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded text-right">
+                </td>
+                <td class="p-0 text-center">
+                </td>
+            </tr>
+        `;
+    }
     tbody.innerHTML = html;
 }
 
@@ -4799,7 +5028,7 @@ function applyRoleUI(role) {
         }
     });
 
-    document.querySelectorAll("button[onclick='updateAllPricesBatch()']").forEach(b => {
+    document.querySelectorAll("button[onclick='updateAllPricesBatch()'], button[onclick^='batchUpdateUDCTStatus']").forEach(b => {
         b.style.display = isRestricted ? 'none' : '';
     });
 
@@ -4819,6 +5048,10 @@ function applyRoleUI(role) {
 
     const donhangRefreshBtn = document.querySelector("button[onclick='loadUDCTData()']");
     if (donhangRefreshBtn) donhangRefreshBtn.style.display = isRestricted ? 'none' : '';
+
+    // Hide Add DH button in moduleUniqueDHCT
+    const addUniqueDHBtn = document.querySelector("button[onclick='openAddDHCTModal()']");
+    if (addUniqueDHBtn) addUniqueDHBtn.style.display = isKinhDoanh ? 'none' : '';
 }
 
 async function handleLogin() {
