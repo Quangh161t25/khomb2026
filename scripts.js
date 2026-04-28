@@ -365,6 +365,34 @@ async function scanQrToInput(inputId) {
     }
 }
 
+function handleHhMvdInputChange(val) {
+    const noticeEl = document.getElementById('hhMvdDuplicateNotice');
+    if (!noticeEl) return;
+    const mvd = (val || '').toString().trim();
+    if (!mvd) {
+        noticeEl.classList.add('hidden');
+        return;
+    }
+    // Tìm trong dữ liệu hàng hoàn hiện có (loại trừ chính nó nếu đang edit)
+    const duplicate = hangHoanData.find(item => {
+        const isDuplicateMvd = (item.mvd || '').toString().trim() === mvd || (item.mvd_2 || '').toString().trim() === mvd;
+        if (!isDuplicateMvd) return false;
+
+        if (hhDrawerMode === 'edit' && currentHangHoanEditIndex !== -1) {
+            const currentItem = hangHoanData[currentHangHoanEditIndex];
+            return item !== currentItem;
+        }
+        return true;
+    });
+
+    if (duplicate) {
+        noticeEl.textContent = `⚠️ MVD điền vào ngày ${duplicate.ngay_nhan || '?'}`;
+        noticeEl.classList.remove('hidden');
+    } else {
+        noticeEl.classList.add('hidden');
+    }
+}
+
 async function scanQrForHhMvd() {
     await scanQrToInput('hhEditMVD');
 }
@@ -697,6 +725,8 @@ function openHhDetail(index) {
     populateHhFormOptions();
     renderHhKhoButtons(item.kho || 'KHO');
     refreshHhImagePreviews();
+    const noticeEl = document.getElementById('hhMvdDuplicateNotice');
+    if (noticeEl) noticeEl.classList.add('hidden');
     ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = isKinhDoanh;
@@ -733,6 +763,8 @@ function openNewHangHoanDrawer() {
     populateHhFormOptions();
     renderHhKhoButtons('KHO');
     refreshHhImagePreviews();
+    const noticeEl = document.getElementById('hhMvdDuplicateNotice');
+    if (noticeEl) noticeEl.classList.add('hidden');
     ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = false;
@@ -797,10 +829,7 @@ async function saveHhDetail() {
             alert('SKU không tồn tại trong DS_SP_CT (cột id_sp).');
             return;
         }
-        if (!newData.sku && !newData.sku_ct && !newData.ten_sp) {
-            alert('Vui lòng nhập ít nhất SKU, SKU CT hoặc Tên SP.');
-            return;
-        }
+        // Bỏ chặn lưu khi thiếu SKU/SKU_CT theo yêu cầu người dùng
         if (isCreateMode) {
             const today = new Date().toISOString().split('T')[0];
             const mvd = (newData.mvd || '').trim();
