@@ -2661,11 +2661,7 @@ function renderUDCTTable() {
                 (s.sku_con || '').toString().startsWith(idSp) &&
                 (s.sku_con || '').toString().length > 5
             ).slice(0, 3);
-            return matches.length > 0 ? `
-                                <div class="flex flex-wrap gap-1 mt-1">
-                                    ${matches.map(m => `<button onclick="saveUDCTMainInline('${item.rowIndex}', 'id_sp_ct', '${m.sku_con}')" class="px-1.5 py-0.5 bg-blue-50 text-[9px] font-bold text-blue-600 rounded border border-blue-100 hover:bg-blue-100 transition-all whitespace-nowrap">${m.sku_con}</button>`).join('')}
-                                </div>
-                            ` : '';
+            return ''; // Bỏ gợi ý
         })()}
                     </td>
                     <td class="px-3 py-2 text-[13px] text-slate-900 max-w-[6rem] truncate">${item.ten_sp || '-'}</td>
@@ -4492,12 +4488,6 @@ function renderUDCTSubDetails(ngay, truong, ncc) {
                         autocomplete="off"
                         class="w-full h-11 px-2 bg-transparent text-[11px] font-bold text-blue-600 border-none outline-none focus:ring-1 focus:ring-blue-400 rounded uppercase placeholder:text-blue-300">
                     <div class="flex flex-wrap gap-1 px-1 pb-1 overflow-x-auto max-h-20 no-scrollbar">
-                        ${getTopUDCTIdSpCts().map(id => `
-                            <button onclick="quickFillIdSpCt('${id}')" 
-                                    class="px-1.5 py-0.5 whitespace-nowrap bg-blue-50 text-[9px] font-bold text-blue-600 rounded border border-blue-100 hover:bg-blue-100 transition-colors">
-                                ${id}
-                            </button>
-                        `).join('')}
                     </div>
                 </td>
                 <td class="p-0">
@@ -4574,6 +4564,154 @@ async function saveUDCTRowNew() {
     } finally {
         if (loadingOverlay) loadingOverlay.classList.add('hidden');
     }
+}
+
+async function handleExcelUploadUniqueDHCT(files) {
+    if (currentUser && currentUser.role === 'kinhdoanh') {
+        alert('Tài khoản KINHDOANH không được phép tải Excel.');
+        return;
+    }
+    if (!files || files.length === 0) return;
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+    try {
+        const file = files[0];
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data);
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const excelData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "" });
+
+        if (!excelData || excelData.length < 2) {
+            alert("File không có dữ liệu!");
+            return;
+        }
+
+        const headers = excelData[0].map(h => (h || '').toString().toLowerCase().trim());
+        const findCol = (names) => headers.findIndex(h => names.some(n => h.includes(n)));
+
+        const colIdx = {
+            ngay: findCol(['ngay', 'ngày', 'date']),
+            truong: findCol(['truong', 'trường', 'platform']),
+            ncc: findCol(['ncc', 'nha cung cap', 'nhà cung cấp']),
+            kho: findCol(['kho', 'warehouse']),
+            id_sp_ct: findCol(['id_sp_ct', 'sku', 'mã sp', 'ma sp']),
+            ten: findCol(['ten', 'tên', 'product', 'tên sản phẩm']),
+            sl: findCol(['so_luong', 'sl', 'số lượng', 'quantity']),
+            gia: findCol(['gia_nhap', 'gia', 'giá', 'giá nhập']),
+            ghi_chu: findCol(['ghi_chu', 'ghi chú', 'note'])
+        };
+
+        const rows = excelData.slice(1);
+        const appendValues = [];
+        const now = Date.now();
+
+        let defNgay = '', defTruong = '', defNcc = '';
+        if (currentUDCTMasterKey) {
+            const parts = currentUDCTMasterKey.split('|');
+            defNgay = parts[0];
+            defTruong = parts[1];
+            defNcc = parts[2];
+        } else {
+            const d = new Date();
+            defNgay = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+        }
+
+        rows.forEach((row, idx) => {
+            const id_sp_ct = colIdx.id_sp_ct !== -1 ? (row[colIdx.id_sp_ct] || '').toString().trim() : '';
+            if (!id_sp_ct) return;
+
+            let ngay = colIdx.ngay !== -1 && row[colIdx.ngay] ? (row[colIdx.ngay] || '').toString().trim() : defNgay;
+            if (ngay.includes('-')) {
+                const ps = ngay.split('-');
+                if (ps.length === 3 && ps[0].length === 4) ngay = `${ps[2]}/${ps[1]}/${ps[0]}`;
+            }
+
+            const truong = colIdx.truong !== -1 && row[colIdx.truong] ? (row[colIdx.truong] || '').toString().trim() : defTruong;
+            const ncc = colIdx.ncc !== -1 && row[colIdx.ncc] ? (row[colIdx.ncc] || '').toString().trim() : defNcc;
+
+            if (!truong || !ncc) return;
+
+            const kho = colIdx.kho !== -1 && row[colIdx.kho] ? (row[colIdx.kho] || '').toString().trim() : 'KHO';
+            let ten = colIdx.ten !== -1 ? (row[colIdx.ten] || '').toString().trim() : '';
+            const sl = colIdx.sl !== -1 ? parseFloat(row[colIdx.sl]) || 0 : 1;
+            let gia = colIdx.gia !== -1 ? parseFloat(row[colIdx.gia]) || 0 : 0;
+            const ghi_chu = colIdx.ghi_chu !== -1 ? (row[colIdx.ghi_chu] || '').toString().trim() : '';
+
+            // Auto-fill Product Info if missing
+            if (dsSpCtData && (!ten || !gia)) {
+                const sp = dsSpCtData.find(s => (s.id_sp_ct || '').toLowerCase() === id_sp_ct.toLowerCase());
+                if (sp) {
+                    if (!ten) ten = sp.ten || '';
+                    if (!gia) gia = parseFloat(sp.gia_nhap) || 0;
+                }
+            }
+
+            const id_dh_ct = 'CT-' + (now + idx).toString().slice(-6);
+            const id_dh = 'DH-' + (now + idx).toString().slice(-4);
+
+            appendValues.push([
+                id_dh_ct, id_dh, ngay, truong, ncc, ghi_chu, kho, id_sp_ct,
+                '', '', ten, sl, gia, sl * gia, '', ''
+            ]);
+        });
+
+        if (appendValues.length === 0) {
+            alert("Không tìm thấy dữ liệu hợp lệ (Yêu cầu ít nhất có cột SKU/ID SP CT)");
+            return;
+        }
+
+        const success = await appendSheetData(CONFIG.dhctSheetName, appendValues);
+        if (success) {
+            alert(`Đã tải lên thành công ${appendValues.length} sản phẩm!`);
+            await fetchDHCTData();
+            if (currentUDCTMasterKey) selectUDCTMasterRow(currentUDCTMasterKey);
+            else renderUniqueDHCTTable();
+        } else {
+            alert("Lỗi khi kết nối với Google Sheet.");
+        }
+    } catch (err) {
+        console.error("Excel Upload Sub-Detail Error:", err);
+        alert("Lỗi xử lý file Excel: " + err.message);
+    } finally {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+        document.getElementById('excelUploadUniqueDHCT').value = '';
+    }
+}
+
+function downloadUniqueDHCTTemplate() {
+    const headers = [['Ngày (DD/MM/YYYY)', 'Trường', 'NCC', 'Kho', 'ID SP CT', 'Số lượng', 'Giá nhập', 'Tên sản phẩm', 'Ghi chú']];
+    const ws = XLSX.utils.aoa_to_sheet(headers);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template_DHCT');
+    XLSX.writeFile(wb, 'Mau_Import_DHCT.xlsx');
+}
+
+function exportUniqueDHCTToExcel() {
+    if (!dhctData || dhctData.length === 0) return alert('Không có dữ liệu để xuất!');
+
+    // Nếu đang chọn một nhóm đơn hàng, chỉ xuất nhóm đó
+    let dataToExport = dhctData;
+    if (currentUDCTMasterKey) {
+        const parts = currentUDCTMasterKey.split('|');
+        dataToExport = dhctData.filter(item =>
+            (item.ngay || '').toString().trim().split(' ')[0] === parts[0] &&
+            (item.truong || '').toString().trim() === parts[1] &&
+            (item.ncc || '').toString().trim() === parts[2]
+        );
+    }
+
+    const headers = ['ID DH CT', 'ID DH', 'Ngày', 'Trường', 'NCC', 'Ghi chú', 'Kho', 'ID SP CT', 'Tên sản phẩm', 'Số lượng', 'Giá nhập', 'Thành tiền'];
+    const rows = dataToExport.map(item => [
+        item.id_dh_ct, item.id_dh, item.ngay, item.truong, item.ncc, item.ghi_chu,
+        item.kho, item.id_sp_ct, item.ten, item.so_luong, item.gia_nhap, (item.so_luong * item.gia_nhap)
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'DS_DHCT');
+    const fileName = currentUDCTMasterKey ? `DHCT_${currentUDCTMasterKey.replace(/\|/g, '_')}.xlsx` : `Tat_Ca_DHCT.xlsx`;
+    XLSX.writeFile(wb, fileName);
 }
 
 async function toggleUDCTRowKho(id_dh_ct, currentKho) {
