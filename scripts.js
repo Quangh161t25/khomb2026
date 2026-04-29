@@ -2614,12 +2614,18 @@ async function saveUDCTMainInline(rowIndex, field, value) {
                 const sp = sanphamData.find(s => (s.sku_con || '').toString().toLowerCase() === val.toLowerCase());
                 if (sp) {
                     item.ten_sp = sp.ten_sp;
-                    item.id_sp = (sp.sku_con || '').substring(0, 4); // Cập nhật cả ID SP (Cột P)
-                    item.don_gia_1 = sp.gia_ban;
+                    item.id_sp = (sp.sku_con || '').substring(0, 4);
+                    const newPrice = sp.gia_ban - sp.gia_dong_goi;
+                    item.don_gia_1 = newPrice;
 
                     updates.push({ range: `${CONFIG.udctSheetName}!R${rowIndex}`, values: [[item.ten_sp]] });
                     updates.push({ range: `${CONFIG.udctSheetName}!P${rowIndex}`, values: [[item.id_sp]] });
-                    updates.push({ range: `${CONFIG.udctSheetName}!AE${rowIndex}`, values: [[item.don_gia_1]] });
+                    updates.push({ range: `${CONFIG.udctSheetName}!AE${rowIndex}`, values: [[newPrice]] });
+
+                    if (!(item.trang_thai || '').toLowerCase().includes('hủy')) {
+                        item.slg_xuat = item.so_luong;
+                        updates.push({ range: `${CONFIG.udctSheetName}!S${rowIndex}`, values: [[item.slg_xuat]] });
+                    }
                 }
             }
         }
@@ -2925,8 +2931,18 @@ function renderUDCTTable() {
             const matches = sanphamData.filter(s =>
                 (s.sku_con || '').toString().startsWith(idSp) &&
                 (s.sku_con || '').toString().length > 5
-            ).slice(0, 3);
-            return ''; // Bỏ gợi ý
+            ).slice(0, 4);
+            if (matches.length === 0) return '';
+            return `
+                                <div class="flex flex-wrap gap-1 mt-1">
+                                    ${matches.map(m => `
+                                        <button onclick="saveUDCTMainInline('${item.rowIndex}', 'id_sp_ct', '${m.sku_con}')"
+                                                class="px-1.5 py-0.5 bg-blue-50 text-blue-600 border border-blue-200 rounded text-[10px] hover:bg-blue-100 transition-colors font-bold whitespace-nowrap">
+                                            + ${m.sku_con}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            `;
         })()}
                     </td>
                     <td class="px-3 py-2 text-[13px] text-slate-900 max-w-[6rem] truncate">${item.ten_sp || '-'}</td>
@@ -3189,7 +3205,7 @@ async function updateAllPricesBatch() {
 
 async function batchUpdateUDCTStatus(statusValue) {
     if (!filteredUDCT.length) return alert("Không có dữ liệu đang hiển thị để cập nhật.");
-    const actionName = statusValue === '2 HỦY' ? 'HỦY NHANH' : (statusValue === '4 MAI GỌI' ? 'MAI GỌI' : 'BỎ TRẠNG THÁI');
+    const actionName = statusValue === '2 HỦY' ? 'HỦY NHANH' : (statusValue === '4 MAI GỌI' ? 'MAI GỌI' : (statusValue === '3 HÊT HÀNG' ? 'HẾT HÀNG' : 'BỎ TRẠNG THÁI'));
     if (!confirm(`Bạn có chắc muốn ${actionName} toàn bộ ${filteredUDCT.length} đơn hàng đang hiển thị?`)) return;
 
     const loadingOverlay = document.getElementById('loadingOverlay');
