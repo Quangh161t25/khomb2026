@@ -5348,17 +5348,37 @@ async function fetchInventoryData() {
 
     try {
         const token = await getAccessToken();
-        // Tên sheet là TON_KHO - mảng từ A đến K (11 cột)
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${CONFIG.inventorySheetName}!A:K`;
+        const urlInventory = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${CONFIG.inventorySheetName}!A:K`;
+        const urlDHCT = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${CONFIG.dhctSheetName}!A:P`;
 
-        const response = await fetch(url, {
-            headers: { "Authorization": `Bearer ${token}` }
-        });
+        const [respInv, respDHCT] = await Promise.all([
+            fetch(urlInventory, { headers: { "Authorization": `Bearer ${token}` } }),
+            fetch(urlDHCT, { headers: { "Authorization": `Bearer ${token}` } })
+        ]);
 
-        const result = await response.json();
-        if (result.values && result.values.length > 0) {
-            // Lưu dữ liệu (bỏ dòng tiêu đề đầu tiên)
-            inventoryData = result.values.slice(1);
+        const resultInv = await respInv.json();
+        const resultDHCT = await respDHCT.json();
+
+        // Xử lý Ledger (DH_CT) - Sử dụng đúng cấu trúc chuẩn của dhctData
+        if (resultDHCT.values && resultDHCT.values.length > 0) {
+            dhctData = resultDHCT.values.slice(1).map((row, idx) => ({
+                rowIndex: idx + 2,
+                id_dh_ct: (row[0] || '').toString().trim(),
+                id_dh: row[1],
+                ngay: row[2],
+                truong: (row[3] || '').toString().trim(),
+                ncc: row[4],
+                ghi_chu: row[5],
+                kho: (row[6] || 'KHO').toString().trim(),
+                id_sp_ct: (row[7] || '').toString().trim(),
+                ten: row[10],
+                so_luong: parseFloat(row[11]) || 0,
+                gia_nhap: parseFloat(row[12]) || 0
+            }));
+        }
+
+        if (resultInv.values && resultInv.values.length > 0) {
+            inventoryData = resultInv.values.slice(1);
             inventoryCurrentPage = 1;
             filterInventory();
         } else {
@@ -5366,7 +5386,7 @@ async function fetchInventoryData() {
         }
     } catch (err) {
         console.error("Lỗi tải tồn kho:", err);
-        alert("Không thể tải dữ liệu từ sheet TON_KHO. Hãy kiểm tra tên sheet.");
+        alert("Không thể tải dữ liệu tồn kho.");
     } finally {
         loadingOverlay.classList.add('hidden');
     }
@@ -5375,6 +5395,23 @@ async function fetchInventoryData() {
 function renderInventory() {
     const tbody = document.getElementById('inventoryTableBody');
     if (!tbody) return;
+
+    // Tổng hợp Nhập/Xuất từ dhctData (Sử dụng cấu trúc so_luong chuẩn)
+    const ledgerSums = {};
+    if (dhctData && dhctData.length > 0) {
+        dhctData.forEach(item => {
+            const khoKey = (item.kho || 'KHO').trim().toUpperCase();
+            const spKey = (item.id_sp_ct || '').trim().toUpperCase();
+            const key = `${khoKey}_${spKey}`;
+            const loai = (item.truong || '').trim().toUpperCase();
+
+            if (!ledgerSums[key]) ledgerSums[key] = { nhap: 0, xuat: 0 };
+            const sl = parseFloat(item.so_luong) || 0;
+
+            if (loai === 'NHẬP') ledgerSums[key].nhap += sl;
+            else if (loai === 'XUẤT') ledgerSums[key].xuat += sl;
+        });
+    }
 
     const totalRows = filteredInventoryData.length;
     const totalPages = Math.max(1, Math.ceil(totalRows / INVENTORY_PER_PAGE));
@@ -5395,11 +5432,14 @@ function renderInventory() {
     }
 
     tbody.innerHTML = paginated.map(row => {
-        // Ánh xạ cột dựa trên cấu trúc: id(0), kho(1), id_sp_ct(2), id_sp(3), ten_sp(4), kt1(5), kt2(6), ton_dau(7), nhap(8), xuat(9), ton_cuoi(10)
+        const khoName = (row[1] || 'KHO').toString().trim().toUpperCase();
+        const idSpCt = (row[2] || '').toString().trim().toUpperCase();
+        const key = `${khoName}_${idSpCt}`;
+
         const ton_dau = parseFloat(row[7]) || 0;
-        const nhap = parseFloat(row[8]) || 0;
-        const xuat = parseFloat(row[9]) || 0;
-        const ton_cuoi = parseFloat(row[10]) || 0;
+        const nhap = ledgerSums[key]?.nhap || 0;
+        const xuat = ledgerSums[key]?.xuat || 0;
+        const ton_cuoi = ton_dau + nhap - xuat;
 
         return `
                     <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
