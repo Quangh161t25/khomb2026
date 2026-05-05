@@ -432,10 +432,10 @@ function handleHhMvdInputChange(val) {
         const slgEl = document.getElementById('hhEditSLG');
         const tenSpEl = document.getElementById('hhEditTenSP');
 
-        if (maGianEl && !maGianEl.value) maGianEl.value = udctMatch.ma_gian || '';
-        if (skuEl && !skuEl.value) skuEl.value = udctMatch.id_sp || '';
+        if (maGianEl && !maGianEl.value) maGianEl.value = (udctMatch.ma_gian || '').toString().toUpperCase();
+        if (skuEl && !skuEl.value) skuEl.value = (udctMatch.id_sp || '').toString().toUpperCase();
         if (skuCtEl && !skuCtEl.value) {
-            skuCtEl.value = udctMatch.id_sp_ct || '';
+            skuCtEl.value = (udctMatch.id_sp_ct || '').toString().toUpperCase();
             // Kích hoạt gợi ý/logic khớp SKU CT
             if (typeof handleHhSkuCtChange === 'function') handleHhSkuCtChange();
         }
@@ -785,11 +785,7 @@ async function fetchHangHoanData() {
                 id_dh_ct: row[23] || '',
                 stt: row[24] || '',
                 danh_dau: row[25] || ''
-            })).sort((a, b) => {
-                const da = toYMD(a.ngay_nhan);
-                const db = toYMD(b.ngay_nhan);
-                return db.localeCompare(da);
-            });
+            })).sort((a, b) => b.rowIndex - a.rowIndex);
             setHangHoanToday();
             fillHangHoanFilterOptions();
             populateHhFormOptions();
