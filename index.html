@@ -1721,10 +1721,14 @@
                         id="hhEditSKU" list="hhSkuList" oninput="handleHhSkuChange()"
                         class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20"><datalist
                         id="hhSkuList"></datalist></div>
-                <div><label class="block text-xs font-semibold text-slate-500 uppercase mb-1">SKU CT</label><input
-                        id="hhEditSKUCT" list="hhSkuCtList" oninput="handleHhSkuCtChange()"
-                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20"><datalist
-                        id="hhSkuCtList"></datalist>
+                <div class="relative">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">SKU CT</label>
+                    <input id="hhEditSKUCT" oninput="handleHhSkuCtChange()" onfocus="handleHhSkuCtChange()"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                        autocomplete="off" placeholder="Nhập ID hoặc Tên sản phẩm...">
+                    <div id="hhSkuCtSuggestions"
+                        class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-[60] max-h-64 overflow-y-auto overflow-x-hidden">
+                    </div>
                     <div id="hhSkuCtButtons" class="flex flex-wrap gap-2 mt-1"></div>
                 </div>
                 <div><label class="block text-xs font-semibold text-slate-500 uppercase mb-1">SLG</label><input
