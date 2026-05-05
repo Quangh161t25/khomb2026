@@ -417,13 +417,34 @@ async function scanQrToInput(inputId) {
 
 function handleHhMvdInputChange(val) {
     const noticeEl = document.getElementById('hhMvdDuplicateNotice');
-    if (!noticeEl) return;
     const mvd = (val || '').toString().trim();
     if (!mvd) {
-        noticeEl.classList.add('hidden');
+        if (noticeEl) noticeEl.classList.add('hidden');
         return;
     }
-    // Tìm trong dữ liệu hàng hoàn hiện có (loại trừ chính nó nếu đang edit)
+
+    // 1. So sánh với sheet UD_CT (Dữ liệu đơn hàng) để tự động điền thông tin
+    const udctMatch = udctData.find(item => (item.mvd || '').toString().trim() === mvd);
+    if (udctMatch && hhDrawerMode === 'create') {
+        const maGianEl = document.getElementById('hhEditMaGian');
+        const skuEl = document.getElementById('hhEditSKU');
+        const skuCtEl = document.getElementById('hhEditSKUCT');
+        const slgEl = document.getElementById('hhEditSLG');
+        const tenSpEl = document.getElementById('hhEditTenSP');
+
+        if (maGianEl && !maGianEl.value) maGianEl.value = udctMatch.ma_gian || '';
+        if (skuEl && !skuEl.value) skuEl.value = udctMatch.id_sp || '';
+        if (skuCtEl && !skuCtEl.value) {
+            skuCtEl.value = udctMatch.id_sp_ct || '';
+            // Kích hoạt gợi ý/logic khớp SKU CT
+            if (typeof handleHhSkuCtChange === 'function') handleHhSkuCtChange();
+        }
+        if (slgEl && (!slgEl.value || slgEl.value === '1')) slgEl.value = udctMatch.slg_xuat || '';
+        if (tenSpEl && !tenSpEl.value) tenSpEl.value = udctMatch.ten_sp || '';
+    }
+
+    // 2. Tìm trong dữ liệu hàng hoàn hiện có để cảnh báo trùng (như cũ)
+    if (!noticeEl) return;
     const duplicate = hangHoanData.find(item => {
         const isDuplicateMvd = (item.mvd || '').toString().trim() === mvd || (item.mvd_2 || '').toString().trim() === mvd;
         if (!isDuplicateMvd) return false;
