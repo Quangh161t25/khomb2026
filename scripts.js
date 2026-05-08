@@ -59,11 +59,33 @@ let suppressUDCTAutoSave = false;
 
 // Close custom suggestions on click outside
 document.addEventListener('click', (e) => {
-    const sug = document.getElementById('hhSkuCtSuggestions');
-    if (sug && !sug.contains(e.target) && e.target.id !== 'hhEditSKUCT') {
-        sug.classList.add('hidden');
-    }
+    const list = [
+        { sug: 'hhSkuCtSuggestions', input: 'hhEditSKUCT' },
+        { sug: 'hhShopMvdSuggestions', input: 'hhShopEditMVD' },
+        { sug: 'hhShopMdhSuggestions', input: 'hhShopEditMDH' }
+    ];
+    list.forEach(item => {
+        const sug = document.getElementById(item.sug);
+        if (sug && !sug.contains(e.target) && e.target.id !== item.input) {
+            sug.classList.add('hidden');
+        }
+    });
 });
+
+function showToast(message, type = 'success', duration = 3000) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <div class="toast-content">${escapeHtml(message)}</div>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'toast-out 0.3s ease-in forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
 
 function escapeHtml(value) {
     return String(value || '')
@@ -1326,6 +1348,16 @@ function getCurrentWeekRangeYmd() {
     return { from: toYmd(start), to: toYmd(end) };
 }
 
+function getUdctSummaryByMdh(mdh) {
+    const key = (mdh || '').toString().trim();
+    if (!key) return { mvd: '', ma_gian: '', sku: '' };
+    const rows = udctData.filter(i => (i.mdh || '').toString().trim() === key);
+    const mvd = [...new Set(rows.map(i => (i.mvd || '').toString().trim()).filter(Boolean))].join(', ');
+    const maGian = [...new Set(rows.map(i => (i.ma_gian || '').toString().trim()).filter(Boolean))].join(', ');
+    const sku = [...new Set(rows.map(i => (i.id_sp || '').toString().trim()).filter(Boolean))].join(', ');
+    return { mvd, ma_gian: maGian, sku };
+}
+
 function getUdctSummaryByMvd(mvd) {
     const key = (mvd || '').toString().trim();
     if (!key) return { mdh: '', ma_gian: '', sku: '' };
@@ -1336,27 +1368,73 @@ function getUdctSummaryByMvd(mvd) {
     return { mdh, ma_gian: maGian, sku };
 }
 
-function refreshHHShopAutoFields() {
-    const mvd = (document.getElementById('hhShopEditMVD')?.value || '').toString().trim();
-    const hoanTra = (document.getElementById('hhShopEditHoanTra')?.value || '').toString().trim();
-    const mvdInfo = getUdctSummaryByMvd(mvd);
-    const hasLinkedMvd = !!(mvd && (mvdInfo.mdh || mvdInfo.ma_gian || mvdInfo.sku));
-    const currentMdh = (document.getElementById('hhShopEditMDH')?.value || '').toString().trim();
-    const currentMaGian = (document.getElementById('hhShopEditMaGian')?.value || '').toString().trim();
-    const currentSku = (document.getElementById('hhShopEditSKU')?.value || '').toString().trim();
-    if (hasLinkedMvd) {
-        if (!currentMdh) document.getElementById('hhShopEditMDH').value = (mvdInfo.mdh || '').trim();
-        if (!currentMaGian) document.getElementById('hhShopEditMaGian').value = (mvdInfo.ma_gian || '').trim();
-        if (!currentSku) document.getElementById('hhShopEditSKU').value = (mvdInfo.sku || '').trim();
-        document.getElementById('hhShopDrawerRowId').textContent = `✅ ${mvd}`;
-    } else {
-        document.getElementById('hhShopDrawerRowId').textContent = mvd ? `⚠️ ${mvd}` : 'NEW';
-    }
+function refreshHHShopAutoFields(triggerSource) {
+    const mvdInput = document.getElementById('hhShopEditMVD');
+    const mdhInput = document.getElementById('hhShopEditMDH');
+    const maGianInput = document.getElementById('hhShopEditMaGian');
+    const skuInput = document.getElementById('hhShopEditSKU');
     const mvdTraEl = document.getElementById('hhShopEditMVDTra');
-    if (mvdTraEl && !mvdTraEl.dataset.manual) {
-        mvdTraEl.value = hoanTra === 'hoàn' ? mvd : '';
+    const skuTraEl = document.getElementById('hhShopEditSKUTra');
+    const drawerRowId = document.getElementById('hhShopDrawerRowId');
+
+    const mvd = (mvdInput?.value || '').toString().trim();
+    const mdh = (mdhInput?.value || '').toString().trim();
+    const hoanTra = (document.getElementById('hhShopEditHoanTra')?.value || '').toString().trim();
+
+    let hasMatch = false;
+
+    if (triggerSource === 'mvd' && mvd) {
+        const info = getUdctSummaryByMvd(mvd);
+        if (info.mdh || info.ma_gian || info.sku) {
+            mdhInput.value = info.mdh || '';
+            maGianInput.value = info.ma_gian || '';
+            skuInput.value = info.sku || '';
+            if (drawerRowId) drawerRowId.textContent = `✅ ${mvd}`;
+            hasMatch = true;
+        }
+    } else if (triggerSource === 'mdh' && mdh) {
+        const info = getUdctSummaryByMdh(mdh);
+        if (info.mvd || info.ma_gian || info.sku) {
+            mvdInput.value = info.mvd || '';
+            maGianInput.value = info.ma_gian || '';
+            skuInput.value = info.sku || '';
+            if (drawerRowId) drawerRowId.textContent = `✅ ${mdh}`;
+            hasMatch = true;
+        }
     }
-    document.getElementById('hhShopEditSKUTra').value = (document.getElementById('hhShopEditSKU')?.value || '').toString().trim();
+
+    if (!hasMatch && (mvd || mdh)) {
+        // Nếu không có trigger cụ thể hoặc không tìm thấy, thử cả 2 nếu chưa có match
+        const mvdInfo = getUdctSummaryByMvd(mvd);
+        if (mvdInfo.mdh || mvdInfo.ma_gian || mvdInfo.sku) {
+            if (!mdh) mdhInput.value = mvdInfo.mdh || '';
+            if (!maGianInput.value) maGianInput.value = mvdInfo.ma_gian || '';
+            if (!skuInput.value) skuInput.value = mvdInfo.sku || '';
+            if (drawerRowId) drawerRowId.textContent = `✅ ${mvd}`;
+            hasMatch = true;
+        } else if (mdh) {
+            const mdhInfo = getUdctSummaryByMdh(mdh);
+            if (mdhInfo.mvd || mdhInfo.ma_gian || mdhInfo.sku) {
+                if (!mvd) mvdInput.value = mdhInfo.mvd || '';
+                if (!maGianInput.value) maGianInput.value = mdhInfo.ma_gian || '';
+                if (!skuInput.value) skuInput.value = mdhInfo.sku || '';
+                if (drawerRowId) drawerRowId.textContent = `✅ ${mdh}`;
+                hasMatch = true;
+            }
+        }
+    }
+
+    if (!hasMatch) {
+        if (drawerRowId) drawerRowId.textContent = mvd ? `⚠️ ${mvd}` : (mdh ? `⚠️ ${mdh}` : 'NEW');
+    }
+
+    if (mvdTraEl && !mvdTraEl.dataset.manual) {
+        mvdTraEl.value = hoanTra === 'hoàn' ? mvdInput.value : '';
+    }
+    if (skuTraEl) {
+        skuTraEl.value = skuInput.value;
+    }
+
     const rawDate = document.getElementById('hhShopEditNgayTraRaw').value || getTodayYmd();
     document.getElementById('hhShopEditNgayTraRaw').value = rawDate;
     document.getElementById('hhShopEditNgayTra').value = formatYmdToDmy(rawDate);
@@ -1510,9 +1588,9 @@ async function setHHShopXacNhan(value) {
 }
 
 async function deleteHHShopDien() {
-    if (currentHHShopRowIndex < 0) return alert('Không xác định được dòng cần xóa.');
+    if (currentHHShopRowIndex < 0) return showToast('Không xác định được dòng cần xóa.', 'error');
     const item = hhShopDienData[currentHHShopRowIndex];
-    if (!item) return alert('Không xác định được dòng cần xóa.');
+    if (!item) return showToast('Không xác định được dòng cần xóa.', 'error');
     if (!confirm(`Xóa dòng HH SHOP ĐIỀN này? (Row ${item.rowIndex})`)) return;
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.classList.remove('hidden');
@@ -1541,14 +1619,15 @@ async function deleteHHShopDien() {
         });
         if (!resp.ok) {
             console.error('Delete HH SHOP error:', await resp.text());
-            alert('Lỗi khi xóa dòng HH SHOP ĐIỀN.');
+            showToast('Lỗi khi xóa dòng HH SHOP ĐIỀN.', 'error');
             return;
         }
         closeHHShopDrawer();
         await fetchHHShopDienData();
+        showToast('Đã xóa dòng HH SHOP ĐIỀN thành công!', 'success');
     } catch (error) {
         console.error(error);
-        alert('Có lỗi khi xóa HH SHOP ĐIỀN.');
+        showToast('Có lỗi khi xóa HH SHOP ĐIỀN.', 'error');
     } finally {
         loadingOverlay.classList.add('hidden');
     }
@@ -1574,7 +1653,62 @@ function setHHShopHoanTra(value) {
 
 
 function handleHHShopMvdChange() {
+    const val = document.getElementById('hhShopEditMVD').value.trim();
+    refreshHHShopAutoFields('mvd');
+    renderHHShopSuggestions('hhShopMvdSuggestions', 'mvd', val);
+}
+
+function handleHHShopMdhChange() {
+    const val = document.getElementById('hhShopEditMDH').value.trim();
+    refreshHHShopAutoFields('mdh');
+    renderHHShopSuggestions('hhShopMdhSuggestions', 'mdh', val);
+}
+
+function renderHHShopSuggestions(containerId, type, query) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    if (!query || query.length < 2) {
+        container.classList.add('hidden');
+        return;
+    }
+
+    // Tìm trong udctData
+    const results = udctData.filter(i => {
+        const val = (type === 'mvd' ? i.mvd : i.mdh) || '';
+        return val.toString().toLowerCase().includes(query.toLowerCase());
+    }).slice(0, 20);
+
+    if (results.length === 0) {
+        container.classList.add('hidden');
+        return;
+    }
+
+    container.innerHTML = results.map(i => `
+        <div class="suggestion-item" onclick="selectHHShopItem('${escapeHtml(i.mvd)}', '${escapeHtml(i.mdh)}', '${escapeHtml(i.ma_gian)}', '${escapeHtml(i.id_sp)}')">
+            <span class="item-code">${type === 'mvd' ? escapeHtml(i.mvd || '-') : escapeHtml(i.mdh || '-')}</span>
+            <span class="item-name">${escapeHtml(i.ten_sp || '')} (Gian: ${escapeHtml(i.ma_gian || '')})</span>
+        </div>
+    `).join('');
+    container.classList.remove('hidden');
+}
+
+function selectHHShopItem(mvd, mdh, maGian, sku) {
+    const mvdInp = document.getElementById('hhShopEditMVD');
+    const mdhInp = document.getElementById('hhShopEditMDH');
+    const gianInp = document.getElementById('hhShopEditMaGian');
+    const skuInp = document.getElementById('hhShopEditSKU');
+
+    if (mvdInp) mvdInp.value = mvd;
+    if (mdhInp) mdhInp.value = mdh;
+    if (gianInp) gianInp.value = maGian;
+    if (skuInp) skuInp.value = sku;
+
+    document.getElementById('hhShopMvdSuggestions').classList.add('hidden');
+    document.getElementById('hhShopMdhSuggestions').classList.add('hidden');
+
     refreshHHShopAutoFields();
+    scheduleHHShopAutoSave();
+    showToast('Đã chọn đơn hàng: ' + (mdh || mvd), 'success');
 }
 
 function setHHShopNgayTraRaw(ymdValue) {
@@ -1681,7 +1815,7 @@ function closeHHShopDrawer() {
 
 async function saveHHShopDien() {
     const mvd = (document.getElementById('hhShopEditMVD').value || '').toString().trim();
-    if (!mvd) return alert('Vui lòng nhập MVD.');
+    if (!mvd) return showToast('Vui lòng nhập MVD.', 'warning');
     const mdh = document.getElementById('hhShopEditMDH').value || '';
     const maGian = document.getElementById('hhShopEditMaGian').value || '';
     const sku = document.getElementById('hhShopEditSKU').value || '';
@@ -1716,14 +1850,15 @@ async function saveHHShopDien() {
         if (!resp.ok) {
             const errText = await resp.text();
             console.error('Save HH SHOP ĐIỀN error:', errText);
-            alert('Lỗi khi lưu HH SHOP ĐIỀN.');
+            showToast('Lỗi khi lưu HH SHOP ĐIỀN.', 'error');
             return;
         }
         closeHHShopDrawer();
         await fetchHHShopDienData();
+        showToast('Đã lưu HH SHOP ĐIỀN thành công!', 'success');
     } catch (error) {
         console.error(error);
-        alert('Có lỗi khi lưu HH SHOP ĐIỀN.');
+        showToast('Có lỗi khi lưu HH SHOP ĐIỀN.', 'error');
     } finally {
         loadingOverlay.classList.add('hidden');
     }
@@ -2041,7 +2176,7 @@ async function saveRowDetail(showLoading = false) {
                 });
                 filterHangHoanData();
                 closeDetailDrawer();
-                alert('Cập nhật Hàng hoàn thành công!');
+                showToast('Cập nhật Hàng hoàn thành công!', 'success');
             } else {
                 console.error('Save error:', await resp.text());
                 alert('Lỗi khi lưu dữ liệu Hàng hoàn vào Google Sheet.');
@@ -2401,12 +2536,12 @@ function loadFiltersFromCache() {
     }
 }
 
-async function loadUDCTData() {
-    document.getElementById('donhangTableBody').innerHTML = generateSkeletonRows(18, 5);
+async function loadUDCTData(silent = false) {
+    if (!silent) document.getElementById('donhangTableBody').innerHTML = generateSkeletonRows(18, 5);
     try {
         const data = await fetchSheetData(CONFIG.udctSheetName);
         if (data.length <= 1) {
-            document.getElementById('donhangTableBody').innerHTML = '<tr><td colspan="18" class="text-center py-8 text-slate-500">Không có dữ liệu</td></tr>';
+            if (!silent) document.getElementById('donhangTableBody').innerHTML = '<tr><td colspan="18" class="text-center py-8 text-slate-500">Không có dữ liệu</td></tr>';
             return;
         }
 
@@ -2451,7 +2586,15 @@ async function loadUDCTData() {
             return db.localeCompare(da);
         });
 
-        setUDCTQuickDate('today'); // Sets default date to today and calls filterUDCTTable
+        if (silent) {
+            // Cập nhật bảng nếu không đang mở drawer chi tiết
+            const isDrawerOpen = !document.getElementById('detailDrawerOverlay').classList.contains('hidden');
+            if (!isDrawerOpen) {
+                filterUDCTTable();
+            }
+        } else {
+            setUDCTQuickDate('today'); // Sets default date to today and calls filterUDCTTable
+        }
         buildUpmisaData();
     } catch (error) {
         console.error("Load UDCT error:", error);
@@ -3261,10 +3404,10 @@ async function updateAllPricesBatch() {
         }
 
         renderUDCTTable();
-        alert(`Đã cập nhật đơn giá cho ${successCount} đơn hàng thành công!`);
+        showToast(`Đã cập nhật đơn giá cho ${successCount} đơn hàng thành công!`, 'success');
     } catch (err) {
         console.error("Batch price update error:", err);
-        alert("Có lỗi xảy ra khi cập nhật giá hàng loạt.");
+        showToast("Có lỗi xảy ra khi cập nhật giá hàng loạt.", 'error');
     } finally {
         loadingOverlay.classList.add('hidden');
     }
@@ -3592,7 +3735,7 @@ function changeUpmisaPage(delta) {
 
 function refreshUpmisaData() {
     buildUpmisaData();
-    alert('Đã làm mới dữ liệu UPMISA!');
+    showToast('Đã làm mới dữ liệu UPMISA!', 'success');
 }
 
 function exportUpmisaToExcel() {
@@ -4468,9 +4611,9 @@ function switchModule(module) {
 }
 
 // Logic module DH_CT
-async function fetchDHCTData() {
+async function fetchDHCTData(silent = false) {
     const loadingOverlay = document.getElementById('loadingOverlay');
-    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+    if (!silent && loadingOverlay) loadingOverlay.classList.remove('hidden');
 
     try {
         const token = await getAccessToken();
@@ -4501,8 +4644,17 @@ async function fetchDHCTData() {
                 so_luong: row[11], // Cột L
                 gia_nhap: row[12]  // Cột M
             }));
-            renderDHCTTable();
-            renderUniqueDHCTTable();
+            if (silent) {
+                // Cập nhật bảng nếu không đang mở drawer
+                const isDHCTModule = pageTitle.textContent === 'Dữ liệu DH Chi Tiết' || pageTitle.textContent === 'Đơn hàng trên DH Chi Tiết';
+                if (isDHCTModule) {
+                    renderDHCTTable();
+                    renderUniqueDHCTTable();
+                }
+            } else {
+                renderDHCTTable();
+                renderUniqueDHCTTable();
+            }
         } else {
             document.getElementById('dhctTableBody').innerHTML = '<tr><td colspan="9" class="text-center py-8 text-slate-500">Không có dữ liệu.</td></tr>';
         }
@@ -5671,6 +5823,7 @@ async function handleLogin() {
         document.getElementById('mainApp').classList.remove('hidden');
         document.getElementById('welcomeUserName').textContent = currentUser.name;
         applyRoleUI(currentUser.role);
+        startAutoRefresh();
 
         await loadUDCTData();
         await loadSanphamData();
@@ -5739,6 +5892,9 @@ window.onload = async () => {
                 updateUserProfileUI();
                 applyRoleUI(currentUser.role);
 
+                // Khởi động tự động làm mới
+                startAutoRefresh();
+
                 // Khởi động tải dữ liệu ngay từ đầu để tránh lỗi "Chưa có dữ liệu"
                 loadUDCTData();
                 loadSanphamData();
@@ -5797,6 +5953,18 @@ window.onload = async () => {
 
     if (window.innerWidth > 1024) closeMobileSidebar();
 };
+
+function startAutoRefresh() {
+    console.log("Auto refresh started (2 mins)");
+    setInterval(async () => {
+        if (isLoggedIn) {
+            console.log("Running auto background refresh...");
+            await loadUDCTData(true);
+            await fetchDHCTData(true);
+            // Có thể thêm các sheet khác nếu cần như fetchInventoryData, fetchHangHoanData...
+        }
+    }, 120000); // 120000ms = 2 phút
+}
 
 window.addEventListener('resize', () => {
     if (window.innerWidth > 1024) closeMobileSidebar();

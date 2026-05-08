@@ -1833,15 +1833,23 @@
         </div>
         <div class="flex-1 overflow-y-auto p-4 space-y-4">
             <div class="grid grid-cols-2 gap-4">
-                <div class="col-span-2">
+                <div class="col-span-2 relative">
                     <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">MVD</label>
                     <input id="hhShopEditMVD" oninput="handleHHShopMvdChange(); scheduleHHShopAutoSave()"
-                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20">
+                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                        autocomplete="off">
+                    <div id="hhShopMvdSuggestions"
+                        class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-[60] max-h-64 overflow-y-auto">
+                    </div>
                 </div>
-                <div class="col-span-2">
+                <div class="col-span-2 relative">
                     <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">MDH</label>
-                    <input id="hhShopEditMDH" oninput="scheduleHHShopAutoSave()"
-                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20 bg-white">
+                    <input id="hhShopEditMDH" oninput="handleHHShopMdhChange(); scheduleHHShopAutoSave()"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20 bg-white"
+                        autocomplete="off">
+                    <div id="hhShopMdhSuggestions"
+                        class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-[60] max-h-64 overflow-y-auto">
+                    </div>
                 </div>
                 <div class="col-span-2">
                     <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Mã gian</label>
@@ -1969,6 +1977,7 @@
             onclick="event.stopPropagation()">
     </div>
 
+    <div id="toastContainer"></div>
     <script src="scripts.js"></script>
 </body>
 
