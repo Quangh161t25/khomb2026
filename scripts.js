@@ -96,6 +96,15 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function clearHhInput(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = '';
+    el.focus();
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
 function toYMD(input) {
     if (!input) return '';
     const v = String(input).trim().split(' ')[0];
@@ -463,6 +472,20 @@ function handleHhMvdInputChange(val) {
         }
         if (slgEl && (!slgEl.value || slgEl.value === '1')) slgEl.value = udctMatch.slg_xuat || '';
         if (tenSpEl && !tenSpEl.value) tenSpEl.value = udctMatch.ten_sp || '';
+    }
+
+    // 1.b So sánh thêm với sheet HH_NV_DIEN (hhShopDienData)
+    const hhShopMatch = hhShopDienData.find(item => (item.mvd_tra || '').toString().trim() === mvd);
+    if (hhShopMatch && hhDrawerMode === 'create') {
+        const mvd2El = document.getElementById('hhEditMVD2');
+        const maGianEl = document.getElementById('hhEditMaGian');
+        const skuEl = document.getElementById('hhEditSKU');
+        const slgEl = document.getElementById('hhEditSLG');
+
+        if (mvd2El && !mvd2El.value) mvd2El.value = (hhShopMatch.mvd || '').toString().toUpperCase();
+        if (maGianEl && !maGianEl.value) maGianEl.value = (hhShopMatch.ma_gian || '').toString().toUpperCase();
+        if (skuEl && !skuEl.value) skuEl.value = (hhShopMatch.sku_tra || '').toString().toUpperCase();
+        if (slgEl) slgEl.value = '1';
     }
 
     // 2. Tìm trong dữ liệu hàng hoàn hiện có để cảnh báo trùng (như cũ)
