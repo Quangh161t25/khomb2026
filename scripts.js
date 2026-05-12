@@ -622,32 +622,61 @@ async function appendHangHoanQuickByMvd(mvdRaw) {
     const token = await getAccessToken();
     if (!token) return false;
     const today = new Date().toISOString().split('T')[0];
+
+    // Tự động tìm kiếm thông tin như khi nhập tay
+    let mvd2 = '';
+    let maGian = '';
+    let sku = '';
+    let skuCt = '';
+    let slg = '1';
+    let tenSp = '';
+
+    // 1. Tìm trong UD_CT (Dữ liệu đơn hàng)
+    const udctMatch = udctData.find(item => (item.mvd || '').toString().trim() === mvd);
+    if (udctMatch) {
+        maGian = (udctMatch.ma_gian || '').toString().toUpperCase();
+        sku = (udctMatch.id_sp || '').toString().toUpperCase();
+        skuCt = (udctMatch.id_sp_ct || '').toString().toUpperCase();
+        slg = udctMatch.slg_xuat || '1';
+        tenSp = udctMatch.ten_sp || '';
+    }
+
+    // 2. Tìm trong HH_NV_DIEN (Dữ liệu shop điền)
+    const hhShopMatch = hhShopDienData.find(item => (item.mvd_tra || '').toString().trim() === mvd);
+    if (hhShopMatch) {
+        mvd2 = (hhShopMatch.mvd || '').toString().toUpperCase();
+        if (!maGian) maGian = (hhShopMatch.ma_gian || '').toString().toUpperCase();
+        if (!sku) sku = (hhShopMatch.sku_tra || '').toString().toUpperCase();
+        slg = '1';
+    }
+
     const appendValues = [[
         `${Date.now()}`,
         today,
         mvd,
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '1',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
+        mvd2,
+        maGian,
+        '', // anh_1
+        '', // anh_2
+        '', // anh_3
+        '', // ngay_xly
+        sku,
+        skuCt,
+        slg,
+        tenSp,
+        '', // ghi_chu
+        '', // tinh_trang
+        '', // trang_thai
+        '', // sku_slg
+        '', // id_nv
+        '', // udt
+        (mvd && maGian) ? `${mvd}-${maGian}` : '', // mvd_gian
         'KHO',
-        '',
-        '',
-        '',
-        '',
-        ''
+        '', // lb3
+        '', // id_dh
+        '', // id_dh_ct
+        '', // stt
+        '' // danh_dau
     ]];
     const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${CONFIG.hhbhSheetName}!A:Z:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
     const appendResp = await fetch(appendUrl, {
@@ -3834,11 +3863,129 @@ function autoFilterReport() {
     filterReport();
 }
 
+let currentMagianStats = [];
+let currentIdspStats = [];
+let magianSort = { key: 'doanh_thu', asc: false };
+let idspSort = { key: 'doanh_thu', asc: false };
+let currentStatusesArray = [];
+
+window.handleSortMagian = function (key) {
+    if (magianSort.key === key) {
+        magianSort.asc = !magianSort.asc;
+    } else {
+        magianSort.key = key;
+        magianSort.asc = false;
+    }
+    renderMagianTable();
+};
+
+window.handleSortIdsp = function (key) {
+    if (idspSort.key === key) {
+        idspSort.asc = !idspSort.asc;
+    } else {
+        idspSort.key = key;
+        idspSort.asc = false;
+    }
+    renderIdspTable();
+};
+
+function renderMagianTable() {
+    const thead = document.querySelector('#magianTableBody').previousElementSibling;
+    if (!thead) return;
+
+    currentMagianStats.sort((a, b) => {
+        let valA, valB;
+        if (magianSort.key === 'ma_gian') {
+            valA = a.mg.toLowerCase(); valB = b.mg.toLowerCase();
+        } else if (magianSort.key === 'so_don' || magianSort.key === 'doanh_thu') {
+            valA = a[magianSort.key]; valB = b[magianSort.key];
+        } else {
+            valA = a.statuses[magianSort.key] || 0; valB = b.statuses[magianSort.key] || 0;
+        }
+
+        if (valA < valB) return magianSort.asc ? -1 : 1;
+        if (valA > valB) return magianSort.asc ? 1 : -1;
+        return 0;
+    });
+
+    const getSortIcon = (key) => {
+        if (magianSort.key !== key) return '<span class="text-slate-300 ml-1 inline-block">⇅</span>';
+        return magianSort.asc ? '<span class="text-primary ml-1 inline-block">↑</span>' : '<span class="text-primary ml-1 inline-block">↓</span>';
+    };
+
+    const headerHtml = `
+        <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100" onclick="window.handleSortMagian('ma_gian')">Mã gian ${getSortIcon('ma_gian')}</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100" onclick="window.handleSortMagian('so_don')">Số đơn ${getSortIcon('so_don')}</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100" onclick="window.handleSortMagian('doanh_thu')">Doanh thu ${getSortIcon('doanh_thu')}</th>
+            ${currentStatusesArray.map(st => `<th class="px-4 py-3 text-left text-xs font-semibold text-red-500 cursor-pointer select-none hover:bg-slate-100" onclick="window.handleSortMagian('${st}')">${st} ${getSortIcon(st)}</th>`).join('')}
+        </tr>
+    `;
+    thead.innerHTML = headerHtml;
+
+    document.getElementById('magianTableBody').innerHTML = currentMagianStats.length ? currentMagianStats.map(a => `
+        <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-3 text-sm font-medium text-slate-900">${a.mg}</td>
+            <td class="px-4 py-3 text-sm text-slate-700">${a.so_don.toLocaleString('vi-VN')}</td>
+            <td class="px-4 py-3 text-sm text-slate-700">${a.doanh_thu.toLocaleString('vi-VN')}</td>
+            ${currentStatusesArray.map(st => `<td class="px-4 py-3 text-sm text-red-500">${a.statuses[st] || 0}</td>`).join('')}
+        </tr>`).join('') : `<tr><td colspan="${3 + currentStatusesArray.length}" class="text-center py-4 text-slate-400">Không có dữ liệu</td></tr>`;
+}
+
+function renderIdspTable() {
+    const thead = document.querySelector('#idspTableBody').previousElementSibling;
+    if (!thead) return;
+
+    currentIdspStats.sort((a, b) => {
+        let valA, valB;
+        if (idspSort.key === 'id_sp_ct') {
+            valA = a.idsp.toLowerCase(); valB = b.idsp.toLowerCase();
+        } else if (idspSort.key === 'ten_sp') {
+            valA = (a.ten_sp || '').toLowerCase(); valB = (b.ten_sp || '').toLowerCase();
+        } else if (idspSort.key === 'slg' || idspSort.key === 'doanh_thu') {
+            valA = a[idspSort.key]; valB = b[idspSort.key];
+        } else {
+            valA = a.statuses[idspSort.key] || 0; valB = b.statuses[idspSort.key] || 0;
+        }
+
+        if (valA < valB) return idspSort.asc ? -1 : 1;
+        if (valA > valB) return idspSort.asc ? 1 : -1;
+        return 0;
+    });
+
+    const getSortIcon = (key) => {
+        if (idspSort.key !== key) return '<span class="text-slate-300 ml-1 inline-block">⇅</span>';
+        return idspSort.asc ? '<span class="text-primary ml-1 inline-block">↑</span>' : '<span class="text-primary ml-1 inline-block">↓</span>';
+    };
+
+    const headerHtml = `
+        <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100" onclick="window.handleSortIdsp('id_sp_ct')">id_sp_ct ${getSortIcon('id_sp_ct')}</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100" onclick="window.handleSortIdsp('ten_sp')">Tên SP ${getSortIcon('ten_sp')}</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100" onclick="window.handleSortIdsp('slg')">SL xuất ${getSortIcon('slg')}</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100" onclick="window.handleSortIdsp('doanh_thu')">Doanh thu ${getSortIcon('doanh_thu')}</th>
+            ${currentStatusesArray.map(st => `<th class="px-4 py-3 text-left text-xs font-semibold text-red-500 cursor-pointer select-none hover:bg-slate-100" onclick="window.handleSortIdsp('${st}')">${st} ${getSortIcon(st)}</th>`).join('')}
+        </tr>
+    `;
+    thead.innerHTML = headerHtml;
+
+    document.getElementById('idspTableBody').innerHTML = currentIdspStats.length ? currentIdspStats.map(a => `
+        <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-3 text-sm font-medium text-primary">${a.idsp}</td>
+            <td class="px-4 py-3 text-sm text-slate-700 max-w-[160px] truncate" title="${a.ten_sp}">${a.ten_sp || '-'}</td>
+            <td class="px-4 py-3 text-sm text-slate-700">${a.slg.toLocaleString('vi-VN')}</td>
+            <td class="px-4 py-3 text-sm text-slate-700">${a.doanh_thu.toLocaleString('vi-VN')}</td>
+            ${currentStatusesArray.map(st => `<td class="px-4 py-3 text-sm text-red-500">${a.statuses[st] || 0}</td>`).join('')}
+        </tr>`).join('') : `<tr><td colspan="${4 + currentStatusesArray.length}" class="text-center py-4 text-slate-400">Không có dữ liệu</td></tr>`;
+}
+
 async function filterReport() {
     const fromDate = document.getElementById('fromDate').value;
     const toDate = document.getElementById('toDate').value;
     const filterMaGian = document.getElementById('filterMaGian').value.trim().toLowerCase();
     const filterIdSp = document.getElementById('filterReportIdSp').value.trim().toLowerCase();
+    const filterTrangThaiInput = document.getElementById('filterReportTrangThai');
+    const filterTrangThai = filterTrangThaiInput ? filterTrangThaiInput.value.trim().toLowerCase() : '';
 
     if (!fromDate || !toDate) {
         alert('Vui lòng chọn đầy đủ ngày bắt đầu và ngày kết thúc!');
@@ -3867,6 +4014,24 @@ async function filterReport() {
     loadingOverlay.classList.remove('hidden');
 
     try {
+        // Setup filterReportTrangThai select if empty
+        const filterTrangThaiSelect = document.getElementById('filterReportTrangThai');
+        if (filterTrangThaiSelect && filterTrangThaiSelect.options.length <= 1) {
+            const allTrangThai = new Set();
+            udctData.forEach(item => {
+                let tt = item.trang_thai ? item.trang_thai.trim().toUpperCase() : '';
+                if (tt === '1 HỦY') tt = '2 HỦY';
+                if (tt) allTrangThai.add(tt);
+            });
+            const currentSelected = filterTrangThaiSelect.value;
+            let optionsHtml = '<option value="">Tất cả</option>';
+            Array.from(allTrangThai).sort().forEach(tt => {
+                optionsHtml += `<option value="${tt}">${tt}</option>`;
+            });
+            filterTrangThaiSelect.innerHTML = optionsHtml;
+            filterTrangThaiSelect.value = currentSelected;
+        }
+
         // Helper: chuyển dd/mm/yyyy hoặc yyyy-mm-dd → yyyy-mm-dd để so sánh
         const toIsoDate = (str) => {
             if (!str) return '';
@@ -3887,20 +4052,29 @@ async function filterReport() {
             const idSpValue = (item.id_sp_ct || item.id_sp || '').toString().toLowerCase();
             const matchIdSp = !filterIdSp || idSpValue.includes(filterIdSp);
 
-            return matchDate && matchMaGian && matchIdSp;
-        }).map(item => ({
-            ngay: item.ngay,
-            ngayDon: toIsoDate(item.ngay),
-            san: item.san || 'Khác',
-            ma_gian: item.ma_gian || 'N/A',
-            id_sp: item.id_sp || '',
-            id_sp_ct: item.id_sp_ct || item.id_sp || '',
-            mvd: item.mvd || '',
-            mdh: item.mdh || '',
-            ten_sp: item.ten_sp || '',
-            slg_xuat: parseFloat(item.slg_xuat) || 0,
-            don_gia: parseFloat(item.don_gia_1) || 0
-        }));
+            let itemTt = (item.trang_thai || '').trim().toUpperCase();
+            if (itemTt === '1 HỦY') itemTt = '2 HỦY';
+            const matchTrangThai = !filterTrangThai || itemTt.toLowerCase().includes(filterTrangThai);
+
+            return matchDate && matchMaGian && matchIdSp && matchTrangThai;
+        }).map(item => {
+            let itemTt = (item.trang_thai || '').trim().toUpperCase();
+            if (itemTt === '1 HỦY') itemTt = '2 HỦY';
+            return {
+                ngay: item.ngay,
+                ngayDon: toIsoDate(item.ngay),
+                san: item.san || 'Khác',
+                ma_gian: item.ma_gian || 'N/A',
+                id_sp: item.id_sp || '',
+                id_sp_ct: item.id_sp_ct || item.id_sp || '',
+                mvd: item.mvd || '',
+                mdh: item.mdh || '',
+                ten_sp: item.ten_sp || '',
+                slg_xuat: parseFloat(item.slg_xuat) || 0,
+                don_gia: parseFloat(item.don_gia_1) || 0,
+                trang_thai: itemTt
+            };
+        });
 
         reportData = filtered;
         const totalOrders = filtered.length;
@@ -3910,23 +4084,37 @@ async function filterReport() {
         const magianStats = {};
         const idspStats = {};
         const dailyStats = {};
+        const uniqueStatuses = new Set();
+        const statusTotalCounts = {};
 
         for (const item of filtered) {
             const rev = item.don_gia * item.slg_xuat;
             totalRevenue += rev;
 
+            const tt = item.trang_thai.trim();
+            if (tt) {
+                uniqueStatuses.add(tt);
+                statusTotalCounts[tt] = (statusTotalCounts[tt] || 0) + 1;
+            }
+
             if (!sanStats[item.san]) sanStats[item.san] = { so_don: 0, doanh_thu: 0 };
             sanStats[item.san].so_don++;
             sanStats[item.san].doanh_thu += rev;
 
-            if (!magianStats[item.ma_gian]) magianStats[item.ma_gian] = { so_don: 0, doanh_thu: 0 };
+            if (!magianStats[item.ma_gian]) magianStats[item.ma_gian] = { so_don: 0, doanh_thu: 0, statuses: {} };
             magianStats[item.ma_gian].so_don++;
             magianStats[item.ma_gian].doanh_thu += rev;
+            if (tt) {
+                magianStats[item.ma_gian].statuses[tt] = (magianStats[item.ma_gian].statuses[tt] || 0) + 1;
+            }
 
             const idKey = item.id_sp_ct || 'N/A';
-            if (!idspStats[idKey]) idspStats[idKey] = { ten_sp: item.ten_sp || '', slg: 0, doanh_thu: 0 };
+            if (!idspStats[idKey]) idspStats[idKey] = { ten_sp: item.ten_sp || '', slg: 0, doanh_thu: 0, statuses: {} };
             idspStats[idKey].slg += item.slg_xuat;
             idspStats[idKey].doanh_thu += rev;
+            if (tt) {
+                idspStats[idKey].statuses[tt] = (idspStats[idKey].statuses[tt] || 0) + 1;
+            }
 
             if (!dailyStats[item.ngayDon]) dailyStats[item.ngayDon] = { so_don: 0, doanh_thu: 0 };
             dailyStats[item.ngayDon].so_don++;
@@ -3938,24 +4126,33 @@ async function filterReport() {
         document.getElementById('totalSan').textContent = Object.keys(sanStats).length;
 
         // Render bảng mã gian
-        document.getElementById('magianTableBody').innerHTML = Object.entries(magianStats)
-            .sort((a, b) => b[1].doanh_thu - a[1].doanh_thu)
-            .map(([mg, s]) => `
-                        <tr class="border-b border-slate-100 hover:bg-slate-50">
-                            <td class="px-4 py-3 text-sm font-medium text-slate-900">${mg}</td>
-                            <td class="px-4 py-3 text-sm text-slate-700">${s.so_don.toLocaleString('vi-VN')}</td>
-                            <td class="px-4 py-3 text-sm text-slate-700">${s.doanh_thu.toLocaleString('vi-VN')}</td>
-                        </tr>`).join('') || '<tr><td colspan="3" class="text-center py-4 text-slate-400">Không có dữ liệu</td></tr>';
+        const statusesArray = Array.from(uniqueStatuses).sort();
 
-        document.getElementById('idspTableBody').innerHTML = Object.entries(idspStats)
-            .sort((a, b) => b[1].doanh_thu - a[1].doanh_thu)
-            .map(([idsp, s]) => `
-                        <tr class="border-b border-slate-100 hover:bg-slate-50">
-                            <td class="px-4 py-3 text-sm font-medium text-primary">${idsp}</td>
-                            <td class="px-4 py-3 text-sm text-slate-700 max-w-[160px] truncate" title="${s.ten_sp}">${s.ten_sp || '-'}</td>
-                            <td class="px-4 py-3 text-sm text-slate-700">${s.slg.toLocaleString('vi-VN')}</td>
-                            <td class="px-4 py-3 text-sm text-slate-700">${s.doanh_thu.toLocaleString('vi-VN')}</td>
-                        </tr>`).join('') || '<tr><td colspan="4" class="text-center py-4 text-slate-400">Không có dữ liệu</td></tr>';
+        const topStatsContainer = document.getElementById('topStatsContainer');
+        if (topStatsContainer) {
+            Array.from(topStatsContainer.querySelectorAll('.dynamic-status-box')).forEach(el => el.remove());
+            statusesArray.forEach((st, index) => {
+                const colors = ['from-red-500 to-red-600', 'from-orange-500 to-orange-600', 'from-amber-500 to-amber-600', 'from-sky-500 to-sky-600', 'from-rose-500 to-rose-600'];
+                const colorClass = colors[index % colors.length];
+
+                const box = document.createElement('div');
+                box.className = `flex-1 min-w-[150px] bg-gradient-to-r ${colorClass} rounded-xl p-3 text-white dynamic-status-box`;
+                box.innerHTML = `
+                    <div class="text-[11px] opacity-90 uppercase font-medium">${st}</div>
+                    <div class="text-2xl font-bold">${statusTotalCounts[st].toLocaleString('vi-VN')}</div>
+                `;
+                topStatsContainer.appendChild(box);
+            });
+        }
+        currentStatusesArray = statusesArray;
+        currentMagianStats = Object.entries(magianStats).map(([mg, s]) => ({ mg, ...s }));
+        magianSort = { key: 'doanh_thu', asc: false }; // reset sort to default
+
+        currentIdspStats = Object.entries(idspStats).map(([idsp, s]) => ({ idsp, ...s }));
+        idspSort = { key: 'doanh_thu', asc: false }; // reset sort to default
+
+        renderMagianTable();
+        renderIdspTable();
 
         let textSummary = `BÁO CÁO NGÀY: ${fromDate} đến ${toDate}\n`;
         textSummary += `====================================\n`;
@@ -3996,17 +4193,18 @@ function normalizeDetailValue(item, key) {
     if (key === 'slg_xuat') return parseFloat(item.slg_xuat) || 0;
     if (key === 'don_gia') return parseFloat(item.don_gia) || 0;
     if (key === 'thanh_tien') return (parseFloat(item.don_gia) || 0) * (parseFloat(item.slg_xuat) || 0);
+    if (key === 'trang_thai') return item.trang_thai || '';
     return '';
 }
 
 function updateDetailSortIndicators() {
-    const keys = ['Ngay', 'San', 'Mvd', 'Mdh', 'TenSp', 'IdSp', 'SlgXuat', 'DonGia', 'ThanhTien'];
+    const keys = ['Ngay', 'San', 'Mvd', 'Mdh', 'TenSp', 'IdSp', 'SlgXuat', 'DonGia', 'ThanhTien', 'TrangThai'];
     keys.forEach(k => {
         const el = document.getElementById(`detailSort${k}`);
         if (el) el.textContent = '↕';
     });
     const activeKeyMap = {
-        ngay: 'Ngay', san: 'San', mvd: 'Mvd', mdh: 'Mdh', ten_sp: 'TenSp', id_sp: 'IdSp', slg_xuat: 'SlgXuat', don_gia: 'DonGia', thanh_tien: 'ThanhTien'
+        ngay: 'Ngay', san: 'San', mvd: 'Mvd', mdh: 'Mdh', ten_sp: 'TenSp', id_sp: 'IdSp', slg_xuat: 'SlgXuat', don_gia: 'DonGia', thanh_tien: 'ThanhTien', trang_thai: 'TrangThai'
     };
     const activeEl = document.getElementById(`detailSort${activeKeyMap[detailSortState.key]}`);
     if (activeEl) activeEl.textContent = detailSortState.dir === 'asc' ? '↑' : '↓';
@@ -4035,7 +4233,7 @@ function renderDetailTable() {
         return detailSortState.dir === 'asc' ? cmp : -cmp;
     });
     if (rows.length === 0) {
-        detailBody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-slate-500">Không có dữ liệu</td></tr>';
+        detailBody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-slate-500">Không có dữ liệu</td></tr>';
     } else {
         detailBody.innerHTML = rows.map(item => `
                     <tr class="border-b border-slate-100 hover:bg-slate-50">
@@ -4048,6 +4246,7 @@ function renderDetailTable() {
                         <td class="px-4 py-3 text-sm text-slate-900">${item.slg_xuat}</td>
                         <td class="px-4 py-3 text-sm text-slate-900">${parseFloat(item.don_gia || 0).toLocaleString('vi-VN')}</td>
                         <td class="px-4 py-3 text-sm text-slate-900 font-medium">${((parseFloat(item.don_gia) || 0) * (parseFloat(item.slg_xuat) || 0)).toLocaleString('vi-VN')}</td>
+                        <td class="px-4 py-3 text-sm text-slate-700 font-semibold">${item.trang_thai || '-'}</td>
                     </tr>
                 `).join('');
     }
@@ -4160,7 +4359,7 @@ function exportReportToExcel() {
     }
 
     const excelData = [
-        ['BÁO CÁO ĐƠN HÀNG CHI TIẾT'],
+        ['BÁO CÁO ĐƠN HÀNG'],
         [`Từ ngày: ${document.getElementById('fromDate').value} đến ${document.getElementById('toDate').value}`],
         [`Mã gian lọc: ${document.getElementById('filterMaGian').value || 'Toàn bộ'}`],
         [],
@@ -4169,15 +4368,18 @@ function exportReportToExcel() {
         ['Tổng doanh thu', document.getElementById('totalRevenue').textContent],
         ['Số sàn', document.getElementById('totalSan').textContent],
         [],
-        ['2. THỐNG KÊ THEO MÃ GIAN'],
-        ['Mã gian', 'Số đơn', 'Doanh thu']
+        ['2. THỐNG KÊ THEO MÃ GIAN']
     ];
+
+    const magianThead = document.querySelector('#magianTableBody').previousElementSibling;
+    const magianHeaders = magianThead ? Array.from(magianThead.querySelectorAll('th')).map(th => th.textContent.trim()) : ['Mã gian', 'Số đơn', 'Doanh thu'];
+    excelData.push(magianHeaders);
 
     const magianRows = document.querySelectorAll('#magianTableBody tr');
     magianRows.forEach(row => {
         const cells = row.querySelectorAll('td');
-        if (cells.length === 3) {
-            excelData.push([cells[0].textContent, cells[1].textContent, cells[2].textContent]);
+        if (cells.length >= 3) {
+            excelData.push(Array.from(cells).map(c => c.textContent));
         }
     });
 
@@ -4205,16 +4407,24 @@ function exportIdSPExcel() {
         return;
     }
 
-    const excelData = [['id_sp_ct', 'SL xuất']];
+    const theadIdsp = document.querySelector('#idspTableBody').previousElementSibling;
+    const idspHeaders = theadIdsp ? Array.from(theadIdsp.querySelectorAll('th')).map(th => th.textContent.trim()) : ['id_sp_ct', 'Tên SP', 'SL xuất', 'Doanh thu'];
+
+    const excelData = [idspHeaders];
     const rows = tbody.querySelectorAll('tr');
 
     rows.forEach(row => {
         const cells = row.querySelectorAll('td');
-        if (cells.length === 4) { // ID SP, Tên SP, SL xuất, Doanh thu
-            excelData.push([
-                cells[0].textContent.trim(),
-                cells[2].textContent.replace(/,/g, '').replace(/\./g, '').trim() // Remove formatting
-            ]);
+        if (cells.length >= 4) {
+            const rowData = Array.from(cells).map((c, i) => {
+                let text = c.textContent.trim();
+                // Loại bỏ dấu phẩy/chấm ở cột số lượng, doanh thu và các cột trạng thái
+                if (i >= 2) {
+                    text = text.replace(/,/g, '').replace(/\./g, '');
+                }
+                return text;
+            });
+            excelData.push(rowData);
         }
     });
 
@@ -4508,17 +4718,21 @@ function switchModule(module) {
     const inventoryModule = document.getElementById('moduleInventory');
     const hangHoanModule = document.getElementById('moduleHangHoan');
     const hhShopDienModule = document.getElementById('moduleHHShopDien');
+    const bcHangHoanModule = document.getElementById('moduleBCHangHoan');
+    const baocaoTongModule = document.getElementById('moduleBaocaoTong');
     const pageTitle = document.getElementById('pageTitle');
     const sidebarHome = document.getElementById('sidebarHome');
     const sidebarDonhang = document.getElementById('sidebarDonhang');
     const sidebarSanpham = document.getElementById('sidebarSanpham');
     const sidebarBaocao = document.getElementById('sidebarBaocao');
+    const sidebarBaocaoTong = document.getElementById('sidebarBaocaoTong');
     const sidebarUpmisa = document.getElementById('sidebarUpmisa');
     const sidebarInventory = document.getElementById('sidebarInventory');
     const sidebarDHCT = document.getElementById('sidebarDHCT');
     const sidebarUniqueDHCT = document.getElementById('sidebarUniqueDHCT');
     const sidebarHangHoan = document.getElementById('sidebarHangHoan');
     const sidebarHHShopDien = document.getElementById('sidebarHHShopDien');
+    const sidebarBCHangHoan = document.getElementById('sidebarBCHangHoan');
 
     homeModule.style.display = 'none';
     donhangModule.style.display = 'none';
@@ -4528,13 +4742,15 @@ function switchModule(module) {
     inventoryModule.style.display = 'none';
     if (hangHoanModule) hangHoanModule.style.display = 'none';
     if (hhShopDienModule) hhShopDienModule.style.display = 'none';
+    if (bcHangHoanModule) bcHangHoanModule.style.display = 'none';
+    if (baocaoTongModule) baocaoTongModule.style.display = 'none';
     const dhctModule = document.getElementById('moduleDHCT');
     if (dhctModule) dhctModule.style.display = 'none';
     const uniqueDHCTModule = document.getElementById('moduleUniqueDHCT');
     if (uniqueDHCTModule) uniqueDHCTModule.style.display = 'none';
 
     const resetSidebar = () => {
-        [sidebarHome, sidebarDonhang, sidebarSanpham, sidebarBaocao, sidebarUpmisa, sidebarInventory, sidebarDHCT, sidebarUniqueDHCT, sidebarHangHoan, sidebarHHShopDien].forEach(s => {
+        [sidebarHome, sidebarDonhang, sidebarSanpham, sidebarBaocao, sidebarBaocaoTong, sidebarUpmisa, sidebarInventory, sidebarDHCT, sidebarUniqueDHCT, sidebarHangHoan, sidebarHHShopDien, sidebarBCHangHoan].forEach(s => {
             if (s) {
                 s.classList.remove('active', 'bg-blue-50', 'text-primary', 'border-r-2', 'border-primary');
                 s.classList.add('text-slate-600');
@@ -4563,7 +4779,7 @@ function switchModule(module) {
         setTimeout(() => setupDragAndDrop(), 100);
     } else if (module === 'baocao') {
         baocaoModule.style.display = 'flex';
-        pageTitle.textContent = 'Báo cáo';
+        pageTitle.textContent = 'Báo cáo đơn hàng';
         resetSidebar();
         sidebarBaocao.classList.add('active', 'bg-blue-50', 'text-primary', 'border-r-2', 'border-primary');
         sidebarBaocao.classList.remove('text-slate-600');
@@ -4629,9 +4845,284 @@ function switchModule(module) {
             sidebarHHShopDien.classList.remove('text-slate-600');
         }
         fetchHHShopDienData();
+    } else if (module === 'bc_hang_hoan') {
+        if (bcHangHoanModule) bcHangHoanModule.style.display = 'flex';
+        pageTitle.textContent = 'Báo cáo hàng hoàn';
+        resetSidebar();
+        if (sidebarBCHangHoan) {
+            sidebarBCHangHoan.classList.add('active', 'bg-blue-50', 'text-primary', 'border-r-2', 'border-primary');
+            sidebarBCHangHoan.classList.remove('text-slate-600');
+        }
+        if (!hangHoanData || hangHoanData.length === 0) {
+            fetchHangHoanData().then(() => setBCHHQuickDate('thisMonth'));
+        } else {
+            if (!document.getElementById('bcHHFromDate').value) {
+                setBCHHQuickDate('thisMonth');
+            } else {
+                filterBCHHData();
+            }
+        }
+    } else if (module === 'baocao_tong') {
+        if (baocaoTongModule) baocaoTongModule.style.display = 'flex';
+        pageTitle.textContent = 'Báo cáo tổng';
+        resetSidebar();
+        if (sidebarBaocaoTong) {
+            sidebarBaocaoTong.classList.add('active', 'bg-blue-50', 'text-primary', 'border-r-2', 'border-primary');
+            sidebarBaocaoTong.classList.remove('text-slate-600');
+        }
+        if (!document.getElementById('fromDateTong').value || !document.getElementById('toDateTong').value) {
+            setQuickDateTong('thisMonth');
+        } else {
+            filterReportTong();
+        }
     }
     if (window.innerWidth <= 1024) closeMobileSidebar();
 }
+
+// BÁO CÁO HÀNG HOÀN LOGIC
+let bchhFilteredData = [];
+
+function setBCHHQuickDate(type) {
+    const today = new Date();
+    const toDate = document.getElementById('bcHHToDate');
+    const fromDate = document.getElementById('bcHHFromDate');
+
+    if (type === 'today') {
+        const d = String(today.getDate()).padStart(2, '0');
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const y = today.getFullYear();
+        const dateStr = `${y}-${m}-${d}`;
+        fromDate.value = dateStr;
+        toDate.value = dateStr;
+    } else if (type === 'thisWeek') {
+        const day = today.getDay();
+        const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+        const startOfWeek = new Date(today.setDate(diff));
+
+        fromDate.value = `${startOfWeek.getFullYear()}-${String(startOfWeek.getMonth() + 1).padStart(2, '0')}-${String(startOfWeek.getDate()).padStart(2, '0')}`;
+
+        const now = new Date();
+        toDate.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    } else if (type === 'thisMonth') {
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        fromDate.value = `${y}-${m}-01`;
+
+        const now = new Date();
+        toDate.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    }
+
+    filterBCHHData();
+}
+
+function changeBCHHDate(id, direction) {
+    const input = document.getElementById(id);
+    if (!input || !input.value) return;
+    const d = new Date(input.value);
+    d.setDate(d.getDate() + direction);
+    input.value = d.toISOString().split('T')[0];
+    filterBCHHData();
+}
+
+function filterBCHHParams() {
+    filterBCHHData();
+}
+
+function filterBCHHData() {
+    if (!hangHoanData || hangHoanData.length === 0) return;
+
+    const fFrom = document.getElementById('bcHHFromDate').value;
+    const fTo = document.getElementById('bcHHToDate').value;
+    const fGian = (document.getElementById('filterBCHHMaGian').value || '').trim().toLowerCase();
+
+    // Populate Mã gian datalist
+    const maGianSet = new Set();
+    hangHoanData.forEach(item => {
+        if (item.ma_gian) maGianSet.add(item.ma_gian.trim());
+    });
+    const maGianList = document.getElementById('bcHHMaGianList');
+    if (maGianList) {
+        maGianList.innerHTML = Array.from(maGianSet).sort().map(mg => `<option value="${mg.replace(/"/g, '&quot;')}">`).join('');
+    }
+
+    bchhFilteredData = hangHoanData.filter(item => {
+        const ngay = toYMD(item.ngay_nhan);
+        if (fFrom && ngay < fFrom) return false;
+        if (fTo && ngay > fTo) return false;
+        if (fGian && !(item.ma_gian || '').toLowerCase().includes(fGian)) return false;
+        return true;
+    });
+
+    renderBCHHStats();
+}
+
+function renderBCHHStats() {
+    document.getElementById('bchhTotalOrders').textContent = bchhFilteredData.length.toLocaleString('vi-VN');
+    const totalQty = bchhFilteredData.reduce((sum, item) => sum + (parseFloat(item.slg) || 0), 0);
+    document.getElementById('bchhTotalQuantity').textContent = totalQty.toLocaleString('vi-VN');
+
+    const byMaGian = {};
+    const byTinhTrang = {};
+    const bySku = {};
+    const byKho = {};
+    const byNgay = {};
+
+    bchhFilteredData.forEach(item => {
+        const mg = item.ma_gian || 'Trống';
+        const tt = item.tinh_trang || 'Trống';
+        const sku = item.sku || 'Trống';
+        const kho = item.kho || 'Trống';
+        const q = parseFloat(item.slg) || 0;
+
+        if (!byMaGian[mg]) byMaGian[mg] = { don: 0, sp: 0 };
+        byMaGian[mg].don += 1;
+        byMaGian[mg].sp += q;
+
+        if (!byTinhTrang[tt]) byTinhTrang[tt] = { don: 0, sp: 0 };
+        byTinhTrang[tt].don += 1;
+        byTinhTrang[tt].sp += q;
+
+        if (!bySku[sku]) bySku[sku] = { don: 0, sp: 0 };
+        bySku[sku].don += 1;
+        bySku[sku].sp += q;
+
+        if (!byKho[kho]) byKho[kho] = { don: 0, sp: 0 };
+        byKho[kho].don += 1;
+        byKho[kho].sp += q;
+
+        const ngay = formatYmdToDmy(item.ngay_nhan) || item.ngay_nhan || 'Trống';
+        if (!byNgay[ngay]) byNgay[ngay] = { don: 0, sp: 0, sortKey: item.ngay_nhan || '' };
+        byNgay[ngay].don += 1;
+        byNgay[ngay].sp += q;
+    });
+
+    const tbMaGian = document.getElementById('bchhMaGianTableBody');
+    if (!Object.keys(byMaGian).length) {
+        tbMaGian.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500">Không có dữ liệu</td></tr>';
+    } else {
+        tbMaGian.innerHTML = Object.entries(byMaGian).sort((a, b) => b[1].don - a[1].don).map(([k, v]) => `
+            <tr class="border-b border-slate-100 hover:bg-slate-50">
+                <td class="px-4 py-2 text-sm font-medium text-slate-900">${escapeHtml(k)}</td>
+                <td class="px-4 py-2 text-sm text-slate-700">${v.don.toLocaleString('vi-VN')}</td>
+                <td class="px-4 py-2 text-sm text-slate-700">${v.sp.toLocaleString('vi-VN')}</td>
+            </tr>
+        `).join('');
+    }
+
+    const tbTinhTrang = document.getElementById('bchhTinhTrangTableBody');
+    if (!Object.keys(byTinhTrang).length) {
+        tbTinhTrang.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500">Không có dữ liệu</td></tr>';
+    } else {
+        tbTinhTrang.innerHTML = Object.entries(byTinhTrang).sort((a, b) => b[1].don - a[1].don).map(([k, v]) => `
+            <tr class="border-b border-slate-100 hover:bg-slate-50">
+                <td class="px-4 py-2 text-sm font-medium text-slate-900">${escapeHtml(k)}</td>
+                <td class="px-4 py-2 text-sm text-slate-700">${v.don.toLocaleString('vi-VN')}</td>
+                <td class="px-4 py-2 text-sm text-slate-700">${v.sp.toLocaleString('vi-VN')}</td>
+            </tr>
+        `).join('');
+    }
+
+    const tbSku = document.getElementById('bchhSkuTableBody');
+    if (tbSku) {
+        if (!Object.keys(bySku).length) {
+            tbSku.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500">Không có dữ liệu</td></tr>';
+        } else {
+            tbSku.innerHTML = Object.entries(bySku).sort((a, b) => b[1].don - a[1].don).map(([k, v]) => `
+                <tr class="border-b border-slate-100 hover:bg-slate-50">
+                    <td class="px-4 py-2 text-sm font-medium text-slate-900">${escapeHtml(k)}</td>
+                    <td class="px-4 py-2 text-sm text-slate-700">${v.don.toLocaleString('vi-VN')}</td>
+                    <td class="px-4 py-2 text-sm text-slate-700">${v.sp.toLocaleString('vi-VN')}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    const tbKho = document.getElementById('bchhKhoTableBody');
+    if (tbKho) {
+        if (!Object.keys(byKho).length) {
+            tbKho.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500">Không có dữ liệu</td></tr>';
+        } else {
+            tbKho.innerHTML = Object.entries(byKho).sort((a, b) => b[1].don - a[1].don).map(([k, v]) => `
+                <tr class="border-b border-slate-100 hover:bg-slate-50">
+                    <td class="px-4 py-2 text-sm font-medium text-slate-900">${escapeHtml(k)}</td>
+                    <td class="px-4 py-2 text-sm text-slate-700">${v.don.toLocaleString('vi-VN')}</td>
+                    <td class="px-4 py-2 text-sm text-slate-700">${v.sp.toLocaleString('vi-VN')}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    const tbNgay = document.getElementById('bchhNgayTableBody');
+    if (tbNgay) {
+        if (!Object.keys(byNgay).length) {
+            tbNgay.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500">Không có dữ liệu</td></tr>';
+        } else {
+            tbNgay.innerHTML = Object.entries(byNgay).sort((a, b) => b[1].sortKey.localeCompare(a[1].sortKey)).map(([k, v]) => `
+                <tr class="border-b border-slate-100 hover:bg-slate-50">
+                    <td class="px-4 py-2 text-sm font-medium text-slate-900">${escapeHtml(k)}</td>
+                    <td class="px-4 py-2 text-sm text-slate-700">${v.don.toLocaleString('vi-VN')}</td>
+                    <td class="px-4 py-2 text-sm text-slate-700">${v.sp.toLocaleString('vi-VN')}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    const tbDetails = document.getElementById('bchhDetailsTableBody');
+    if (tbDetails) {
+        if (!bchhFilteredData.length) {
+            tbDetails.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-slate-500">Không có dữ liệu</td></tr>';
+        } else {
+            tbDetails.innerHTML = bchhFilteredData.map(item => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-4 py-2 text-sm text-slate-700 whitespace-nowrap">${escapeHtml(formatYmdToDmy(item.ngay_nhan) || item.ngay_nhan)}</td>
+                    <td class="px-4 py-2 text-sm font-medium text-slate-900">${escapeHtml(item.mvd || '')}</td>
+                    <td class="px-4 py-2 text-sm text-slate-700">${escapeHtml(item.ma_gian || '')}</td>
+                    <td class="px-4 py-2 text-sm text-slate-700">${escapeHtml(item.sku || '')}</td>
+                    <td class="px-4 py-2 text-sm text-right font-semibold text-slate-900">${(parseFloat(item.slg) || 0).toLocaleString('vi-VN')}</td>
+                    <td class="px-4 py-2 text-sm text-slate-700 truncate max-w-[200px]" title="${escapeHtml(item.ten_sp || '')}">${escapeHtml(item.ten_sp || '')}</td>
+                    <td class="px-4 py-2 text-sm text-slate-700">${escapeHtml(item.tinh_trang || '')}</td>
+                    <td class="px-4 py-2 text-sm text-slate-700">${escapeHtml(item.kho || '')}</td>
+                </tr>
+            `).join('');
+        }
+    }
+}
+
+function exportBCHHToExcel() {
+    if (!bchhFilteredData || bchhFilteredData.length === 0) {
+        alert('Không có dữ liệu để xuất!');
+        return;
+    }
+
+    const headers = ['Ngày nhận', 'MVD', 'Mã gian', 'SKU', 'SLG', 'Tên SP', 'Tình trạng', 'Kho', 'Trạng thái'];
+    const excelData = [headers, ...bchhFilteredData.map(item => [
+        formatYmdToDmy(item.ngay_nhan) || item.ngay_nhan,
+        item.mvd || '',
+        item.ma_gian || '',
+        item.sku || '',
+        item.slg || '',
+        item.ten_sp || '',
+        item.tinh_trang || '',
+        item.kho || '',
+        item.trạng_thái || ''
+    ])];
+
+    const ws = XLSX.utils.aoa_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'BC_Hang_Hoan');
+
+    const fFrom = document.getElementById('bcHHFromDate').value || 'ToanBo';
+    const fTo = document.getElementById('bcHHToDate').value || '';
+    const now = new Date();
+    const timeStr = now.getHours().toString().padStart(2, '0') + 'h' + now.getMinutes().toString().padStart(2, '0');
+
+    let fName = `BCHH_${fFrom}`;
+    if (fTo) fName += `_den_${fTo}`;
+    fName += `_${timeStr}.xlsx`;
+
+    XLSX.writeFile(wb, fName);
+}
+
 
 // Logic module DH_CT
 async function fetchDHCTData(silent = false) {
@@ -6181,3 +6672,341 @@ document.addEventListener('mousedown', (e) => {
         sugBox.classList.add('hidden');
     }
 });
+
+// ===================== BÁO CÁO TỔNG LOGIC =====================
+let reportTongData = [];
+let reportTongMagianStats = [];
+let reportTongIdspStats = [];
+
+function setQuickDateTong(type) {
+    const today = new Date();
+    const fromDate = document.getElementById('fromDateTong');
+    const toDate = document.getElementById('toDateTong');
+    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    if (type === 'today') {
+        fromDate.value = fmt(today);
+        toDate.value = fmt(today);
+    } else if (type === 'thisWeek') {
+        const day = today.getDay();
+        const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(diff);
+        fromDate.value = fmt(startOfWeek);
+        toDate.value = fmt(new Date());
+    } else if (type === 'thisMonth') {
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        fromDate.value = `${y}-${m}-01`;
+        toDate.value = fmt(new Date());
+    }
+    filterReportTong();
+}
+
+function changeReportDateTong(id, direction) {
+    const input = document.getElementById(id);
+    if (!input || !input.value) return;
+    const d = new Date(input.value);
+    d.setDate(d.getDate() + direction);
+    input.value = d.toISOString().split('T')[0];
+    filterReportTong();
+}
+
+async function filterReportTong() {
+    const fromDate = document.getElementById('fromDateTong').value;
+    const toDate = document.getElementById('toDateTong').value;
+
+    if (!fromDate || !toDate) return;
+
+    if (!udctData || udctData.length === 0) {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+        try { await loadUDCTData(); } catch (e) { console.error(e); }
+        finally { if (loadingOverlay) loadingOverlay.classList.add('hidden'); }
+    }
+    if (!udctData || udctData.length === 0) return;
+
+    // Ensure hangHoanData loaded
+    if (!hangHoanData || hangHoanData.length === 0) {
+        try { await fetchHangHoanData(); } catch (e) { console.error(e); }
+    }
+
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+    try {
+        const toIsoDate = (str) => {
+            if (!str) return '';
+            const s = str.split(' ')[0];
+            if (s.includes('/')) {
+                const [d, m, y] = s.split('/');
+                return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+            }
+            return s;
+        };
+
+        const filtered = udctData.filter(item => {
+            const ngayIso = toIsoDate(item.ngay);
+            return ngayIso >= fromDate && ngayIso <= toDate;
+        }).map(item => {
+            let itemTt = (item.trang_thai || '').trim().toUpperCase();
+            if (itemTt === '1 HỦY') itemTt = '2 HỦY';
+            return {
+                ngay: item.ngay,
+                san: item.san || 'Khác',
+                ma_gian: item.ma_gian || 'N/A',
+                id_sp: item.id_sp || '',
+                id_sp_ct: item.id_sp_ct || item.id_sp || '',
+                ten_sp: item.ten_sp || '',
+                slg_xuat: parseFloat(item.slg_xuat) || 0,
+                don_gia: parseFloat(item.don_gia_1) || 0,
+                trang_thai: itemTt
+            };
+        });
+
+        reportTongData = filtered;
+
+        // ----- Build return counts from HH_BH (filtered by same date range) -----
+        const hhByMaGian = {};
+        const hhBySkuCt = {};
+        if (hangHoanData && hangHoanData.length > 0) {
+            hangHoanData.forEach(hh => {
+                // Filter by date range
+                const hhNgay = hh.ngay_nhan || '';
+                if (fromDate && hhNgay < fromDate) return;
+                if (toDate && hhNgay > toDate) return;
+
+                const mg = (hh.ma_gian || '').trim();
+                if (mg) hhByMaGian[mg] = (hhByMaGian[mg] || 0) + 1;
+                const skuCt = (hh.sku_ct || '').trim();
+                if (skuCt) hhBySkuCt[skuCt] = (hhBySkuCt[skuCt] || 0) + 1;
+            });
+        }
+
+        // ----- Stats by Ma Gian -----
+        const magianStats = {};
+        const idspStats = {};
+
+        for (const item of filtered) {
+            const rev = item.don_gia * item.slg_xuat;
+            const mg = item.ma_gian;
+            if (!magianStats[mg]) magianStats[mg] = { so_don: 0, doanh_thu: 0, trang_thai: {} };
+            magianStats[mg].so_don++;
+            magianStats[mg].doanh_thu += rev;
+            const tt = item.trang_thai.trim();
+            if (tt) magianStats[mg].trang_thai[tt] = (magianStats[mg].trang_thai[tt] || 0) + 1;
+
+            const idKey = item.id_sp_ct || 'N/A';
+            if (!idspStats[idKey]) idspStats[idKey] = { ten_sp: item.ten_sp || '', slg: 0, doanh_thu: 0, trang_thai: {} };
+            idspStats[idKey].slg += item.slg_xuat;
+            idspStats[idKey].doanh_thu += rev;
+            if (tt) idspStats[idKey].trang_thai[tt] = (idspStats[idKey].trang_thai[tt] || 0) + 1;
+        }
+
+        // Collect unique statuses
+        const uniqueStatuses = new Set();
+        filtered.forEach(item => { if (item.trang_thai.trim()) uniqueStatuses.add(item.trang_thai.trim()); });
+        const statusesArray = Array.from(uniqueStatuses).sort();
+
+        // ----- Render Ma Gian Table -----
+        // Dynamic thead
+        const magianThead = document.getElementById('magianTongThead');
+        if (magianThead) {
+            let thHtml = '<th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 sticky left-0 z-20 bg-slate-50">Mã gian</th>';
+            thHtml += '<th class="px-4 py-3 text-right text-xs font-semibold text-slate-600">Số đơn đi</th>';
+            thHtml += '<th class="px-4 py-3 text-right text-xs font-semibold text-slate-600">Doanh thu</th>';
+            statusesArray.forEach(st => {
+                thHtml += `<th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 whitespace-nowrap">${escapeHtml(st)}</th>`;
+            });
+            thHtml += '<th class="px-4 py-3 text-right text-xs font-semibold text-rose-600 whitespace-nowrap">Số đơn hoàn</th>';
+            magianThead.innerHTML = thHtml;
+        }
+
+        const magianEntries = Object.entries(magianStats).sort((a, b) => b[1].doanh_thu - a[1].doanh_thu);
+        reportTongMagianStats = magianEntries;
+        const tbMG = document.getElementById('magianTongTableBody');
+        if (tbMG) {
+            if (magianEntries.length === 0) {
+                const colSpan = 4 + statusesArray.length;
+                tbMG.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-8 text-slate-500 text-sm">Không có dữ liệu</td></tr>`;
+            } else {
+                tbMG.innerHTML = magianEntries.map(([mg, s]) => {
+                    const hoanCount = hhByMaGian[mg] || 0;
+                    let row = `<tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">`;
+                    row += `<td class="px-4 py-2 text-sm font-medium text-slate-900 sticky left-0 bg-white z-10">${escapeHtml(mg)}</td>`;
+                    row += `<td class="px-4 py-2 text-sm text-right text-slate-700 font-semibold">${s.so_don.toLocaleString('vi-VN')}</td>`;
+                    row += `<td class="px-4 py-2 text-sm text-right text-slate-700">${s.doanh_thu.toLocaleString('vi-VN')}</td>`;
+                    statusesArray.forEach(st => {
+                        const cnt = s.trang_thai[st] || 0;
+                        row += `<td class="px-4 py-2 text-sm text-right text-slate-500">${cnt ? cnt.toLocaleString('vi-VN') : '-'}</td>`;
+                    });
+                    row += `<td class="px-4 py-2 text-sm text-right font-bold ${hoanCount > 0 ? 'text-rose-600' : 'text-slate-400'}">${hoanCount > 0 ? hoanCount.toLocaleString('vi-VN') : '0'}</td>`;
+                    row += `</tr>`;
+                    return row;
+                }).join('');
+            }
+        }
+
+        // ----- Render ID SP CT Table -----
+        const idspThead = document.getElementById('idspTongThead');
+        if (idspThead) {
+            let thHtml = '<th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 sticky left-0 z-20 bg-slate-50">id_sp_ct</th>';
+            thHtml += '<th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">Tên SP</th>';
+            thHtml += '<th class="px-4 py-3 text-right text-xs font-semibold text-slate-600">SL xuất</th>';
+            thHtml += '<th class="px-4 py-3 text-right text-xs font-semibold text-slate-600">Doanh thu</th>';
+            statusesArray.forEach(st => {
+                thHtml += `<th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 whitespace-nowrap">${escapeHtml(st)}</th>`;
+            });
+            thHtml += '<th class="px-4 py-3 text-right text-xs font-semibold text-rose-600 whitespace-nowrap">Số đơn hoàn</th>';
+            idspThead.innerHTML = thHtml;
+        }
+
+        const idspEntries = Object.entries(idspStats).sort((a, b) => b[1].doanh_thu - a[1].doanh_thu);
+        reportTongIdspStats = idspEntries;
+        renderIdspTongTable(idspEntries, statusesArray, hhBySkuCt);
+
+    } catch (error) {
+        console.error('FilterReportTong error:', error);
+    } finally {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    }
+}
+
+function renderIdspTongTable(idspEntries, statusesArray, hhBySkuCt) {
+    const tbIdsp = document.getElementById('idspTongTableBody');
+    if (!tbIdsp) return;
+
+    // Apply search filter
+    const searchVal = (document.getElementById('filterReportTongIdSp')?.value || '').trim().toLowerCase();
+    let entries = idspEntries;
+    if (searchVal) {
+        entries = entries.filter(([idsp, s]) => idsp.toLowerCase().includes(searchVal) || (s.ten_sp || '').toLowerCase().includes(searchVal));
+    }
+
+    if (!statusesArray) statusesArray = [];
+    if (!hhBySkuCt) hhBySkuCt = {};
+
+    if (entries.length === 0) {
+        const colSpan = 5 + statusesArray.length;
+        tbIdsp.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-8 text-slate-500 text-sm">Không có dữ liệu</td></tr>`;
+    } else {
+        tbIdsp.innerHTML = entries.map(([idsp, s]) => {
+            const hoanCount = hhBySkuCt[idsp] || 0;
+            let row = `<tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">`;
+            row += `<td class="px-4 py-2 text-sm font-medium text-slate-900 sticky left-0 bg-white z-10">${escapeHtml(idsp)}</td>`;
+            row += `<td class="px-4 py-2 text-sm text-slate-700 truncate max-w-[200px]" title="${escapeHtml(s.ten_sp)}">${escapeHtml(s.ten_sp)}</td>`;
+            row += `<td class="px-4 py-2 text-sm text-right text-slate-700 font-semibold">${s.slg.toLocaleString('vi-VN')}</td>`;
+            row += `<td class="px-4 py-2 text-sm text-right text-slate-700">${s.doanh_thu.toLocaleString('vi-VN')}</td>`;
+            statusesArray.forEach(st => {
+                const cnt = s.trang_thai[st] || 0;
+                row += `<td class="px-4 py-2 text-sm text-right text-slate-500">${cnt ? cnt.toLocaleString('vi-VN') : '-'}</td>`;
+            });
+            row += `<td class="px-4 py-2 text-sm text-right font-bold ${hoanCount > 0 ? 'text-rose-600' : 'text-slate-400'}">${hoanCount > 0 ? hoanCount.toLocaleString('vi-VN') : '0'}</td>`;
+            row += `</tr>`;
+            return row;
+        }).join('');
+    }
+}
+
+// Store last computed hhBySkuCt for search
+let _lastHhBySkuCt = {};
+let _lastStatusesArrayTong = [];
+
+// Override filterReportTong to save context for search
+const _origFilterReportTong = filterReportTong;
+filterReportTong = async function () {
+    await _origFilterReportTong();
+    // After filter, stash hhBySkuCt for reuse
+};
+
+function filterReportTong_SearchIdsp() {
+    // Re-render idsp table with current data and search filter
+    if (!reportTongIdspStats || reportTongIdspStats.length === 0) return;
+    // Rebuild hhBySkuCt from hangHoanData filtered by date
+    const fromDate = document.getElementById('fromDateTong').value;
+    const toDate = document.getElementById('toDateTong').value;
+    const hhBySkuCt = {};
+    if (hangHoanData && hangHoanData.length > 0) {
+        hangHoanData.forEach(hh => {
+            const hhNgay = hh.ngay_nhan || '';
+            if (fromDate && hhNgay < fromDate) return;
+            if (toDate && hhNgay > toDate) return;
+            const skuCt = (hh.sku_ct || '').trim();
+            if (skuCt) hhBySkuCt[skuCt] = (hhBySkuCt[skuCt] || 0) + 1;
+        });
+    }
+    // Rebuild statuses from reportTongData
+    const statusSet = new Set();
+    (reportTongData || []).forEach(item => { if (item.trang_thai && item.trang_thai.trim()) statusSet.add(item.trang_thai.trim()); });
+    const statusesArray = Array.from(statusSet).sort();
+
+    renderIdspTongTable(reportTongIdspStats, statusesArray, hhBySkuCt);
+}
+
+function exportReportTongToExcel() {
+    if (!reportTongData || reportTongData.length === 0) {
+        alert('Không có dữ liệu để xuất!');
+        return;
+    }
+
+    const fromDate = document.getElementById('fromDateTong').value;
+    const toDate = document.getElementById('toDateTong').value;
+
+    // Rebuild statuses
+    const statusSet = new Set();
+    reportTongData.forEach(item => { if (item.trang_thai && item.trang_thai.trim()) statusSet.add(item.trang_thai.trim()); });
+    const statusesArray = Array.from(statusSet).sort();
+
+    // Rebuild hhByMaGian and hhBySkuCt (filtered by date)
+    const hhByMaGian = {};
+    const hhBySkuCt = {};
+    if (hangHoanData && hangHoanData.length > 0) {
+        hangHoanData.forEach(hh => {
+            const hhNgay = hh.ngay_nhan || '';
+            if (fromDate && hhNgay < fromDate) return;
+            if (toDate && hhNgay > toDate) return;
+            const mg = (hh.ma_gian || '').trim();
+            if (mg) hhByMaGian[mg] = (hhByMaGian[mg] || 0) + 1;
+            const skuCt = (hh.sku_ct || '').trim();
+            if (skuCt) hhBySkuCt[skuCt] = (hhBySkuCt[skuCt] || 0) + 1;
+        });
+    }
+
+    const excelData = [
+        ['BÁO CÁO TỔNG'],
+        [`Từ ngày: ${fromDate} đến ${toDate}`],
+        [],
+        ['1. THỐNG KÊ THEO MÃ GIAN']
+    ];
+
+    // Ma gian header
+    const mgHeader = ['Mã gian', 'Số đơn đi', 'Doanh thu', ...statusesArray, 'Số đơn hoàn'];
+    excelData.push(mgHeader);
+
+    if (reportTongMagianStats) {
+        reportTongMagianStats.forEach(([mg, s]) => {
+            const row = [mg, s.so_don, s.doanh_thu];
+            statusesArray.forEach(st => row.push(s.trang_thai[st] || 0));
+            row.push(hhByMaGian[mg] || 0);
+            excelData.push(row);
+        });
+    }
+
+    excelData.push([], ['2. THỐNG KÊ THEO ID_SP_CT']);
+    const idspHeader = ['id_sp_ct', 'Tên SP', 'SL xuất', 'Doanh thu', ...statusesArray, 'Số đơn hoàn'];
+    excelData.push(idspHeader);
+
+    if (reportTongIdspStats) {
+        reportTongIdspStats.forEach(([idsp, s]) => {
+            const row = [idsp, s.ten_sp, s.slg, s.doanh_thu];
+            statusesArray.forEach(st => row.push(s.trang_thai[st] || 0));
+            row.push(hhBySkuCt[idsp] || 0);
+            excelData.push(row);
+        });
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'BaoCaoTong');
+    XLSX.writeFile(wb, `BaoCaoTong_${fromDate}_${toDate}.xlsx`);
+}
