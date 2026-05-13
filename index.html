@@ -2189,10 +2189,14 @@
                 <div><label class="block text-xs font-semibold text-slate-500 uppercase mb-1">SKU</label>
                     <div class="relative group">
                         <input id="hhEditSKU" list="hhSkuList" oninput="handleHhSkuChange()"
+                            onfocus="renderHhSkuSuggestions(true)"
                             class="w-full pl-3 pr-8 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20">
                         <button onclick="clearHhInput('hhEditSKU')"
                             class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center bg-slate-100 text-slate-400 rounded-full hover:bg-slate-200 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold">✕</button>
                         <datalist id="hhSkuList"></datalist>
+                        <div id="hhSkuSuggestions"
+                            class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-[60] max-h-64 overflow-y-auto overflow-x-hidden">
+                        </div>
                     </div>
                 </div>
                 <div class="relative">

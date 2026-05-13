@@ -60,6 +60,7 @@ let suppressUDCTAutoSave = false;
 // Close custom suggestions on click outside
 document.addEventListener('click', (e) => {
     const list = [
+        { sug: 'hhSkuSuggestions', input: 'hhEditSKU' },
         { sug: 'hhSkuCtSuggestions', input: 'hhEditSKUCT' },
         { sug: 'hhShopMvdSuggestions', input: 'hhShopEditMVD' },
         { sug: 'hhShopMdhSuggestions', input: 'hhShopEditMDH' }
@@ -276,13 +277,75 @@ function populateHhFormOptions() {
     }
 }
 
+function getHhSkuMatches(value, limit = 50) {
+    const search = (value || '').toString().trim().toLowerCase();
+    const seen = new Set();
+    const matches = [];
+
+    dsSpCtData.forEach(item => {
+        const sku = (item.id_sp || '').toString().trim();
+        if (!sku || seen.has(sku)) return;
+
+        const skuLower = sku.toLowerCase();
+        const nameLower = (item.ten || '').toString().toLowerCase();
+        if (!search || skuLower.includes(search) || nameLower.includes(search)) {
+            seen.add(sku);
+            matches.push({ sku, ten: item.ten || '' });
+        }
+    });
+
+    return matches.sort((a, b) => a.sku.localeCompare(b.sku)).slice(0, limit);
+}
+
+function renderHhSkuSuggestions(forceShow = false) {
+    const input = document.getElementById('hhEditSKU');
+    const sugBox = document.getElementById('hhSkuSuggestions');
+    if (!input || !sugBox) return;
+
+    const value = input.value || '';
+    const suggestions = getHhSkuMatches(value);
+
+    if ((forceShow || value.trim()) && suggestions.length > 0) {
+        sugBox.innerHTML = suggestions.map(item => `
+            <div class="suggestion-item" onclick="setHhSku('${escapeHtml(item.sku)}')">
+                <span class="item-code">${escapeHtml(item.sku)}</span>
+                <span class="item-name">${escapeHtml(item.ten)}</span>
+            </div>
+        `).join('');
+        sugBox.classList.remove('hidden');
+    } else {
+        sugBox.innerHTML = '';
+        sugBox.classList.add('hidden');
+    }
+}
+
+function setHhSku(value) {
+    const input = document.getElementById('hhEditSKU');
+    if (!input) return;
+
+    input.value = value;
+    const sugBox = document.getElementById('hhSkuSuggestions');
+    if (sugBox) sugBox.classList.add('hidden');
+
+    const skuCtInput = document.getElementById('hhEditSKUCT');
+    if (skuCtInput) skuCtInput.value = '';
+    handleHhSkuChange();
+
+    if (skuCtInput) {
+        skuCtInput.focus();
+        handleHhSkuCtChange();
+    }
+}
+
 function handleHhSkuChange() {
     const sku = (document.getElementById('hhEditSKU')?.value || '').toString().trim().toUpperCase();
     const sugBox = document.getElementById('hhSkuCtSuggestions');
     const skuCtBtns = document.getElementById('hhSkuCtButtons');
+    renderHhSkuSuggestions(false);
 
     if (sugBox) {
         const filteredItems = dsSpCtData.filter(item =>
+            (item.id_sp || '').toUpperCase() === sku ||
             (item.id_sp_ct || '').toUpperCase().startsWith(sku)
         );
 
@@ -334,15 +397,19 @@ function handleHhSkuCtChange() {
     if (!skuCtInput) return;
 
     const val = skuCtInput.value.trim();
+    const sku = (document.getElementById('hhEditSKU')?.value || '').toString().trim().toLowerCase();
     const sugBox = document.getElementById('hhSkuCtSuggestions');
 
     if (sugBox) {
-        if (val.length >= 1) {
+        if (val.length >= 1 || sku) {
             const search = val.toLowerCase();
             // Tìm kiếm theo cả ID và Tên
             const suggestions = dsSpCtData.filter(item =>
-                (item.id_sp_ct || '').toLowerCase().includes(search) ||
-                (item.ten || '').toLowerCase().includes(search)
+                search
+                    ? (item.id_sp_ct || '').toLowerCase().includes(search) ||
+                    (item.ten || '').toLowerCase().includes(search)
+                    : (item.id_sp || '').toLowerCase() === sku ||
+                    (item.id_sp_ct || '').toLowerCase().startsWith(sku)
             ).slice(0, 50);
 
             if (suggestions.length > 0) {
