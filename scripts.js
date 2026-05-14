@@ -56,6 +56,7 @@ let continuousScanLastAt = 0;
 let currentDrawerMode = 'udct';
 let udctAutoSaveTimer = null;
 let suppressUDCTAutoSave = false;
+let hhCatalogLoadPromise = null;
 
 // Close custom suggestions on click outside
 document.addEventListener('click', (e) => {
@@ -259,14 +260,18 @@ function populateHhFormOptions() {
 
     // HH SHOP ĐIỀN suggestions
     const hhShopMaGianList = document.getElementById('hhShopMaGianList');
+    const hhShopMaGianFilterList = document.getElementById('hhShopMaGianFilterList');
     const hhShopSkuList = document.getElementById('hhShopSkuList');
+    const uniqueMaGian = [...new Set([
+        ...hangHoanData.map(i => (i.ma_gian || '').toString().trim()),
+        ...hhShopDienData.map(i => (i.ma_gian || '').toString().trim()),
+        ...udctData.map(i => (i.ma_gian || '').toString().trim())
+    ].filter(Boolean))].sort();
     if (hhShopMaGianList) {
-        const uniqueMaGian = [...new Set([
-            ...hangHoanData.map(i => (i.ma_gian || '').toString().trim()),
-            ...hhShopDienData.map(i => (i.ma_gian || '').toString().trim()),
-            ...udctData.map(i => (i.ma_gian || '').toString().trim())
-        ].filter(Boolean))].sort();
         hhShopMaGianList.innerHTML = uniqueMaGian.map(v => `<option value="${escapeHtml(v)}">`).join('');
+    }
+    if (hhShopMaGianFilterList) {
+        hhShopMaGianFilterList.innerHTML = uniqueMaGian.map(v => `<option value="${escapeHtml(v)}">`).join('');
     }
     if (hhShopSkuList) {
         const uniqueSku = [...new Set([
@@ -275,6 +280,25 @@ function populateHhFormOptions() {
         ].filter(Boolean))].sort();
         hhShopSkuList.innerHTML = uniqueSku.map(v => `<option value="${escapeHtml(v)}">`).join('');
     }
+}
+
+function ensureHhCatalogLoaded(callback) {
+    if (dsSpCtData && dsSpCtData.length > 0) {
+        if (typeof callback === 'function') callback();
+        return;
+    }
+
+    if (!hhCatalogLoadPromise) {
+        hhCatalogLoadPromise = loadDsSpCtData().finally(() => {
+            hhCatalogLoadPromise = null;
+        });
+    }
+
+    hhCatalogLoadPromise.then(() => {
+        if (typeof callback === 'function') callback();
+    }).catch(error => {
+        console.error('HH catalog reload error:', error);
+    });
 }
 
 function getHhSkuMatches(value, limit = 50) {
@@ -303,6 +327,13 @@ function renderHhSkuSuggestions(forceShow = false) {
     if (!input || !sugBox) return;
 
     const value = input.value || '';
+    if ((!dsSpCtData || dsSpCtData.length === 0) && (forceShow || value.trim())) {
+        sugBox.innerHTML = '<div class="suggestion-item"><span class="item-name">Đang tải danh mục SKU...</span></div>';
+        sugBox.classList.remove('hidden');
+        ensureHhCatalogLoaded(() => renderHhSkuSuggestions(forceShow));
+        return;
+    }
+
     const suggestions = getHhSkuMatches(value);
 
     if ((forceShow || value.trim()) && suggestions.length > 0) {
@@ -342,6 +373,11 @@ function handleHhSkuChange() {
     const sugBox = document.getElementById('hhSkuCtSuggestions');
     const skuCtBtns = document.getElementById('hhSkuCtButtons');
     renderHhSkuSuggestions(false);
+
+    if ((!dsSpCtData || dsSpCtData.length === 0) && sku) {
+        ensureHhCatalogLoaded(handleHhSkuChange);
+        return;
+    }
 
     if (sugBox) {
         const filteredItems = dsSpCtData.filter(item =>
@@ -392,7 +428,7 @@ function setHhSkuCt(value) {
     if (skuCtBtns) skuCtBtns.innerHTML = '';
 }
 
-function handleHhSkuCtChange() {
+function handleHhSkuCtChange(forceShow = false) {
     const skuCtInput = document.getElementById('hhEditSKUCT');
     if (!skuCtInput) return;
 
@@ -400,16 +436,27 @@ function handleHhSkuCtChange() {
     const sku = (document.getElementById('hhEditSKU')?.value || '').toString().trim().toLowerCase();
     const sugBox = document.getElementById('hhSkuCtSuggestions');
 
+    if ((!dsSpCtData || dsSpCtData.length === 0) && (val || sku || forceShow)) {
+        if (sugBox) {
+            sugBox.innerHTML = '<div class="suggestion-item"><span class="item-name">Đang tải danh mục SKU CT...</span></div>';
+            sugBox.classList.remove('hidden');
+        }
+        ensureHhCatalogLoaded(() => handleHhSkuCtChange(forceShow));
+        return;
+    }
+
     if (sugBox) {
-        if (val.length >= 1 || sku) {
+        if (val.length >= 1 || sku || forceShow) {
             const search = val.toLowerCase();
             // Tìm kiếm theo cả ID và Tên
             const suggestions = dsSpCtData.filter(item =>
                 search
                     ? (item.id_sp_ct || '').toLowerCase().includes(search) ||
                     (item.ten || '').toLowerCase().includes(search)
-                    : (item.id_sp || '').toLowerCase() === sku ||
+                    : sku
+                    ? (item.id_sp || '').toLowerCase() === sku ||
                     (item.id_sp_ct || '').toLowerCase().startsWith(sku)
+                    : true
             ).slice(0, 50);
 
             if (suggestions.length > 0) {
@@ -1550,7 +1597,7 @@ function refreshHHShopAutoFields(triggerSource) {
     if (mvdTraEl && !mvdTraEl.dataset.manual) {
         mvdTraEl.value = hoanTra === 'hoàn' ? mvdInput.value : '';
     }
-    if (skuTraEl) {
+    if (skuTraEl && !skuTraEl.dataset.manual) {
         skuTraEl.value = skuInput.value;
     }
 
@@ -1563,10 +1610,11 @@ function refreshHHShopAutoFields(triggerSource) {
 function saveHHShopFilterState() {
     const from = document.getElementById('hhShopNgayTraFrom')?.value || '';
     const to = document.getElementById('hhShopNgayTraTo')?.value || '';
+    const maGian = document.getElementById('hhShopFilterMaGian')?.value || '';
     const search = document.getElementById('hhShopSearchMvd')?.value || '';
-    const xacNhan = document.getElementById('hhShopXacNhanFilter')?.value || '';
+    const xacNhan = document.getElementById('hhShopXacNhanFilterButtons')?.dataset.value || '';
     const daNhan = document.getElementById('hhShopDaNhanFilterButtons')?.dataset.value || '';
-    localStorage.setItem('hhShopDienFilterState', JSON.stringify({ from, to, search, xacNhan, daNhan }));
+    localStorage.setItem('hhShopDienFilterState', JSON.stringify({ from, to, maGian, search, xacNhan, daNhan }));
 }
 
 function loadHHShopFilterState() {
@@ -1581,11 +1629,13 @@ function applyHHShopFilterState() {
     const state = loadHHShopFilterState();
     const fromEl = document.getElementById('hhShopNgayTraFrom');
     const toEl = document.getElementById('hhShopNgayTraTo');
+    const maGianEl = document.getElementById('hhShopFilterMaGian');
     const searchEl = document.getElementById('hhShopSearchMvd');
     const xacNhanButtons = document.getElementById('hhShopXacNhanFilterButtons');
     const daNhanButtons = document.getElementById('hhShopDaNhanFilterButtons');
     if (fromEl && state.from !== undefined) fromEl.value = state.from || '';
     if (toEl && state.to !== undefined) toEl.value = state.to || '';
+    if (maGianEl && state.maGian !== undefined) maGianEl.value = state.maGian || '';
     if (searchEl && state.search !== undefined) searchEl.value = state.search || '';
     if (xacNhanButtons && state.xacNhan !== undefined) xacNhanButtons.dataset.value = state.xacNhan || '';
     if (daNhanButtons && state.daNhan !== undefined) daNhanButtons.dataset.value = state.daNhan || '';
@@ -1643,6 +1693,11 @@ function setHHShopDaNhanFilter(value) {
 
 function markHHShopMvdTraManual(isManual) {
     const el = document.getElementById('hhShopEditMVDTra');
+    if (el) el.dataset.manual = isManual ? '1' : '';
+}
+
+function markHHShopSkuTraManual(isManual) {
+    const el = document.getElementById('hhShopEditSKUTra');
     if (el) el.dataset.manual = isManual ? '1' : '';
 }
 
@@ -1914,7 +1969,11 @@ function openHHShopNewDrawer() {
         mvdTraEl.value = '';
         mvdTraEl.dataset.manual = '';
     }
-    document.getElementById('hhShopEditSKUTra').value = '';
+    const skuTraEl = document.getElementById('hhShopEditSKUTra');
+    if (skuTraEl) {
+        skuTraEl.value = '';
+        skuTraEl.dataset.manual = '';
+    }
     document.getElementById('hhShopEditGhiChu').value = '';
     document.getElementById('hhShopEditXacNhan').value = '';
     setHHShopButtonGroup('hhShopHoanTraButtons', 'hoàn');
@@ -2000,7 +2059,11 @@ function openHHShopDetail(rowIndex) {
         mvdTraEl.value = item.mvd_tra || '';
         mvdTraEl.dataset.manual = item.mvd_tra ? '1' : '';
     }
-    document.getElementById('hhShopEditSKUTra').value = item.sku_tra || '';
+    const skuTraEl = document.getElementById('hhShopEditSKUTra');
+    if (skuTraEl) {
+        skuTraEl.value = item.sku_tra || '';
+        skuTraEl.dataset.manual = item.sku_tra && item.sku_tra !== item.sku ? '1' : '';
+    }
     document.getElementById('hhShopEditGhiChu').value = item.ghi_chu || '';
     document.getElementById('hhShopDrawerRowId').textContent = `Row ID: ${item.rowIndex}`;
     document.getElementById('hhShopDrawerOverlay').classList.remove('hidden');
@@ -2062,6 +2125,7 @@ function renderHHShopDienTable() {
     const stats = document.getElementById('hhShopStats');
     if (!tbody) return;
     const search = (document.getElementById('hhShopSearchMvd')?.value || '').toLowerCase().trim();
+    const maGianFilter = (document.getElementById('hhShopFilterMaGian')?.value || '').toLowerCase().trim();
     const fromYmd = document.getElementById('hhShopNgayTraFrom')?.value || '';
     const toYmd = document.getElementById('hhShopNgayTraTo')?.value || '';
     const xacNhanFilter = (document.getElementById('hhShopXacNhanFilterButtons')?.dataset.value || '').toLowerCase().trim();
@@ -2091,6 +2155,7 @@ function renderHHShopDienTable() {
                 ].some(value => (value || '').toString().toLowerCase().includes(search));
                 if (!matchSearch) return false;
             }
+            if (maGianFilter && !(item.ma_gian || '').toString().toLowerCase().includes(maGianFilter)) return false;
             const ngayTraYmd = parseDmyToYmd(item.ngay_tra);
             if (fromYmd && (!ngayTraYmd || ngayTraYmd < fromYmd)) return false;
             if (toYmd && (!ngayTraYmd || ngayTraYmd > toYmd)) return false;
