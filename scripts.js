@@ -1021,7 +1021,7 @@ function openHhDetail(index) {
     currentHangHoanEditIndex = actualIndex;
     const isKinhDoanh = currentUser && currentUser.role === 'kinhdoanh';
     document.getElementById('hhDrawerTitle').textContent = 'Chi tiết hàng hoàn';
-    document.getElementById('hhSaveButton').textContent = 'Lưu thay đổi';
+    document.getElementById('hhSaveButton').textContent = isKinhDoanh ? 'Lưu MVD 2' : 'Lưu thay đổi';
     document.getElementById('hhDrawerRowId').textContent = `Row ID: ${item.id || item.ngay_nhan || '-'}`;
     document.getElementById('hhEditMVD').value = item.mvd || '';
     document.getElementById('hhEditMVD2').value = item.mvd_2 || '';
@@ -1046,7 +1046,7 @@ function openHhDetail(index) {
     });
     document.querySelectorAll('#hhEditKhoButtons button').forEach(btn => btn.disabled = isKinhDoanh);
     const footer = document.querySelector('#hhDrawer .pt-4.border-t.border-slate-200.flex.gap-3');
-    if (footer) footer.style.display = isKinhDoanh ? 'none' : '';
+    if (footer) footer.style.display = '';
     document.getElementById('hhDrawerOverlay').classList.remove('hidden');
     document.getElementById('hhDrawer').classList.add('open');
 }
@@ -1103,12 +1103,49 @@ function closeHhDetailDrawer() {
 }
 
 async function saveHhDetail() {
-    if (currentUser && currentUser.role === 'kinhdoanh') {
-        alert('Tài khoản KINHDOANH không được sửa Dữ liệu Hàng hoàn.');
-        return;
-    }
     if (isUploading) {
         console.warn('Đang upload ảnh, vui lòng đợi...');
+        return;
+    }
+    const isKinhDoanh = currentUser && currentUser.role === 'kinhdoanh';
+    if (isKinhDoanh) {
+        if (hhDrawerMode === 'create' || currentHangHoanEditIndex === -1) {
+            alert('Tài khoản KINHDOANH chỉ được sửa MVD 2 trên dòng Hàng hoàn đã có.');
+            return;
+        }
+        const item = hangHoanData[currentHangHoanEditIndex];
+        if (!item) return;
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        loadingOverlay.classList.remove('hidden');
+        try {
+            const token = await getAccessToken();
+            const rowIndex = item.rowIndex || (hangHoanData.indexOf(item) + 2);
+            const mvd2 = document.getElementById('hhEditMVD2').value || '';
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchUpdate`;
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    valueInputOption: 'USER_ENTERED',
+                    data: [{ range: `${CONFIG.hhbhSheetName}!D${rowIndex}`, values: [[mvd2]] }]
+                })
+            });
+            if (resp.ok) {
+                item.mvd_2 = mvd2;
+                filterHangHoanData();
+                closeHhDetailDrawer();
+                showToast('Đã lưu MVD 2 thành công!', 'success');
+            } else {
+                const errText = await resp.text();
+                console.error('Save HH MVD 2 error:', errText);
+                alert('Lỗi khi lưu MVD 2.');
+            }
+        } catch (err) {
+            console.error('Save HH MVD 2 Error:', err);
+            alert('Đã xảy ra lỗi khi lưu MVD 2: ' + (err.message || 'Lỗi không xác định'));
+        } finally {
+            loadingOverlay.classList.add('hidden');
+        }
         return;
     }
     const isCreateMode = hhDrawerMode === 'create';
