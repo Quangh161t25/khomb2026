@@ -2575,7 +2575,8 @@ async function fetchSheetData(sheetName) {
     try {
         const token = await getAccessToken();
         if (!token) return [];
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${sheetName}!A1:AF10000`;
+        const maxRows = sheetName === CONFIG.udctSheetName ? 100000 : 10000;
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${sheetName}!A1:AF${maxRows}`;
         const resp = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
         if (!resp.ok) {
             console.error(`Fetch ${sheetName} failed:`, resp.status);
