@@ -54,44 +54,7 @@
 </head>
 
 <body class="min-h-screen bg-slate-50">
-    <div id="loginScreen"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4">
-        <div class="w-full max-w-md rounded-3xl bg-white/95 shadow-2xl border border-white/20 p-8 login-card">
-            <div class="text-center mb-8">
-                <div
-                    class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 text-white font-black text-2xl shadow-lg">
-                    U</div>
-                <h1 class="mt-5 text-2xl font-bold text-slate-900">Đăng nhập hệ thống</h1>
-                <p class="mt-2 text-sm text-slate-500">Tài khoản đăng nhập là <b>demo</b>, mật khẩu là <b>123456</b>
-                </p>
-            </div>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1" for="loginId">Tài khoản</label>
-                    <input id="loginId" type="text" placeholder="Nhập id nhân viên"
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1" for="loginPassword">Mật khẩu</label>
-                    <input id="loginPassword" type="password" placeholder="Nhập mật khẩu"
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                </div>
-                <button onclick="handleLogin()"
-                    class="w-full py-3.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20">Đăng
-                    nhập</button>
-                <p id="loginError" class="hidden text-sm text-rose-600 text-center"></p>
-            </div>
-        </div>
-    </div>
-
-    <div id="loginLoading" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-white/80">
-        <div class="flex flex-col items-center py-6">
-            <div class="spinner mb-4"></div>
-            <p class="text-sm text-slate-600 font-medium">Đang xác thực dữ liệu...</p>
-        </div>
-    </div>
-
-    <div id="mainApp" class="fixed inset-0 bg-white flex hidden">
+    <div id="mainApp" class="fixed inset-0 bg-white flex">
         <div id="sidebar"
             class="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 sidebar-transition relative">
             <div class="p-3.5 border-b border-slate-200 flex items-center justify-between">
@@ -126,6 +89,15 @@
                             d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                     <span class="font-medium sidebar-text">UP Đơn chi tiết</span>
+                </div>
+                <div onclick="switchModule('ban_don')" id="sidebarBanDon"
+                    class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
+                    title="Bắn đơn">
+                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span class="font-medium sidebar-text">Bắn đơn</span>
                 </div>
                 <div onclick="switchModule('sanpham')" id="sidebarSanpham"
                     class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
@@ -172,7 +144,7 @@
                     </svg>
                     <span class="font-medium sidebar-text">Tồn kho</span>
                 </div>
-                <div onclick="window.location.href='dh_chi_tiet.html'" id="sidebarDHCT"
+                <div onclick="switchModule('dh_ct')" id="sidebarDHCT"
                     class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
                     title="Đơn hàng chi tiết">
                     <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -181,7 +153,7 @@
                     </svg>
                     <span class="font-medium sidebar-text">DH Chi Tiết</span>
                 </div>
-                <div onclick="window.location.href='dh_chi_tiet.html?mod=unique_dh_ct'" id="sidebarUniqueDHCT"
+                <div onclick="switchModule('unique_dh_ct')" id="sidebarUniqueDHCT"
                     class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
                     title="Đơn hàng trên DH chi tiết">
                     <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -495,7 +467,7 @@
                             </div>
 
                             <div class="flex items-center gap-3 ml-auto pb-1">
-                                <button onclick="updateAllPricesBatch()"
+                                <button onclick="updateAllPricesBatch()" data-udct-requires-selection
                                     class="flex items-center gap-2 bg-amber-50 text-amber-700 border border-amber-200 px-3 py-2 rounded-xl hover:bg-amber-100 transition-all font-bold text-xs ring-offset-2 focus:ring-2 focus:ring-amber-200 whitespace-nowrap">
                                     <svg class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24"
                                         stroke="currentColor">
@@ -503,9 +475,18 @@
                                             d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                     </svg>
-                                    <span>UP ĐƠN GIÁ</span>
+                                    <span>UP GIÁ</span>
                                 </button>
-                                <button onclick="batchUpdateUDCTStatus('2 HỦY')"
+                                <button onclick="batchUpdateUDCTStatus('1 THAY THẾ')" data-udct-requires-selection
+                                    class="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-xl hover:bg-emerald-100 transition-all font-bold text-xs whitespace-nowrap">
+                                    <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span>1 THAY THẾ</span>
+                                </button>
+                                <button onclick="batchUpdateUDCTStatus('2 HỦY')" data-udct-requires-selection
                                     class="flex items-center gap-2 bg-rose-50 text-rose-700 border border-rose-200 px-3 py-2 rounded-xl hover:bg-rose-100 transition-all font-bold text-xs whitespace-nowrap">
                                     <svg class="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24"
                                         stroke="currentColor">
@@ -514,7 +495,7 @@
                                     </svg>
                                     <span>HỦY </span>
                                 </button>
-                                <button onclick="batchUpdateUDCTStatus('3 HÊT HÀNG')"
+                                <button onclick="batchUpdateUDCTStatus('3 HÊT HÀNG')" data-udct-requires-selection
                                     class="flex items-center gap-2 bg-orange-50 text-orange-700 border border-orange-200 px-3 py-2 rounded-xl hover:bg-orange-100 transition-all font-bold text-xs whitespace-nowrap">
                                     <svg class="w-4 h-4 text-orange-500" fill="none" viewBox="0 0 24 24"
                                         stroke="currentColor">
@@ -523,7 +504,7 @@
                                     </svg>
                                     <span>HẾT HÀNG </span>
                                 </button>
-                                <button onclick="batchUpdateUDCTStatus('4 MAI GỌI')"
+                                <button onclick="batchUpdateUDCTStatus('4 MAI GỌI')" data-udct-requires-selection
                                     class="flex items-center gap-2 bg-sky-50 text-sky-700 border border-sky-200 px-3 py-2 rounded-xl hover:bg-sky-100 transition-all font-bold text-xs whitespace-nowrap">
                                     <svg class="w-4 h-4 text-sky-500" fill="none" viewBox="0 0 24 24"
                                         stroke="currentColor">
@@ -532,7 +513,7 @@
                                     </svg>
                                     <span>MAI GỌI</span>
                                 </button>
-                                <button onclick="batchUpdateUDCTStatus('')"
+                                <button onclick="batchUpdateUDCTStatus('')" data-udct-requires-selection
                                     class="flex items-center gap-2 bg-slate-50 text-slate-700 border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-100 transition-all font-bold text-xs whitespace-nowrap">
                                     <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24"
                                         stroke="currentColor">
@@ -560,6 +541,11 @@
                                 <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
                                     <tr>
 
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600">
+                                            <input id="udctSelectAll" type="checkbox"
+                                                onchange="toggleSelectAllUDCT(this)"
+                                                class="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary">
+                                        </th>
                                         <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600">Ngày</th>
                                         <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600">Sàn</th>
                                         <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600">Khung H
@@ -583,7 +569,8 @@
                                             </div>
                                         </th>
                                         <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600">MDH</th>
-                                        <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600">Check trùng
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600">
+                                            <span class="border-b border-dotted border-slate-500" title="Cột ảo: tính từ dữ liệu MVD/MDH">Check trùng</span>
                                         </th>
                                         <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600">SKU Shop Up
                                         </th>
@@ -601,13 +588,14 @@
                                         </th>
                                         <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600">Ghi chú
                                         </th>
-                                        <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 w-44">Action
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 w-44">
+                                            <span class="border-b border-dotted border-slate-500" title="Cột ảo: nút thao tác, không lấy từ sheet">Action</span>
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody id="donhangTableBody">
                                     <tr>
-                                        <td colspan="18" class="text-center py-8 text-slate-500">Đang tải dữ liệu...
+                                        <td colspan="19" class="text-center py-8 text-slate-500">Đang tải dữ liệu...
                                         </td>
                                     </tr>
                                 </tbody>
@@ -627,6 +615,101 @@
                                 <button id="udctNextPage" onclick="changeUDCTPage(1)"
                                     class="px-3 py-1 border border-slate-200 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">Sau</button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Module Bắn đơn -->
+                <div id="moduleBanDon" class="h-full flex flex-col p-1" style="display: none;">
+                    <div class="bg-white border border-slate-200 flex-1 flex flex-col overflow-hidden">
+                        <div class="px-3 py-3 border-b border-slate-200 bg-white">
+                            <div class="flex flex-wrap xl:flex-nowrap items-center gap-2">
+                                <div id="banDonKhungTabs"
+                                    class="flex flex-nowrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 overflow-x-auto shrink-0">
+                                </div>
+
+                                <div class="flex items-center h-9 rounded-lg border border-slate-200 bg-white overflow-hidden">
+                                    <button onclick="shiftBanDonDate('banDonFilterDate', -1)"
+                                        class="w-8 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-50 font-bold">−</button>
+                                    <input type="date" id="banDonFilterDate" onchange="filterBanDonData()"
+                                        class="h-9 w-36 px-2 border-0 text-sm font-semibold text-slate-800 outline-none">
+                                    <button onclick="shiftBanDonDate('banDonFilterDate', 1)"
+                                        class="w-8 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-50 font-bold text-xl leading-none">+</button>
+                                </div>
+
+                                <input type="text" id="banDonSearch" oninput="filterBanDonData()" placeholder="Tìm MVD..."
+                                    class="h-9 w-full sm:w-56 px-4 rounded-lg border border-slate-200 bg-white text-sm outline-none focus:ring-2 focus:ring-primary/20 shrink-0">
+                                <button onclick="fetchBanDonData()"
+                                    class="h-9 px-4 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm font-bold shrink-0">Làm mới</button>
+
+                                <div class="h-9 min-w-36 rounded-lg border border-slate-200 bg-white px-3 flex items-center gap-3 shrink-0">
+                                    <span class="text-[10px] font-bold text-slate-500 uppercase">Dòng</span>
+                                    <span id="banDonRowsCount" class="text-lg font-bold text-slate-950">0</span>
+                                </div>
+                                <div class="h-9 min-w-40 rounded-lg border border-slate-200 bg-white px-3 flex items-center gap-3 shrink-0">
+                                    <span class="text-[10px] font-bold text-slate-500 uppercase">Unique</span>
+                                    <span id="banDonUniqueCount" class="text-lg font-bold text-cyan-600">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <datalist id="banDonKhungList">
+                            <option value="8H"></option>
+                            <option value="9H"></option>
+                            <option value="10H"></option>
+                            <option value="11H"></option>
+                            <option value="13H"></option>
+                            <option value="14H"></option>
+                            <option value="15H"></option>
+                            <option value="16H"></option>
+                        </datalist>
+
+                        <div class="grid grid-cols-1 xl:grid-cols-2 overflow-hidden bg-white h-[calc(100vh-170px)] min-h-[720px]">
+                            <section id="banDonEntryTablePanel" class="overflow-auto bg-white min-h-0 border-r border-slate-200">
+                                <div
+                                    class="sticky top-0 z-20 h-11 px-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                                    <h3 class="text-xs font-bold text-slate-700 uppercase">Bảng bắn đơn</h3>
+                                    <span class="text-[11px] font-bold text-slate-500">BAN_DON</span>
+                                </div>
+                                <table class="w-full table-fixed text-sm border-collapse">
+                                    <thead class="bg-slate-50 sticky top-11 z-10 border-b border-slate-200">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left text-xs font-bold text-slate-600 w-40">Ngày</th>
+                                            <th class="px-4 py-2 text-left text-xs font-bold text-slate-600 w-28">Khung H</th>
+                                            <th class="px-4 py-2 text-left text-xs font-bold text-slate-600">MVD</th>
+                                            <th class="px-4 py-2 text-right text-xs font-bold text-slate-600 w-24">Xóa</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="banDonTableBody">
+                                        <tr>
+                                            <td colspan="4" class="text-center py-8 text-slate-500">Đang tải dữ liệu...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </section>
+
+                            <section id="banDonUniqueMvdTablePanel" class="overflow-y-auto overflow-x-hidden bg-white min-h-0">
+                                <div
+                                    class="sticky top-0 z-20 h-11 px-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                                    <h3 class="text-xs font-bold text-slate-700 uppercase">Bảng Unique MVD</h3>
+                                    <span id="banDonUniqueTableStats" class="text-[11px] font-bold text-cyan-600">0 MVD</span>
+                                </div>
+                                <table class="w-full table-fixed text-sm border-collapse">
+                                    <thead class="bg-slate-50 sticky top-11 z-10 border-b border-slate-200">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left text-xs font-bold text-slate-600 w-20 whitespace-nowrap">Khung H</th>
+                                            <th class="px-3 py-2 text-left text-xs font-bold text-slate-600 w-24 whitespace-nowrap">Mã gian</th>
+                                            <th class="px-3 py-2 text-left text-xs font-bold text-slate-600 w-56 whitespace-nowrap">MVD</th>
+                                            <th class="px-3 py-2 text-left text-xs font-bold text-slate-600 whitespace-nowrap">SKU Shop Up</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="banDonUniqueTableBody">
+                                        <tr>
+                                            <td colspan="4" class="text-center py-10 text-slate-400">Không có MVD duy nhất.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </section>
                         </div>
                     </div>
                 </div>
@@ -1439,335 +1522,55 @@
                     </div>
                 </div>
 
-                <!-- Đã chuyển module DH_CT và Unique DH_CT sang dh_chi_tiet.html -->
-                <div id="moduleHangHoan" class="h-full flex flex-col p-1" style="display: none;">
-                    <div
-                        class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
-                        <div class="p-3 border-b border-slate-200 bg-white space-y-3">
-                            <!-- Filters & Search Row -->
-                            <div class="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-3">
-                                <!-- Stats & Refresh -->
-                                <div class="flex items-center gap-2 shrink-0">
-                                    <div id="hangHoanStats"
-                                        class="text-[11px] font-bold text-slate-500 uppercase tracking-tight bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100">
-                                        Số đơn: 0</div>
-                                    <div class="flex gap-1.5">
-                                        <button onclick="fetchHangHoanData()"
-                                            class="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
-                                            title="Làm mới">
-                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                            </svg>
-                                        </button>
-                                        <button onclick="setHangHoanToday()"
-                                            class="px-2.5 py-1.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg hover:bg-blue-100 transition-colors uppercase whitespace-nowrap">Hôm
-                                            nay</button>
-                                    </div>
-                                </div>
-
-                                <!-- Date Filter -->
-                                <div class="flex items-center gap-3">
-                                    <div class="flex items-center">
-                                        <button onclick="shiftHHFilterDate('filterHHFrom', -1)"
-                                            class="w-7 h-8 flex items-center justify-center bg-slate-100 border border-slate-200 border-r-0 rounded-l-lg text-slate-500 hover:bg-slate-200 transition-all font-bold text-sm">-</button>
-                                        <input type="date" id="filterHHFrom" onchange="filterHangHoanData()"
-                                            class="w-28 h-8 px-1 bg-slate-50 border border-slate-200 text-[10px] font-semibold focus:ring-0 outline-none">
-                                        <button onclick="shiftHHFilterDate('filterHHFrom', 1)"
-                                            class="w-7 h-8 flex items-center justify-center bg-slate-100 border border-slate-200 border-l-0 rounded-r-lg text-slate-500 hover:bg-slate-200 transition-all font-bold text-sm">+</button>
-                                    </div>
-                                    <div class="flex items-center">
-                                        <button onclick="shiftHHFilterDate('filterHHTo', -1)"
-                                            class="w-7 h-8 flex items-center justify-center bg-slate-100 border border-slate-200 border-r-0 rounded-l-lg text-slate-500 hover:bg-slate-200 transition-all font-bold text-sm">-</button>
-                                        <input type="date" id="filterHHTo" onchange="filterHangHoanData()"
-                                            class="w-28 h-8 px-1 bg-slate-50 border border-slate-200 text-[10px] font-semibold focus:ring-0 outline-none">
-                                        <button onclick="shiftHHFilterDate('filterHHTo', 1)"
-                                            class="w-7 h-8 flex items-center justify-center bg-slate-100 border border-slate-200 border-l-0 rounded-r-lg text-slate-500 hover:bg-slate-200 transition-all font-bold text-sm">+</button>
-                                    </div>
-                                </div>
-
-                                <!-- Warehouse & Store -->
-                                <div class="flex items-center gap-2 lg:min-w-0">
-                                    <div id="filterHHKhoButtons"
-                                        class="flex gap-0.5 bg-slate-100 p-0.5 rounded-lg shrink-0">
-                                    </div>
-                                    <select id="filterHHMaGian" onchange="filterHangHoanData()"
-                                        class="w-full lg:w-40 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-primary/20 outline-none appearance-none cursor-pointer">
-                                        <option value="">Tất cả gian hàng</option>
-                                    </select>
-                                </div>
-
-                                <!-- Search -->
-                                <div class="relative flex-1">
-                                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
-                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                    <input type="text" id="filterHHSearch" oninput="filterHangHoanData()"
-                                        placeholder="Tìm: MVD, Gian, SKU, Tình trạng..."
-                                        class="w-full pl-9 pr-12 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none focus:bg-white transition-all">
-
-                                    <!-- Nút quét QR/MVD cho ô tìm kiếm -->
-                                    <button onclick="startHHSearchQrScan()" type="button"
-                                        class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
-                                        title="Quét MVD tìm kiếm">
-                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M12 7v10m-3-7l3-3 3 3" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Action Buttons Row -->
-                            <div class="flex flex-wrap items-center gap-2 lg:gap-3">
-                                <!-- Group 1: Thêm mới & Quét (luôn 1 hàng) -->
-                                <div class="flex gap-2 w-full lg:w-auto">
-                                    <button onclick="openNewHangHoanDrawer()"
-                                        class="flex-1 lg:flex-none lg:px-6 flex items-center justify-center gap-2 bg-indigo-600 text-white font-bold py-2 rounded-xl text-xs hover:bg-indigo-700 transition-all shadow-sm">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M12 4v16m8-8H4" />
-                                        </svg>
-                                        Thêm mới
-                                    </button>
-                                    <button onclick="startContinuousMvdScan()"
-                                        class="flex-1 lg:flex-none lg:px-6 flex items-center justify-center gap-2 bg-violet-600 text-white font-bold py-2 rounded-xl text-xs hover:bg-violet-700 transition-all shadow-sm">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        </svg>
-                                        Quét MVD
-                                    </button>
-                                </div>
-                                <input type="hidden" id="filterHHKho" value="">
-                                <button onclick="exportHangHoanToExcel()"
-                                    class="hidden lg:flex flex-1 lg:flex-none lg:px-4 items-center justify-center gap-2 bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs hover:bg-emerald-700 transition-all">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    Excel MVD
-                                </button>
-                                <button onclick="exportHangHoanSummaryToExcel()"
-                                    class="hidden lg:flex flex-1 lg:flex-none lg:px-4 items-center justify-center gap-2 bg-teal-600 text-white font-bold py-2 rounded-xl text-xs hover:bg-teal-700 transition-all">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M9 17v-2a4 4 0 014-4h4m-4-4l4 4-4 4" />
-                                    </svg>
-                                    Excel SKU Tổng
-                                </button>
-                                <button onclick="exportHangHoanToMisa()"
-                                    class="hidden lg:flex flex-1 lg:flex-none lg:px-6 flex items-center justify-center gap-2 bg-amber-500 text-white font-bold py-2 rounded-xl text-xs hover:bg-amber-600 transition-all">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                    </svg>
-                                    MISA
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex-1 overflow-auto table-container">
-                            <table class="w-full min-w-[980px]">
-                                <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
-                                    <tr>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Ngày
-                                            nhận</th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">MVD
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">MVD 2
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Mã gian
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">SKU
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">SKU CT
-                                        </th>
-                                        <th class="px-3 py-2 text-right text-[11px] font-semibold text-slate-600">SLG
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Tên SP
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Kho
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Tình
-                                            trạng</th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">SKU
-                                            tổng</th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Ảnh
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody id="hangHoanTableBody">
-                                    <tr>
-                                        <td colspan="12" class="text-center py-8 text-slate-500">Đang tải dữ liệu...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Floating Action Button for Mobile: Thêm mới -->
-                        <button onclick="openNewHangHoanDrawer()"
-                            class="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center lg:hidden z-50 active:scale-90 transition-transform active:bg-indigo-700">
-                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
-                                    d="M12 4v16m8-8H4" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Module HH SHOP ĐIỀN -->
-                <div id="moduleHHShopDien" class="h-full flex flex-col p-1" style="display: none;">
+                <!-- Module DH_CT -->
+                <div id="moduleDHCT" class="h-full flex flex-col p-1" style="display: none;">
                     <div
                         class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
                         <div
-                            class="p-2.5 border-b border-slate-200 bg-white flex flex-wrap justify-between items-center gap-2">
+                            class="p-2.5 border-b border-slate-200 bg-white flex flex-wrap justify-between items-center gap-3">
                             <div>
-                                <div id="hhShopStats" class="text-[11px] text-slate-500 mt-1">Số dòng: 0</div>
+                                <h2 class="text-base font-bold text-slate-900">Dữ liệu DH_CT từ Sheet</h2>
+                                <p class="text-[11px] text-slate-500 mt-0.5">Quản lý chi tiết đơn hàng nhập/xuất</p>
                             </div>
-                            <div
-                                class="w-full flex flex-col gap-3 relative z-30 isolate lg:flex-row lg:items-start lg:justify-between lg:gap-4">
-                                <div
-                                    class="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm overflow-x-auto w-full lg:flex-[1_1_0%] lg:min-w-0">
-                                    <div class="flex flex-nowrap items-end gap-3 w-max min-w-full relative z-30">
-                                        <div class="flex flex-col gap-1 shrink-0">
-                                            <label
-                                                class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Từ
-                                                ngày</label>
-                                            <div class="flex items-center gap-1">
-                                                <button type="button" onclick="shiftHHShopNgayTra('from', -1)"
-                                                    class="relative z-20 pointer-events-auto shrink-0 w-7 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">-</button>
-                                                <input type="date" id="hhShopNgayTraFrom"
-                                                    oninput="saveHHShopFilterState(); renderHHShopDienTable()"
-                                                    class="relative z-10 pointer-events-auto w-40 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                                                <button type="button" onclick="shiftHHShopNgayTra('from', 1)"
-                                                    class="relative z-20 pointer-events-auto shrink-0 w-7 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">+</button>
-                                            </div>
-                                        </div>
-                                        <div class="flex flex-col gap-1 shrink-0">
-                                            <label
-                                                class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Đến
-                                                ngày</label>
-                                            <div class="flex items-center gap-1">
-                                                <button type="button" onclick="shiftHHShopNgayTra('to', -1)"
-                                                    class="relative z-20 pointer-events-auto shrink-0 w-7 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">-</button>
-                                                <input type="date" id="hhShopNgayTraTo"
-                                                    oninput="saveHHShopFilterState(); renderHHShopDienTable()"
-                                                    class="relative z-10 pointer-events-auto w-40 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                                                <button type="button" onclick="shiftHHShopNgayTra('to', 1)"
-                                                    class="relative z-20 pointer-events-auto shrink-0 w-7 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">+</button>
-                                            </div>
-                                        </div>
-                                        <div class="flex flex-col gap-1 shrink-0">
-                                            <label
-                                                class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mã
-                                                gian</label>
-                                            <input type="text" id="hhShopFilterMaGian" list="hhShopMaGianFilterList"
-                                                oninput="saveHHShopFilterState(); renderHHShopDienTable()"
-                                                placeholder="Lọc mã gian"
-                                                class="relative z-10 pointer-events-auto w-40 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                                            <datalist id="hhShopMaGianFilterList"></datalist>
-                                        </div>
-                                        <div class="flex flex-col gap-1 shrink-0 min-w-[160px]">
-                                            <label
-                                                class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xác
-                                                nhận</label>
-                                            <div id="hhShopXacNhanFilterButtons" class="flex flex-wrap gap-2">
-                                                <button type="button" data-value="" onclick="setHHShopXacNhanFilter('')"
-                                                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-slate-100 text-slate-700 shadow-sm">Tất
-                                                    cả</button>
-                                                <button type="button" data-value="trống"
-                                                    onclick="setHHShopXacNhanFilter('trống')"
-                                                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50">Trống</button>
-                                                <button type="button" data-value="xác nhận"
-                                                    onclick="setHHShopXacNhanFilter('xác nhận')"
-                                                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50">Xác
-                                                    nhận</button>
-                                            </div>
-                                        </div>
-                                        <div class="flex flex-col gap-1 shrink-0 min-w-[160px]">
-                                            <label
-                                                class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Đã
-                                                nhận</label>
-                                            <div id="hhShopDaNhanFilterButtons" class="flex flex-wrap gap-2">
-                                                <button type="button" data-value="" onclick="setHHShopDaNhanFilter('')"
-                                                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-slate-100 text-slate-700 shadow-sm">Tất
-                                                    cả</button>
-                                                <button type="button" data-value="có đơn"
-                                                    onclick="setHHShopDaNhanFilter('có đơn')"
-                                                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50">Có
-                                                    đơn</button>
-                                                <button type="button" data-value="trống"
-                                                    onclick="setHHShopDaNhanFilter('trống')"
-                                                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50">Trống</button>
-                                            </div>
-                                        </div>
-                                        <div class="flex gap-2 items-end shrink-0 ml-auto">
-                                            <button onclick="setHHShopNgayTraFilterToday()"
-                                                class="px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50 shadow-sm">Hôm
-                                                nay</button>
-                                            <button onclick="setHHShopNgayTraFilterThisWeek()"
-                                                class="px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-semibold bg-primary text-white hover:bg-blue-700 shadow-sm">Tuần
-                                                này</button>
-                                            <button onclick="clearHHShopNgayTraFilter()"
-                                                class="px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-100 shadow-sm">Bỏ
-                                                lọc</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div
-                                    class="flex gap-2 w-full lg:w-[420px] shrink-0 self-start lg:self-auto flex-wrap lg:flex-nowrap items-start lg:items-end lg:justify-end">
-                                    <input type="text" id="hhShopSearchMvd"
-                                        oninput="saveHHShopFilterState(); renderHHShopDienTable()"
-                                        placeholder="Tìm kiếm..."
-                                        class="flex-1 min-w-[180px] sm:w-72 px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                                    <div class="flex gap-2 w-full sm:w-auto justify-end">
-                                        <button onclick="openHHShopNewDrawer()"
-                                            class="flex-1 sm:flex-none bg-indigo-600 text-white px-4 py-2.5 rounded-xl hover:bg-indigo-700 transition-all text-sm font-medium shadow-sm">➕
-                                            Thêm mới</button>
-                                        <button onclick="fetchHHShopDienData()"
-                                            class="flex-1 sm:flex-none bg-primary text-white px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-all text-sm font-medium shadow-sm">🔄
-                                            Làm mới</button>
-                                    </div>
-                                </div>
+                            <div class="flex flex-wrap gap-2 items-center">
+                                <input type="text" id="filterDHCTSearch" oninput="renderDHCTTable()"
+                                    placeholder="Tìm kiếm theo ID hoặc Tên..."
+                                    class="px-3 py-1.5 border border-slate-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary/20">
+                                <button onclick="fetchDHCTData()"
+                                    class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2">
+                                    🔄 Làm mới
+                                </button>
                             </div>
                         </div>
                         <div class="flex-1 overflow-auto table-container">
-                            <table class="w-full min-w-[980px]">
+                            <table class="w-full">
                                 <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
                                     <tr>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">MVD
+                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">ID DH
                                         </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">MDH
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Mã gian
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">SKU
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">
-                                            Hoàn/Trả</th>
                                         <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Ngày
-                                            trả</th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">MVD trả
                                         </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">SKU trả
+                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Trường
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">NCC
                                         </th>
                                         <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Ghi chú
                                         </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Xác
-                                            nhận</th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Đã nhận
+                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Kho
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">ID SP
+                                            CT
+                                        </th>
+                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Tên
+                                        </th>
+                                        <th class="px-3 py-2 text-right text-[11px] font-semibold text-slate-600">Số
+                                            lượng
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody id="hhShopTableBody">
+                                <tbody id="dhctTableBody">
                                     <tr>
-                                        <td colspan="11" class="text-center py-8 text-slate-500">Đang tải dữ liệu...
-                                        </td>
+                                        <td colspan="9" class="text-center py-8 text-slate-500">Đang tải dữ liệu...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1775,269 +1578,681 @@
                     </div>
                 </div>
 
-                <!-- Module Báo cáo Hàng Hoàn -->
-                <div id="moduleBCHangHoan" class="h-full flex flex-col p-1" style="display: none;">
-                    <div
-                        class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
-                        <div class="p-2.5 bg-slate-50 border-b border-slate-200">
-                            <!-- Nút chọn nhanh ngày -->
-                            <div class="flex gap-2 mb-2">
-                                <span class="text-[11px] font-semibold text-slate-600 self-center mr-2 uppercase">Chọn
-                                    nhanh:</span>
-                                <button onclick="setBCHHQuickDate('today')"
-                                    class="px-3 py-1 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">Hôm
-                                    nay</button>
-                                <button onclick="setBCHHQuickDate('thisWeek')"
-                                    class="px-3 py-1 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">Tuần
-                                    này</button>
-                                <button onclick="setBCHHQuickDate('thisMonth')"
-                                    class="px-3 py-1 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">Tháng
-                                    này</button>
-                            </div>
+                <!-- Module Unique DH_CT -->
+                <div id="moduleUniqueDHCT" class="h-full flex flex-col p-1" style="display: none;">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-2 h-full overflow-hidden">
 
-                            <div class="flex gap-4 items-end flex-wrap">
-                                <div>
-                                    <label class="block text-[11px] font-semibold text-slate-700 mb-0.5 uppercase">Từ
-                                        ngày</label>
-                                    <div class="flex items-center gap-1">
-                                        <button onclick="changeBCHHDate('bcHHFromDate', -1)"
-                                            class="px-2 py-1.5 bg-white border border-slate-200 rounded-md text-slate-600 hover:bg-slate-100">➖</button>
-                                        <input type="date" id="bcHHFromDate" onchange="filterBCHHParams()"
-                                            class="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20">
-                                        <button onclick="changeBCHHDate('bcHHFromDate', 1)"
-                                            class="px-2 py-1.5 bg-white border border-slate-200 rounded-md text-slate-600 hover:bg-slate-100">➕</button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-[11px] font-semibold text-slate-700 mb-0.5 uppercase">Đến
-                                        ngày</label>
-                                    <div class="flex items-center gap-1">
-                                        <button onclick="changeBCHHDate('bcHHToDate', -1)"
-                                            class="px-2 py-1.5 bg-white border border-slate-200 rounded-md text-slate-600 hover:bg-slate-100">➖</button>
-                                        <input type="date" id="bcHHToDate" onchange="filterBCHHParams()"
-                                            class="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20">
-                                        <button onclick="changeBCHHDate('bcHHToDate', 1)"
-                                            class="px-2 py-1.5 bg-white border border-slate-200 rounded-md text-slate-600 hover:bg-slate-100">➕</button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-[11px] font-semibold text-slate-700 mb-0.5 uppercase">Mã
-                                        gian</label>
-                                    <input type="text" list="bcHHMaGianList" id="filterBCHHMaGian"
-                                        oninput="filterBCHHParams()" placeholder="Tất cả"
-                                        class="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20">
-                                    <datalist id="bcHHMaGianList"></datalist>
-                                </div>
-                                <div class="flex gap-2">
-                                    <button onclick="filterBCHHData()"
-                                        class="bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium">🔍
-                                        Lọc</button>
-                                    <button onclick="exportBCHHToExcel()"
-                                        class="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-xs font-medium">📥
-                                        Xuất Excel</button>
-                                </div>
+                        <!-- Cột 1: DANH SÁCH ĐƠN HÀNG (MASTER) -->
+                        <div
+                            class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+                            <div
+                                class="px-3 py-2 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+                                <h3 class="text-[11px] font-bold text-slate-700 uppercase tracking-wider">ĐƠN HÀNG</h3>
+                                <button onclick="openAddDHCTModal()"
+                                    class="p-1 hover:bg-slate-200 rounded-md transition-colors"
+                                    title="Thêm đơn hàng mới">
+                                    <svg class="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 4v16m8-8H4" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="flex-1 overflow-y-auto">
+                                <table class="w-full text-[11px] border-collapse">
+                                    <thead
+                                        class="bg-slate-50 sticky top-0 z-10 border-b border-slate-200 text-slate-400 uppercase font-bold">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left font-bold">trường</th>
+                                            <th class="px-3 py-2 text-left font-bold w-1/2">ncc</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="udctMasterList">
+                                        <tr>
+                                            <td colspan="2" class="text-center py-10 text-slate-400">Đang tải...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
-                        <div class="flex-1 overflow-auto p-2">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                                <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-3 text-white">
-                                    <div class="text-[11px] opacity-90 uppercase font-medium">Tổng số đơn hoàn</div>
-                                    <div class="text-2xl font-bold" id="bchhTotalOrders">0</div>
-                                </div>
-                                <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-3 text-white">
-                                    <div class="text-[11px] opacity-90 uppercase font-medium">Tổng số lượng sản phẩm
-                                    </div>
-                                    <div class="text-2xl font-bold" id="bchhTotalQuantity">0</div>
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                                    <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
-                                        <h3 class="text-sm font-semibold text-slate-900">Thống kê theo Mã gian</h3>
-                                    </div>
-                                    <div class="overflow-x-auto max-h-64">
-                                        <table class="w-full">
-                                            <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
-                                                <tr>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        Mã gian</th>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        Số đơn</th>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        SL sản phẩm</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="bchhMaGianTableBody">
-                                                <tr>
-                                                    <td colspan="3" class="text-center py-8 text-slate-500">Chọn ngày để
-                                                        xem báo cáo</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                                    <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
-                                        <h3 class="text-sm font-semibold text-slate-900">Thống kê theo Tình trạng</h3>
-                                    </div>
-                                    <div class="overflow-x-auto max-h-64">
-                                        <table class="w-full">
-                                            <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
-                                                <tr>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        Tình trạng</th>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        Số đơn</th>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        SL sản phẩm</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="bchhTinhTrangTableBody">
-                                                <tr>
-                                                    <td colspan="3" class="text-center py-8 text-slate-500">Chọn
-                                                        ngày để
-                                                        xem báo cáo</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                                    <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
-                                        <h3 class="text-sm font-semibold text-slate-900">Thống kê theo Ngày</h3>
-                                    </div>
-                                    <div class="overflow-x-auto max-h-64">
-                                        <table class="w-full">
-                                            <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
-                                                <tr>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        Ngày</th>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        Số đơn</th>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        SL sản phẩm</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="bchhNgayTableBody">
-                                                <tr>
-                                                    <td colspan="3" class="text-center py-8 text-slate-500">Chọn ngày để
-                                                        xem báo cáo</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                        <!-- Cột 2: CHI TIẾT SẢN PHẨM TRONG ĐƠN (SUB-DETAIL) -->
+                        <div
+                            class="lg:col-span-10 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+                            <div
+                                class="px-3 py-2 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+                                <h3 class="text-[11px] font-bold text-slate-700 uppercase tracking-wider">ĐƠN HÀNG CT
+                                </h3>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="downloadUniqueDHCTTemplate()"
+                                        class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-md transition-all shadow-sm">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <span class="text-[10px] font-bold uppercase">Mẫu</span>
+                                    </button>
+                                    <label
+                                        class="cursor-pointer group flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded-md transition-all shadow-sm">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <span class="text-[10px] font-bold uppercase">Up Excel</span>
+                                        <input type="file" id="excelUploadUniqueDHCT" accept=".xlsx, .xls"
+                                            class="hidden" onchange="handleExcelUploadUniqueDHCT(this.files)">
+                                    </label>
+                                    <button onclick="exportUniqueDHCTToExcel()"
+                                        class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded-md transition-all shadow-sm">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path
+                                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <span class="text-[10px] font-bold uppercase">Xuất</span>
+                                    </button>
                                 </div>
                             </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                                    <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
-                                        <h3 class="text-sm font-semibold text-slate-900">Thống kê theo SKU</h3>
-                                    </div>
-                                    <div class="overflow-x-auto max-h-64">
-                                        <table class="w-full">
-                                            <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
-                                                <tr>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        SKU</th>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        Số đơn</th>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        SL sản phẩm</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="bchhSkuTableBody">
-                                                <tr>
-                                                    <td colspan="3" class="text-center py-8 text-slate-500">Chọn ngày để
-                                                        xem báo cáo</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                                    <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
-                                        <h3 class="text-sm font-semibold text-slate-900">Thống kê theo Kho</h3>
-                                    </div>
-                                    <div class="overflow-x-auto max-h-64">
-                                        <table class="w-full">
-                                            <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
-                                                <tr>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        Kho</th>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        Số đơn</th>
-                                                    <th
-                                                        class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                                                        SL sản phẩm</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="bchhKhoTableBody">
-                                                <tr>
-                                                    <td colspan="3" class="text-center py-8 text-slate-500">Chọn ngày để
-                                                        xem báo cáo</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
+                            <div class="flex-1 overflow-x-auto">
+                                <table class="w-full text-[11px] border-collapse min-w-[600px]">
+                                    <thead
+                                        class="bg-slate-50 sticky top-0 z-10 border-b border-slate-200 text-slate-400 uppercase font-bold text-[10px]">
+                                        <tr>
+                                            <th class="px-2 py-2 text-left w-14">kho</th>
+                                            <th class="px-2 py-2 text-left w-24">id_sp_ct</th>
+                                            <th class="px-2 py-2 text-left">ten</th>
+                                            <th class="px-2 py-2 text-right w-16">so_luong</th>
+                                            <th class="px-2 py-2 text-right w-24">gia_nhap</th>
+                                            <th class="px-2 py-2 text-right w-28">thanh_tien_nhap</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="udctSubDetailList">
+                                        <tr>
+                                            <td colspan="6" class="text-center py-10 text-slate-400 italic">Chọn đơn
+                                                hàng ở cột trái để xem chi tiết</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
+                        </div>
 
-                            <!-- Bảng Chi tiết đơn báo cáo hàng hoàn -->
-                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
-                                <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
-                                    <h3 class="text-sm font-semibold text-slate-900">Chi tiết đơn hàng hoàn</h3>
-                                </div>
-                                <div class="overflow-x-auto max-h-96">
-                                    <table class="w-full text-left whitespace-nowrap">
-                                        <thead class="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
-                                            <tr>
-                                                <th class="px-4 py-3 text-xs font-semibold text-slate-600">Ngày nhận
-                                                </th>
-                                                <th class="px-4 py-3 text-xs font-semibold text-slate-600">MVD</th>
-                                                <th class="px-4 py-3 text-xs font-semibold text-slate-600">Mã gian
-                                                </th>
-                                                <th class="px-4 py-3 text-xs font-semibold text-slate-600">SKU</th>
-                                                <th class="px-4 py-3 text-xs font-semibold text-slate-600 text-right">
-                                                    SLG</th>
-                                                <th class="px-4 py-3 text-xs font-semibold text-slate-600">Tên SP
-                                                </th>
-                                                <th class="px-4 py-3 text-xs font-semibold text-slate-600">Tình
-                                                    trạng</th>
-                                                <th class="px-4 py-3 text-xs font-semibold text-slate-600">Kho</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="bchhDetailsTableBody" class="divide-y divide-slate-100">
-                                            <tr>
-                                                <td colspan="8" class="text-center py-8 text-slate-500">Chọn ngày để
-                                                    xem báo cáo</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+
+                    </div>
+
+                </div>
+
+
+        <div id="moduleHangHoan" class="h-full flex flex-col p-1" style="display: none;">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
+                <div class="p-3 border-b border-slate-200 bg-white space-y-3">
+                    <!-- Filters & Search Row -->
+                    <div class="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-3">
+                        <!-- Stats & Refresh -->
+                        <div class="flex items-center gap-2 shrink-0">
+                            <div id="hangHoanStats"
+                                class="text-[11px] font-bold text-slate-500 uppercase tracking-tight bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100">
+                                Số đơn: 0</div>
+                            <div class="flex gap-1.5">
+                                <button onclick="fetchHangHoanData()"
+                                    class="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
+                                    title="Làm mới">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                </button>
+                                <button onclick="setHangHoanToday()"
+                                    class="px-2.5 py-1.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg hover:bg-blue-100 transition-colors uppercase whitespace-nowrap">Hôm
+                                    nay</button>
                             </div>
+                        </div>
 
+                        <!-- Date Filter -->
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center">
+                                <button onclick="shiftHHFilterDate('filterHHFrom', -1)"
+                                    class="w-7 h-8 flex items-center justify-center bg-slate-100 border border-slate-200 border-r-0 rounded-l-lg text-slate-500 hover:bg-slate-200 transition-all font-bold text-sm">-</button>
+                                <input type="date" id="filterHHFrom" onchange="filterHangHoanData()"
+                                    class="w-28 h-8 px-1 bg-slate-50 border border-slate-200 text-[10px] font-semibold focus:ring-0 outline-none">
+                                <button onclick="shiftHHFilterDate('filterHHFrom', 1)"
+                                    class="w-7 h-8 flex items-center justify-center bg-slate-100 border border-slate-200 border-l-0 rounded-r-lg text-slate-500 hover:bg-slate-200 transition-all font-bold text-sm">+</button>
+                            </div>
+                            <div class="flex items-center">
+                                <button onclick="shiftHHFilterDate('filterHHTo', -1)"
+                                    class="w-7 h-8 flex items-center justify-center bg-slate-100 border border-slate-200 border-r-0 rounded-l-lg text-slate-500 hover:bg-slate-200 transition-all font-bold text-sm">-</button>
+                                <input type="date" id="filterHHTo" onchange="filterHangHoanData()"
+                                    class="w-28 h-8 px-1 bg-slate-50 border border-slate-200 text-[10px] font-semibold focus:ring-0 outline-none">
+                                <button onclick="shiftHHFilterDate('filterHHTo', 1)"
+                                    class="w-7 h-8 flex items-center justify-center bg-slate-100 border border-slate-200 border-l-0 rounded-r-lg text-slate-500 hover:bg-slate-200 transition-all font-bold text-sm">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Warehouse & Store -->
+                        <div class="flex items-center gap-2 lg:min-w-0">
+                            <div id="filterHHKhoButtons" class="flex gap-0.5 bg-slate-100 p-0.5 rounded-lg shrink-0">
+                            </div>
+                            <select id="filterHHMaGian" onchange="filterHangHoanData()"
+                                class="w-full lg:w-40 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-primary/20 outline-none appearance-none cursor-pointer">
+                                <option value="">Tất cả gian hàng</option>
+                            </select>
+                        </div>
+
+                        <!-- Search -->
+                        <div class="relative flex-1">
+                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input type="text" id="filterHHSearch" oninput="filterHangHoanData()"
+                                placeholder="Tìm: MVD, Gian, SKU, Tình trạng..."
+                                class="w-full pl-9 pr-12 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none focus:bg-white transition-all">
+
+                            <!-- Nút quét QR/MVD cho ô tìm kiếm -->
+                            <button onclick="startHHSearchQrScan()" type="button"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
+                                title="Quét MVD tìm kiếm">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M12 7v10m-3-7l3-3 3 3" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
+
+                    <!-- Action Buttons Row -->
+                    <div class="flex flex-wrap items-center gap-2 lg:gap-3">
+                        <!-- Group 1: Thêm mới & Quét (luôn 1 hàng) -->
+                        <div class="flex gap-2 w-full lg:w-auto">
+                            <button onclick="openNewHangHoanDrawer()"
+                                class="flex-1 lg:flex-none lg:px-6 flex items-center justify-center gap-2 bg-indigo-600 text-white font-bold py-2 rounded-xl text-xs hover:bg-indigo-700 transition-all shadow-sm">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 4v16m8-8H4" />
+                                </svg>
+                                Thêm mới
+                            </button>
+                            <button onclick="startContinuousMvdScan()"
+                                class="flex-1 lg:flex-none lg:px-6 flex items-center justify-center gap-2 bg-violet-600 text-white font-bold py-2 rounded-xl text-xs hover:bg-violet-700 transition-all shadow-sm">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                Quét MVD
+                            </button>
+                        </div>
+                        <input type="hidden" id="filterHHKho" value="">
+                        <button onclick="exportHangHoanToExcel()"
+                            class="hidden lg:flex flex-1 lg:flex-none lg:px-4 items-center justify-center gap-2 bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs hover:bg-emerald-700 transition-all">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Excel MVD
+                        </button>
+                        <button onclick="exportHangHoanSummaryToExcel()"
+                            class="hidden lg:flex flex-1 lg:flex-none lg:px-4 items-center justify-center gap-2 bg-teal-600 text-white font-bold py-2 rounded-xl text-xs hover:bg-teal-700 transition-all">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 17v-2a4 4 0 014-4h4m-4-4l4 4-4 4" />
+                            </svg>
+                            Excel SKU Tổng
+                        </button>
+                        <button onclick="exportHangHoanToMisa()"
+                            class="hidden lg:flex flex-1 lg:flex-none lg:px-6 flex items-center justify-center gap-2 bg-amber-500 text-white font-bold py-2 rounded-xl text-xs hover:bg-amber-600 transition-all">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            MISA
+                        </button>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-auto table-container">
+                    <table class="w-full min-w-[980px]">
+                        <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Ngày
+                                    nhận</th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">MVD
+                                </th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">MVD 2
+                                </th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Mã gian
+                                </th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">SKU
+                                </th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">SKU CT
+                                </th>
+                                <th class="px-3 py-2 text-right text-[11px] font-semibold text-slate-600">SLG
+                                </th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Tên SP
+                                </th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Kho
+                                </th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Tình
+                                    trạng</th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">SKU
+                                    tổng</th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Ảnh
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="hangHoanTableBody">
+                            <tr>
+                                <td colspan="12" class="text-center py-8 text-slate-500">Đang tải dữ liệu...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Floating Action Button for Mobile: Thêm mới -->
+                <button onclick="openNewHangHoanDrawer()"
+                    class="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center lg:hidden z-50 active:scale-90 transition-transform active:bg-indigo-700">
+                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Module HH SHOP ĐIỀN -->
+        <div id="moduleHHShopDien" class="h-full flex flex-col p-1" style="display: none;">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
+                <div class="p-2.5 border-b border-slate-200 bg-white flex flex-wrap justify-between items-center gap-2">
+                    <div>
+                        <div id="hhShopStats" class="text-[11px] text-slate-500 mt-1">Số dòng: 0</div>
+                    </div>
+                    <div
+                        class="w-full flex flex-col gap-3 relative z-30 isolate lg:flex-row lg:items-start lg:justify-between lg:gap-4">
+                        <div
+                            class="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm overflow-x-auto w-full lg:flex-[1_1_0%] lg:min-w-0">
+                            <div class="flex flex-nowrap items-end gap-3 w-max min-w-full relative z-30">
+                                <div class="flex flex-col gap-1 shrink-0">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Từ
+                                        ngày</label>
+                                    <div class="flex items-center gap-1">
+                                        <button type="button" onclick="shiftHHShopNgayTra('from', -1)"
+                                            class="relative z-20 pointer-events-auto shrink-0 w-7 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">-</button>
+                                        <input type="date" id="hhShopNgayTraFrom"
+                                            oninput="saveHHShopFilterState(); renderHHShopDienTable()"
+                                            class="relative z-10 pointer-events-auto w-40 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                        <button type="button" onclick="shiftHHShopNgayTra('from', 1)"
+                                            class="relative z-20 pointer-events-auto shrink-0 w-7 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">+</button>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-1 shrink-0">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Đến
+                                        ngày</label>
+                                    <div class="flex items-center gap-1">
+                                        <button type="button" onclick="shiftHHShopNgayTra('to', -1)"
+                                            class="relative z-20 pointer-events-auto shrink-0 w-7 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">-</button>
+                                        <input type="date" id="hhShopNgayTraTo"
+                                            oninput="saveHHShopFilterState(); renderHHShopDienTable()"
+                                            class="relative z-10 pointer-events-auto w-40 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                        <button type="button" onclick="shiftHHShopNgayTra('to', 1)"
+                                            class="relative z-20 pointer-events-auto shrink-0 w-7 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">+</button>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-1 shrink-0">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mã
+                                        gian</label>
+                                    <input type="text" id="hhShopFilterMaGian" list="hhShopMaGianFilterList"
+                                        oninput="saveHHShopFilterState(); renderHHShopDienTable()"
+                                        placeholder="Lọc mã gian"
+                                        class="relative z-10 pointer-events-auto w-40 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                    <datalist id="hhShopMaGianFilterList"></datalist>
+                                </div>
+                                <div class="flex flex-col gap-1 shrink-0 min-w-[160px]">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xác
+                                        nhận</label>
+                                    <div id="hhShopXacNhanFilterButtons" class="flex flex-wrap gap-2">
+                                        <button type="button" data-value="" onclick="setHHShopXacNhanFilter('')"
+                                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-slate-100 text-slate-700 shadow-sm">Tất
+                                            cả</button>
+                                        <button type="button" data-value="trống"
+                                            onclick="setHHShopXacNhanFilter('trống')"
+                                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50">Trống</button>
+                                        <button type="button" data-value="xác nhận"
+                                            onclick="setHHShopXacNhanFilter('xác nhận')"
+                                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50">Xác
+                                            nhận</button>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-1 shrink-0 min-w-[160px]">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Đã
+                                        nhận</label>
+                                    <div id="hhShopDaNhanFilterButtons" class="flex flex-wrap gap-2">
+                                        <button type="button" data-value="" onclick="setHHShopDaNhanFilter('')"
+                                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-slate-100 text-slate-700 shadow-sm">Tất
+                                            cả</button>
+                                        <button type="button" data-value="có đơn"
+                                            onclick="setHHShopDaNhanFilter('có đơn')"
+                                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50">Có
+                                            đơn</button>
+                                        <button type="button" data-value="trống"
+                                            onclick="setHHShopDaNhanFilter('trống')"
+                                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50">Trống</button>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2 items-end shrink-0 ml-auto">
+                                    <button onclick="setHHShopNgayTraFilterToday()"
+                                        class="px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50 shadow-sm">Hôm
+                                        nay</button>
+                                    <button onclick="setHHShopNgayTraFilterThisWeek()"
+                                        class="px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-semibold bg-primary text-white hover:bg-blue-700 shadow-sm">Tuần
+                                        này</button>
+                                    <button onclick="clearHHShopNgayTraFilter()"
+                                        class="px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-100 shadow-sm">Bỏ
+                                        lọc</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div
+                            class="flex gap-2 w-full lg:w-[420px] shrink-0 self-start lg:self-auto flex-wrap lg:flex-nowrap items-start lg:items-end lg:justify-end">
+                            <input type="text" id="hhShopSearchMvd"
+                                oninput="saveHHShopFilterState(); renderHHShopDienTable()" placeholder="Tìm kiếm..."
+                                class="flex-1 min-w-[180px] sm:w-72 px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <div class="flex gap-2 w-full sm:w-auto justify-end">
+                                <button onclick="openHHShopNewDrawer()"
+                                    class="flex-1 sm:flex-none bg-indigo-600 text-white px-4 py-2.5 rounded-xl hover:bg-indigo-700 transition-all text-sm font-medium shadow-sm">➕
+                                    Thêm mới</button>
+                                <button onclick="fetchHHShopDienData()"
+                                    class="flex-1 sm:flex-none bg-primary text-white px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-all text-sm font-medium shadow-sm">🔄
+                                    Làm mới</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-auto table-container">
+                    <table class="w-full min-w-[980px]">
+                        <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">MVD
+                                </th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">MDH
+                                </th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Mã gian
+                                </th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">SKU
+                                </th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">
+                                    Hoàn/Trả</th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Ngày
+                                    trả</th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">MVD trả
+                                </th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">SKU trả
+                                </th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Ghi chú
+                                </th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Xác
+                                    nhận</th>
+                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Đã nhận
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="hhShopTableBody">
+                            <tr>
+                                <td colspan="11" class="text-center py-8 text-slate-500">Đang tải dữ liệu...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Module Báo cáo Hàng Hoàn -->
+        <div id="moduleBCHangHoan" class="h-full flex flex-col p-1" style="display: none;">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
+                <div class="p-2.5 bg-slate-50 border-b border-slate-200">
+                    <!-- Nút chọn nhanh ngày -->
+                    <div class="flex gap-2 mb-2">
+                        <span class="text-[11px] font-semibold text-slate-600 self-center mr-2 uppercase">Chọn
+                            nhanh:</span>
+                        <button onclick="setBCHHQuickDate('today')"
+                            class="px-3 py-1 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">Hôm
+                            nay</button>
+                        <button onclick="setBCHHQuickDate('thisWeek')"
+                            class="px-3 py-1 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">Tuần
+                            này</button>
+                        <button onclick="setBCHHQuickDate('thisMonth')"
+                            class="px-3 py-1 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">Tháng
+                            này</button>
+                    </div>
+
+                    <div class="flex gap-4 items-end flex-wrap">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-700 mb-0.5 uppercase">Từ
+                                ngày</label>
+                            <div class="flex items-center gap-1">
+                                <button onclick="changeBCHHDate('bcHHFromDate', -1)"
+                                    class="px-2 py-1.5 bg-white border border-slate-200 rounded-md text-slate-600 hover:bg-slate-100">➖</button>
+                                <input type="date" id="bcHHFromDate" onchange="filterBCHHParams()"
+                                    class="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20">
+                                <button onclick="changeBCHHDate('bcHHFromDate', 1)"
+                                    class="px-2 py-1.5 bg-white border border-slate-200 rounded-md text-slate-600 hover:bg-slate-100">➕</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-700 mb-0.5 uppercase">Đến
+                                ngày</label>
+                            <div class="flex items-center gap-1">
+                                <button onclick="changeBCHHDate('bcHHToDate', -1)"
+                                    class="px-2 py-1.5 bg-white border border-slate-200 rounded-md text-slate-600 hover:bg-slate-100">➖</button>
+                                <input type="date" id="bcHHToDate" onchange="filterBCHHParams()"
+                                    class="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20">
+                                <button onclick="changeBCHHDate('bcHHToDate', 1)"
+                                    class="px-2 py-1.5 bg-white border border-slate-200 rounded-md text-slate-600 hover:bg-slate-100">➕</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-700 mb-0.5 uppercase">Mã
+                                gian</label>
+                            <input type="text" list="bcHHMaGianList" id="filterBCHHMaGian" oninput="filterBCHHParams()"
+                                placeholder="Tất cả"
+                                class="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20">
+                            <datalist id="bcHHMaGianList"></datalist>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="filterBCHHData()"
+                                class="bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium">🔍
+                                Lọc</button>
+                            <button onclick="exportBCHHToExcel()"
+                                class="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-xs font-medium">📥
+                                Xuất Excel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-auto p-2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                        <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-3 text-white">
+                            <div class="text-[11px] opacity-90 uppercase font-medium">Tổng số đơn hoàn</div>
+                            <div class="text-2xl font-bold" id="bchhTotalOrders">0</div>
+                        </div>
+                        <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-3 text-white">
+                            <div class="text-[11px] opacity-90 uppercase font-medium">Tổng số lượng sản phẩm
+                            </div>
+                            <div class="text-2xl font-bold" id="bchhTotalQuantity">0</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                            <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
+                                <h3 class="text-sm font-semibold text-slate-900">Thống kê theo Mã gian</h3>
+                            </div>
+                            <div class="overflow-x-auto max-h-64">
+                                <table class="w-full">
+                                    <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                Mã gian</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                Số đơn</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                SL sản phẩm</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bchhMaGianTableBody">
+                                        <tr>
+                                            <td colspan="3" class="text-center py-8 text-slate-500">Chọn ngày để
+                                                xem báo cáo</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                            <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
+                                <h3 class="text-sm font-semibold text-slate-900">Thống kê theo Tình trạng</h3>
+                            </div>
+                            <div class="overflow-x-auto max-h-64">
+                                <table class="w-full">
+                                    <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                Tình trạng</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                Số đơn</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                SL sản phẩm</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bchhTinhTrangTableBody">
+                                        <tr>
+                                            <td colspan="3" class="text-center py-8 text-slate-500">Chọn
+                                                ngày để
+                                                xem báo cáo</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                            <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
+                                <h3 class="text-sm font-semibold text-slate-900">Thống kê theo Ngày</h3>
+                            </div>
+                            <div class="overflow-x-auto max-h-64">
+                                <table class="w-full">
+                                    <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                Ngày</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                Số đơn</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                SL sản phẩm</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bchhNgayTableBody">
+                                        <tr>
+                                            <td colspan="3" class="text-center py-8 text-slate-500">Chọn ngày để
+                                                xem báo cáo</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                            <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
+                                <h3 class="text-sm font-semibold text-slate-900">Thống kê theo SKU</h3>
+                            </div>
+                            <div class="overflow-x-auto max-h-64">
+                                <table class="w-full">
+                                    <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                SKU</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                Số đơn</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                SL sản phẩm</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bchhSkuTableBody">
+                                        <tr>
+                                            <td colspan="3" class="text-center py-8 text-slate-500">Chọn ngày để
+                                                xem báo cáo</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                            <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
+                                <h3 class="text-sm font-semibold text-slate-900">Thống kê theo Kho</h3>
+                            </div>
+                            <div class="overflow-x-auto max-h-64">
+                                <table class="w-full">
+                                    <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                Kho</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                Số đơn</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                SL sản phẩm</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bchhKhoTableBody">
+                                        <tr>
+                                            <td colspan="3" class="text-center py-8 text-slate-500">Chọn ngày để
+                                                xem báo cáo</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bảng Chi tiết đơn báo cáo hàng hoàn -->
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
+                        <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
+                            <h3 class="text-sm font-semibold text-slate-900">Chi tiết đơn hàng hoàn</h3>
+                        </div>
+                        <div class="overflow-x-auto max-h-96">
+                            <table class="w-full text-left whitespace-nowrap">
+                                <thead class="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+                                    <tr>
+                                        <th class="px-4 py-3 text-xs font-semibold text-slate-600">Ngày nhận
+                                        </th>
+                                        <th class="px-4 py-3 text-xs font-semibold text-slate-600">MVD</th>
+                                        <th class="px-4 py-3 text-xs font-semibold text-slate-600">Mã gian
+                                        </th>
+                                        <th class="px-4 py-3 text-xs font-semibold text-slate-600">SKU</th>
+                                        <th class="px-4 py-3 text-xs font-semibold text-slate-600 text-right">
+                                            SLG</th>
+                                        <th class="px-4 py-3 text-xs font-semibold text-slate-600">Tên SP
+                                        </th>
+                                        <th class="px-4 py-3 text-xs font-semibold text-slate-600">Tình
+                                            trạng</th>
+                                        <th class="px-4 py-3 text-xs font-semibold text-slate-600">Kho</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bchhDetailsTableBody" class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="8" class="text-center py-8 text-slate-500">Chọn ngày để
+                                            xem báo cáo</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
 
             </main>
         </div>
@@ -2469,7 +2684,23 @@
     </div>
 
     <div id="toastContainer"></div>
-    <script src="scripts.js?v=hh-sku-20260513"></script>
+    <script src="js/config.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/modules/hanghoan.js"></script>
+    <script src="js/modules/hh_shop_dien.js"></script>
+    <script src="js/modules/donhang.js"></script>
+    <script src="js/modules/bandon.js"></script>
+    <script src="js/modules/sanpham.js"></script>
+    <script src="js/modules/upmisa.js"></script>
+    <script src="js/modules/baocao.js"></script>
+    <script src="js/modules/bchh.js"></script>
+    <script src="js/modules/dhct.js"></script>
+    <script src="js/modules/unique_dh_ct.js"></script>
+    <script src="js/modules/inventory.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/main.js"></script>
 </body>
 
 </html>
