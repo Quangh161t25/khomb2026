@@ -147,6 +147,7 @@ function switchModule(module) {
     const baocaoTongModule = document.getElementById('moduleBaocaoTong');
     const banDonModule = document.getElementById('moduleBanDon');
     const pageTitle = document.getElementById('pageTitle');
+    const udctHeaderSearchBox = document.getElementById('udctHeaderSearchBox');
     const sidebarHome = document.getElementById('sidebarHome');
     const sidebarDonhang = document.getElementById('sidebarDonhang');
     const sidebarSanpham = document.getElementById('sidebarSanpham');
@@ -176,6 +177,7 @@ function switchModule(module) {
     if (dhctModule) dhctModule.style.display = 'none';
     const uniqueDHCTModule = document.getElementById('moduleUniqueDHCT');
     if (uniqueDHCTModule) uniqueDHCTModule.style.display = 'none';
+    if (udctHeaderSearchBox) udctHeaderSearchBox.classList.add('hidden');
 
     const resetSidebar = () => {
         [sidebarHome, sidebarDonhang, sidebarSanpham, sidebarBaocao, sidebarBaocaoTong, sidebarUpmisa, sidebarInventory, sidebarDHCT, sidebarUniqueDHCT, sidebarHangHoan, sidebarHHShopDien, sidebarBCHangHoan, sidebarBanDon].forEach(s => {
@@ -195,6 +197,7 @@ function switchModule(module) {
     } else if (module === 'donhang') {
         donhangModule.style.display = 'flex';
         pageTitle.textContent = 'UP Đơn chi tiết';
+        if (udctHeaderSearchBox) udctHeaderSearchBox.classList.remove('hidden');
         resetSidebar();
         sidebarDonhang.classList.add('active', 'bg-blue-50', 'text-primary', 'border-r-2', 'border-primary');
         sidebarDonhang.classList.remove('text-slate-600');

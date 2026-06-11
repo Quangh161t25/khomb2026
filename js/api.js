@@ -47,8 +47,10 @@ async function fetchSheetData(sheetName) {
     try {
         const token = await getAccessToken();
         if (!token) return [];
-        const rowLimit = sheetName === CONFIG.udctSheetName ? 100000 : 10000;
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${sheetName}!A1:AF${rowLimit}`;
+        const range = typeof getSheetRange === 'function'
+            ? getSheetRange(sheetName, 'read')
+            : `A1:AF${sheetName === CONFIG.udctSheetName ? 100000 : 10000}`;
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${sheetName}!${range}`;
         const resp = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
         if (!resp.ok) {
             console.error(`Fetch ${sheetName} failed:`, resp.status);
@@ -90,8 +92,10 @@ async function clearSheetData(sheetName) {
     try {
         const token = await getAccessToken();
         if (!token) return false;
-        const rowLimit = sheetName === CONFIG.udctSheetName ? 100000 : 10000;
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${sheetName}!A2:AF${rowLimit}:clear`;
+        const range = typeof getSheetRange === 'function'
+            ? getSheetRange(sheetName, 'clear')
+            : `A2:AF${sheetName === CONFIG.udctSheetName ? 100000 : 10000}`;
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${sheetName}!${range}:clear`;
         const resp = await fetch(url, {
             method: "POST",
             headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" }
@@ -113,7 +117,8 @@ async function appendSheetData(sheetName, values) {
     try {
         const token = await getAccessToken();
         if (!token) return false;
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${sheetName}!A:A:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+        const range = typeof getSheetRange === 'function' ? getSheetRange(sheetName, 'append') : 'A:A';
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${sheetName}!${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
         const resp = await fetch(url, {
             method: "POST",
             headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
