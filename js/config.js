@@ -3,7 +3,7 @@ const CONFIG = {
     spreadsheetId: "1cnA33cHHMhcOSaXa9l4Jeu6qw8QnXlUnEU4Bqtkj9wo",
     authSheetName: "DSNV",
     udctSheetName: "UD_CT",
-    sanphamSheetName: "DS_SP_PM",
+    sanphamSheetName: "DS_SP",
     dsSpCtSheetName: "DS_SP_CT",
     inventorySheetName: "TON_KHO",
     dhctSheetName: "DH_CT",

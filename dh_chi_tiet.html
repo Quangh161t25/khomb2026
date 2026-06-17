@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <!-- ?link=don_chi_tiet -> Mở Đơn chi tiết
 ?link=san_pham -> Mở Sản phẩm PM
@@ -145,24 +145,6 @@
                             d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
                     <span class="font-medium sidebar-text">Tồn kho</span>
-                </div>
-                <div onclick="switchModule('dh_ct')" id="sidebarDHCT"
-                    class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
-                    title="Đơn hàng chi tiết">
-                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
-                    <span class="font-medium sidebar-text">DH Chi Tiết</span>
-                </div>
-                <div onclick="switchModule('unique_dh_ct')" id="sidebarUniqueDHCT"
-                    class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
-                    title="Đơn hàng trên DH chi tiết">
-                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span class="font-medium sidebar-text">DH trên DH CT</span>
                 </div>
                 <div onclick="window.location.href='index.html?link=hang_hoan'" id="sidebarHangHoan"
                     class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
@@ -643,23 +625,13 @@
                             <table class="w-full min-w-[980px]">
                                 <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
                                     <tr>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Tên
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Sản
-                                            phẩm
-                                            cha</th>
                                         <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Mã</th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Giá
-                                            nhập
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Giá bán
-                                            lẻ
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Giá đón
-                                            gói
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Giá bán
-                                            thấp nhất</th>
+                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Mã SP Cha</th>
+                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Tên</th>
+                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Giá nhập</th>
+                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Giá bán lẻ</th>
+                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Giá đón gói</th>
+                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Giá bán thấp nhất</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sanphamTableBody">
@@ -1247,166 +1219,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Module DH_CT -->
-                <div id="moduleDHCT" class="h-full flex flex-col p-1" style="display: none;">
-                    <div
-                        class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
-                        <div
-                            class="p-2.5 border-b border-slate-200 bg-white flex flex-wrap justify-between items-center gap-3">
-                            <div>
-                                <h2 class="text-base font-bold text-slate-900">Dữ liệu DH_CT từ Sheet</h2>
-                                <p class="text-[11px] text-slate-500 mt-0.5">Quản lý chi tiết đơn hàng nhập/xuất</p>
-                            </div>
-                            <div class="flex flex-wrap gap-2 items-center">
-                                <input type="text" id="filterDHCTSearch" oninput="renderDHCTTable()"
-                                    placeholder="Tìm kiếm theo ID hoặc Tên..."
-                                    class="px-3 py-1.5 border border-slate-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary/20">
-                                <button onclick="fetchDHCTData()"
-                                    class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2">
-                                    🔄 Làm mới
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex-1 overflow-auto table-container">
-                            <table class="w-full">
-                                <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
-                                    <tr>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">ID DH
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Ngày
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Trường
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">NCC
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Ghi chú
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Kho
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">ID SP
-                                            CT
-                                        </th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Tên
-                                        </th>
-                                        <th class="px-3 py-2 text-right text-[11px] font-semibold text-slate-600">Số
-                                            lượng
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody id="dhctTableBody">
-                                    <tr>
-                                        <td colspan="9" class="text-center py-8 text-slate-500">Đang tải dữ liệu...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Module Unique DH_CT -->
-                <div id="moduleUniqueDHCT" class="h-full flex flex-col p-1" style="display: none;">
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-2 h-full overflow-hidden">
-
-                        <!-- Cột 1: DANH SÁCH ĐƠN HÀNG (MASTER) -->
-                        <div
-                            class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
-                            <div
-                                class="px-3 py-2 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
-                                <h3 class="text-[11px] font-bold text-slate-700 uppercase tracking-wider">ĐƠN HÀNG</h3>
-                                <button onclick="openAddDHCTModal()"
-                                    class="p-1 hover:bg-slate-200 rounded-md transition-colors"
-                                    title="Thêm đơn hàng mới">
-                                    <svg class="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24"
-                                        stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M12 4v16m8-8H4" />
-                                    </svg>
-                                </button>
-                            </div>
-                            <div class="flex-1 overflow-y-auto">
-                                <table class="w-full text-[11px] border-collapse">
-                                    <thead
-                                        class="bg-slate-50 sticky top-0 z-10 border-b border-slate-200 text-slate-400 uppercase font-bold">
-                                        <tr>
-                                            <th class="px-3 py-2 text-left font-bold">trường</th>
-                                            <th class="px-3 py-2 text-left font-bold w-1/2">ncc</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="udctMasterList">
-                                        <tr>
-                                            <td colspan="2" class="text-center py-10 text-slate-400">Đang tải...</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- Cột 2: CHI TIẾT SẢN PHẨM TRONG ĐƠN (SUB-DETAIL) -->
-                        <div
-                            class="lg:col-span-10 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
-                            <div
-                                class="px-3 py-2 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
-                                <h3 class="text-[11px] font-bold text-slate-700 uppercase tracking-wider">ĐƠN HÀNG CT
-                                </h3>
-                                <div class="flex items-center gap-2">
-                                    <button onclick="downloadUniqueDHCTTemplate()"
-                                        class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-md transition-all shadow-sm">
-                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                        </svg>
-                                        <span class="text-[10px] font-bold uppercase">Mẫu</span>
-                                    </button>
-                                    <label
-                                        class="cursor-pointer group flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded-md transition-all shadow-sm">
-                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                        </svg>
-                                        <span class="text-[10px] font-bold uppercase">Up Excel</span>
-                                        <input type="file" id="excelUploadUniqueDHCT" accept=".xlsx, .xls"
-                                            class="hidden" onchange="handleExcelUploadUniqueDHCT(this.files)">
-                                    </label>
-                                    <button onclick="exportUniqueDHCTToExcel()"
-                                        class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded-md transition-all shadow-sm">
-                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path
-                                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                        </svg>
-                                        <span class="text-[10px] font-bold uppercase">Xuất</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="flex-1 overflow-x-auto">
-                                <table class="w-full text-[11px] border-collapse min-w-[600px]">
-                                    <thead
-                                        class="bg-slate-50 sticky top-0 z-10 border-b border-slate-200 text-slate-400 uppercase font-bold text-[10px]">
-                                        <tr>
-                                            <th class="px-2 py-2 text-left w-14">kho</th>
-                                            <th class="px-2 py-2 text-left w-24">id_sp_ct</th>
-                                            <th class="px-2 py-2 text-left">ten</th>
-                                            <th class="px-2 py-2 text-right w-16">so_luong</th>
-                                            <th class="px-2 py-2 text-right w-24">gia_nhap</th>
-                                            <th class="px-2 py-2 text-right w-28">thanh_tien_nhap</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="udctSubDetailList">
-                                        <tr>
-                                            <td colspan="6" class="text-center py-10 text-slate-400 italic">Chọn đơn
-                                                hàng ở cột trái để xem chi tiết</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-
-                    </div>
-
-                </div>
-        </div>
 
         <!-- Module Hàng hoàn -->
         <div id="moduleHangHoan" class="h-full flex flex-col p-1" style="display: none;">
@@ -2060,7 +1872,7 @@
         class="hidden fixed z-[99999] bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto w-96 text-[11px] py-1 border-t-2 border-t-primary">
     </div>
 
-    <script src="scripts.js?v=hh-sku-20260513"></script>
+
     <script>
         window.addEventListener('load', () => {
             setTimeout(() => {
@@ -2069,7 +1881,7 @@
                 if (mod) {
                     if (typeof switchModule === 'function') switchModule(mod);
                 } else {
-                    if (typeof switchModule === 'function') switchModule('dh_ct');
+                    if (typeof switchModule === 'function') switchModule('donhang');
                 }
             }, 600); // Wait for auto-login to finish
         });
@@ -2077,3 +1889,6 @@
 </body>
 
 </html>
+
+
+

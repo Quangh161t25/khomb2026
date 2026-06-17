@@ -19,24 +19,30 @@ async function loadSanphamData() {
             return -1;
         };
 
-        const idxSkuCon = findIdx(['mã', 'sku_con', 'sku con']);
+        const idxSkuCon = findIdx(['mã', 'sku_con', 'sku con', 'id_sp_con']);
+        const idxIdSp = findIdx(['mã sp cha', 'id_sp']);
+        const idxTen = findIdx(['tên', 'ten_sp', 'tên sản phẩm']);
+        const idxGiaNhap = findIdx(['giá nhập', 'gia_nhap']);
         const idxGiaBan = findIdx(['giá bán lẻ', 'gia_ban', 'giá bán']);
         const idxGiaDongGoi = findIdx(['giá đón gói', 'gia_dong_goi', 'giá đóng gói']);
-        const idxTen = findIdx(['tên', 'ten_sp', 'tên sản phẩm']);
+        const idxGiaThapNhat = findIdx(['giá bán thấp nhất', 'giá thấp nhất', 'gia_thap_nhat']);
 
         sanphamData = data.slice(1).map((row, idx) => ({
             rowIndex: idx + 2,
-            sku_con: idxSkuCon !== -1 ? row[idxSkuCon] : (row[5] || ""),
-            gia_ban: parseFloat(idxGiaBan !== -1 ? row[idxGiaBan] : row[9]) || 0,
-            gia_dong_goi: parseFloat(idxGiaDongGoi !== -1 ? row[idxGiaDongGoi] : row[11]) || 0,
-            ten_sp: idxTen !== -1 ? row[idxTen] : (row[1] || ""),
+            sku_con: idxSkuCon !== -1 ? row[idxSkuCon] : (row[0] || ""),
+            id_sp: idxIdSp !== -1 ? row[idxIdSp] : (row[1] || ""),
+            ten_sp: idxTen !== -1 ? row[idxTen] : (row[2] || ""),
+            gia_nhap: parseFloat(idxGiaNhap !== -1 ? row[idxGiaNhap] : row[3]) || 0,
+            gia_ban: parseFloat(idxGiaBan !== -1 ? row[idxGiaBan] : row[4]) || 0,
+            gia_dong_goi: parseFloat(idxGiaDongGoi !== -1 ? row[idxGiaDongGoi] : row[5]) || 0,
+            gia_thap_nhat: parseFloat(idxGiaThapNhat !== -1 ? row[idxGiaThapNhat] : row[6]) || 0,
             mapping: row
-        })).filter(item => item.mapping.some(cell => String(cell || '').trim() !== ''));
+        })).filter(item => item.sku_con !== '');
 
         renderSanphamTable(1);
         populateSPLists();
     } else {
-        if (tbody) tbody.innerHTML = '<tr><td colspan="32" class="text-center py-8 text-slate-500">Không có dữ liệu</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-slate-500">Không có dữ liệu</td></tr>';
     }
 }
 
@@ -71,13 +77,13 @@ function renderSanphamTable(page = 1) {
 
     tbody.innerHTML = paginated.map(item => `
                 <tr class="border-b border-slate-100 hover:bg-slate-50">
-                    <td class="px-2 py-1.5 text-xs text-slate-900 max-w-[240px] truncate">${item.mapping[1] || '-'}</td>
-                    <td class="px-2 py-1.5 text-xs text-slate-900 max-w-[200px] truncate">${item.mapping[2] || '-'}</td>
-                    <td class="px-2 py-1.5 text-xs text-slate-900 whitespace-nowrap">${item.mapping[5] || '-'}</td>
-                    <td class="px-2 py-1.5 text-xs text-slate-900 whitespace-nowrap">${item.mapping[7] || '-'}</td>
-                    <td class="px-2 py-1.5 text-xs text-slate-900 whitespace-nowrap">${item.mapping[9] || '-'}</td>
-                    <td class="px-2 py-1.5 text-xs text-slate-900 whitespace-nowrap">${item.mapping[11] || '-'}</td>
-                    <td class="px-2 py-1.5 text-xs text-slate-900 whitespace-nowrap">${item.mapping[31] || '-'}</td>
+                    <td class="px-2 py-1.5 text-xs text-slate-900 whitespace-nowrap">${item.sku_con || '-'}</td>
+                    <td class="px-2 py-1.5 text-xs text-slate-900 whitespace-nowrap">${item.id_sp || '-'}</td>
+                    <td class="px-2 py-1.5 text-xs text-slate-900 max-w-[240px] truncate">${item.ten_sp || '-'}</td>
+                    <td class="px-2 py-1.5 text-xs text-slate-900 whitespace-nowrap">${item.gia_nhap ? item.gia_nhap.toLocaleString('vi-VN') : '-'}</td>
+                    <td class="px-2 py-1.5 text-xs text-slate-900 whitespace-nowrap">${item.gia_ban ? item.gia_ban.toLocaleString('vi-VN') : '-'}</td>
+                    <td class="px-2 py-1.5 text-xs text-slate-900 whitespace-nowrap">${item.gia_dong_goi ? item.gia_dong_goi.toLocaleString('vi-VN') : '-'}</td>
+                    <td class="px-2 py-1.5 text-xs text-slate-900 whitespace-nowrap">${item.gia_thap_nhat ? item.gia_thap_nhat.toLocaleString('vi-VN') : '-'}</td>
                 </tr>
             `).join('');
 }
@@ -107,24 +113,44 @@ async function handleExcelUpload(files) {
             return;
         }
 
-        const rows = excelData.slice(1);
-        const sheetData = [];
-
-        for (const row of rows) {
-            const newRow = [];
-            for (let i = 0; i < 32; i++) {
-                let value = '';
-                if (i < row.length && row[i] !== undefined && row[i] !== null) {
-                    value = row[i].toString();
-                }
-                newRow.push(value);
+        const headers = excelData[0].map(h => (h || "").toString().trim().toLowerCase());
+        const findIdx = (names) => {
+            for (const name of names) {
+                const idx = headers.indexOf(name.toLowerCase());
+                if (idx !== -1) return idx;
             }
-            sheetData.push(newRow);
+            return -1;
+        };
+
+        const idxMa = findIdx(['mã', 'sku_con', 'sku con', 'id_sp_con']);
+        const idxTen = findIdx(['tên', 'ten_sp', 'tên sản phẩm']);
+        const idxGiaNhap = findIdx(['giá nhập', 'gia_nhap']);
+        const idxGiaBan = findIdx(['giá bán lẻ', 'gia_ban', 'giá bán']);
+        const idxGiaDongGoi = findIdx(['giá đón gói', 'giá đóng gói', 'gia_dong_goi']);
+        const idxGiaThapNhat = findIdx(['giá bán thấp nhất', 'giá thấp nhất', 'gia_thap_nhat']);
+
+        if (idxMa === -1) {
+            alert("Không tìm thấy cột 'Mã' trong file Excel!");
+            return;
         }
 
-        if (sheetData.length === 0) {
-            alert("Không có dữ liệu để import!");
-            return;
+        const rows = excelData.slice(1);
+        const sheetData = [];
+        
+        sheetData.push(["Mã", "Mã SP Cha", "Tên", "Giá nhập", "Giá bán lẻ", "Giá đón gói", "Giá bán thấp nhất"]);
+
+        for (const row of rows) {
+            const ma = row[idxMa] ? row[idxMa].toString().trim() : '';
+            if (!ma) continue;
+
+            const maCha = ma.substring(0, 4);
+            const ten = idxTen !== -1 ? (row[idxTen] || "").toString().trim() : '';
+            const giaNhap = idxGiaNhap !== -1 ? row[idxGiaNhap] : '';
+            const giaBan = idxGiaBan !== -1 ? row[idxGiaBan] : '';
+            const giaDongGoi = idxGiaDongGoi !== -1 ? row[idxGiaDongGoi] : '';
+            const giaThapNhat = idxGiaThapNhat !== -1 ? row[idxGiaThapNhat] : '';
+
+            sheetData.push([ma, maCha, ten, giaNhap, giaBan, giaDongGoi, giaThapNhat]);
         }
 
         console.log(`Đang xử lý ${CONFIG.sanphamSheetName}: Xóa cũ và nạp mới...`);
@@ -138,7 +164,7 @@ async function handleExcelUpload(files) {
         const success = await appendSheetData(CONFIG.sanphamSheetName, sheetData);
 
         if (success) {
-            alert(`Import thành công ${sheetData.length} dòng dữ liệu vào ${CONFIG.sanphamSheetName}!`);
+            alert(`Import thành công ${sheetData.length - 1} sản phẩm vào ${CONFIG.sanphamSheetName}!`);
             await loadSanphamData();
         } else {
             alert("Import thất bại! Vui lòng kiểm tra console để biết thêm chi tiết.");

@@ -1,4 +1,4 @@
-// donhang - Module Pattern (IIFE)
+﻿// donhang - Module Pattern (IIFE)
 (function () {
 function openDetailDrawer(originalIndex) {
     currentDrawerMode = 'udct';
@@ -681,13 +681,13 @@ async function saveUDCTMainInline(rowIndex, field, value) {
                 const sp = sanphamData.find(s => (s.sku_con || '').toString().toLowerCase() === val.toLowerCase());
                 if (sp) {
                     item.ten_sp = sp.ten_sp;
-                    item.id_sp = (sp.sku_con || '').substring(0, 4);
-                    const newPrice = sp.gia_ban - sp.gia_dong_goi;
+                    item.id_sp = sp.id_sp || (sp.sku_con || '').substring(0, 4);
+                    const newPrice = sp.gia_ban;
                     item.don_gia_1 = newPrice;
 
-                    updates.push({ range: `${CONFIG.udctSheetName}!R${rowIndex}`, values: [[item.ten_sp]] });
-                    updates.push({ range: `${CONFIG.udctSheetName}!P${rowIndex}`, values: [[item.id_sp]] });
-                    updates.push({ range: `${CONFIG.udctSheetName}!AE${rowIndex}`, values: [[newPrice]] });
+                    updates.push({ range: `!R`, values: [[item.ten_sp]] });
+                    updates.push({ range: `!P`, values: [[item.id_sp]] });
+                    updates.push({ range: `!AE`, values: [[newPrice]] });
 
                     if (!(item.trang_thai || '').toLowerCase().includes('hủy')) {
                         item.slg_xuat = item.so_luong;
@@ -942,15 +942,14 @@ function ensureUDCTRowSelected(item) {
 }
 
 function resolveUDCTPriceBySku(idSpCt, idSp) {
-    const searchId = (idSpCt || idSp || "").toString().trim().toLowerCase();
-    const searchSku3 = (idSp || "").toString().trim().toLowerCase();
-    const searchFallback = (idSpCt || "").toString().trim().toLowerCase();
+    const searchIdCt = (idSpCt || "").toString().trim().toLowerCase();
+    const searchIdSp = (idSp || "").toString().trim().toLowerCase();
     const sp = sanphamData?.find(s => {
-        const sku3 = (s.sku_3 || "").toString().trim().toLowerCase();
-        const skuCon = (s.sku_con || "").toString().trim().toLowerCase();
-        return sku3 === searchId || skuCon === searchId || sku3 === searchSku3 || sku3 === searchFallback || skuCon === searchSku3 || skuCon === searchFallback;
+        const sIdSp = (s.id_sp || "").toString().trim().toLowerCase();
+        const sSkuCon = (s.sku_con || "").toString().trim().toLowerCase();
+        return (searchIdCt && sSkuCon === searchIdCt) || (searchIdSp && sIdSp === searchIdSp);
     });
-    return sp ? (sp.gia_ban - sp.gia_dong_goi) : '';
+    return sp ? sp.gia_ban : '';
 }
 
 function renderUDCTTable() {
@@ -1839,3 +1838,5 @@ document.addEventListener('mousedown', (e) => {
     window.handleIdSpCtInput = handleIdSpCtInput;
     window.selectSpCtSuggestion = selectSpCtSuggestion;
 })();
+
+

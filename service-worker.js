@@ -3,7 +3,7 @@ const ASSETS = [
     '/',
     'index.html',
     'dh_chi_tiet.html',
-    'scripts.js',
+
     'styles.css',
     'icon.png',
     'manifest.json'

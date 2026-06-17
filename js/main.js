@@ -1,7 +1,7 @@
 // main - Module Pattern (IIFE)
 (function () {
 // ============================================================
-// scripts.js - Main application logic
+// Main application logic
 // CONFIG is defined in js/config.js
 // Global state variables are defined in js/state.js
 // ============================================================
@@ -173,10 +173,7 @@ function switchModule(module) {
     if (bcHangHoanModule) bcHangHoanModule.style.display = 'none';
     if (baocaoTongModule) baocaoTongModule.style.display = 'none';
     if (banDonModule) banDonModule.style.display = 'none';
-    const dhctModule = document.getElementById('moduleDHCT');
-    if (dhctModule) dhctModule.style.display = 'none';
-    const uniqueDHCTModule = document.getElementById('moduleUniqueDHCT');
-    if (uniqueDHCTModule) uniqueDHCTModule.style.display = 'none';
+
     if (udctHeaderSearchBox) udctHeaderSearchBox.classList.add('hidden');
 
     const resetSidebar = () => {
@@ -240,24 +237,7 @@ function switchModule(module) {
         sidebarInventory.classList.add('active', 'bg-blue-50', 'text-primary', 'border-r-2', 'border-primary');
         sidebarInventory.classList.remove('text-slate-600');
         fetchInventoryData();
-    } else if (module === 'dh_ct') {
-        if (dhctModule) dhctModule.style.display = 'flex';
-        pageTitle.textContent = 'Dữ liệu DH Chi Tiết';
-        resetSidebar();
-        if (sidebarDHCT) {
-            sidebarDHCT.classList.add('active', 'bg-blue-50', 'text-primary', 'border-r-2', 'border-primary');
-            sidebarDHCT.classList.remove('text-slate-600');
-        }
-        fetchDHCTData();
-    } else if (module === 'unique_dh_ct') {
-        if (uniqueDHCTModule) uniqueDHCTModule.style.display = 'flex';
-        pageTitle.textContent = 'Đơn hàng trên DH Chi Tiết';
-        resetSidebar();
-        if (sidebarUniqueDHCT) {
-            sidebarUniqueDHCT.classList.add('active', 'bg-blue-50', 'text-primary', 'border-r-2', 'border-primary');
-            sidebarUniqueDHCT.classList.remove('text-slate-600');
-        }
-        fetchDHCTData();
+
     } else if (module === 'hang_hoan') {
         if (hangHoanModule) hangHoanModule.style.display = 'flex';
         pageTitle.textContent = 'Dữ liệu Hàng hoàn';
@@ -331,3 +311,6 @@ function switchModule(module) {
     window.setupDragAndDropDonhang = setupDragAndDropDonhang;
     window.switchModule = switchModule;
 })();
+
+
+
