@@ -172,6 +172,59 @@ async function updateSheetValue(sheetName, range, value) {
     try {
         const token = await getAccessToken();
         if (!token) return false;
+        const resp = await fetch(url, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ values: values, majorDimension: "ROWS" })
+        });
+        if (!resp.ok) {
+            const errorText = await resp.text();
+            console.error("Lỗi khi ghi dữ liệu:", errorText);
+            return false;
+        }
+        const result = await resp.json();
+        console.log("Ghi dữ liệu thành công:", result);
+        return true;
+    } catch (err) {
+        console.error("Lỗi appendSheetData:", err);
+        return false;
+    }
+}
+
+async function updateSheetCell(sheetName, rowIndex, colIndex, value) {
+    try {
+        const token = await getAccessToken();
+        if (!token) return false;
+
+        // Convert colIndex (1-based) to Letter (A=1, B=2...)
+        let colLetter = "";
+        let temp = colIndex;
+        while (temp > 0) {
+            let mod = (temp - 1) % 26;
+            colLetter = String.fromCharCode(65 + mod) + colLetter;
+            temp = Math.floor((temp - mod) / 26);
+        }
+
+        const range = `${sheetName}!${colLetter}${rowIndex}`;
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${range}?valueInputOption=USER_ENTERED`;
+
+        const resp = await fetch(url, {
+            method: "PUT",
+            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ values: [[value]] })
+        });
+
+        return resp.ok;
+    } catch (err) {
+        console.error("Lỗi updateSheetCell:", err);
+        return false;
+    }
+}
+
+async function updateSheetValue(sheetName, range, value) {
+    try {
+        const token = await getAccessToken();
+        if (!token) return false;
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${sheetName}!${range}?valueInputOption=USER_ENTERED`;
         const resp = await fetch(url, {
             method: "PUT",
@@ -181,6 +234,33 @@ async function updateSheetValue(sheetName, range, value) {
         return resp.ok;
     } catch (err) {
         console.error("Lỗi updateSheetValue:", err);
+        return false;
+    }
+}
+
+async function updateSheetRow(sheetName, rowIndex, rowDataArray) {
+    try {
+        const token = await getAccessToken();
+        if (!token) return false;
+        
+        // Cập nhật nguyên một dòng từ cột A
+        const range = `${sheetName}!A${rowIndex}`;
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${range}?valueInputOption=USER_ENTERED`;
+        
+        const resp = await fetch(url, {
+            method: "PUT",
+            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ values: [rowDataArray] })
+        });
+        
+        if (!resp.ok) {
+            const errorText = await resp.text();
+            console.error("Lỗi khi cập nhật dòng:", errorText);
+            return false;
+        }
+        return true;
+    } catch (err) {
+        console.error("Lỗi updateSheetRow:", err);
         return false;
     }
 }
@@ -197,4 +277,5 @@ async function updateSheetValue(sheetName, range, value) {
     window.appendSheetData = appendSheetData;
     window.updateSheetCell = updateSheetCell;
     window.updateSheetValue = updateSheetValue;
+    window.updateSheetRow = updateSheetRow;
 })();

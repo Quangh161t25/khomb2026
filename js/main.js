@@ -143,9 +143,13 @@ function switchModule(module) {
     const inventoryModule = document.getElementById('moduleInventory');
     const hangHoanModule = document.getElementById('moduleHangHoan');
     const hhShopDienModule = document.getElementById('moduleHHShopDien');
+
     const bcHangHoanModule = document.getElementById('moduleBCHangHoan');
     const baocaoTongModule = document.getElementById('moduleBaocaoTong');
     const banDonModule = document.getElementById('moduleBanDon');
+    const dhctFormModule = document.getElementById('moduleDhctForm');
+    const dhctModule = document.getElementById('moduleDhct');
+    const donhangTongModule = document.getElementById('moduleDonhangTong');
     const pageTitle = document.getElementById('pageTitle');
     const udctHeaderSearchBox = document.getElementById('udctHeaderSearchBox');
     const sidebarHome = document.getElementById('sidebarHome');
@@ -161,6 +165,9 @@ function switchModule(module) {
     const sidebarHHShopDien = document.getElementById('sidebarHHShopDien');
     const sidebarBCHangHoan = document.getElementById('sidebarBCHangHoan');
     const sidebarBanDon = document.getElementById('sidebarBanDon');
+    const sidebarDhctForm = document.getElementById('sidebarDhctForm');
+    const sidebarDhct = document.getElementById('sidebarDhct');
+    const sidebarDonhangTong = document.getElementById('sidebarDonhangTong');
 
     homeModule.style.display = 'none';
     donhangModule.style.display = 'none';
@@ -173,11 +180,14 @@ function switchModule(module) {
     if (bcHangHoanModule) bcHangHoanModule.style.display = 'none';
     if (baocaoTongModule) baocaoTongModule.style.display = 'none';
     if (banDonModule) banDonModule.style.display = 'none';
+    if (dhctFormModule) dhctFormModule.style.display = 'none';
+    if (dhctModule) dhctModule.style.display = 'none';
+    if (donhangTongModule) donhangTongModule.style.display = 'none';
 
     if (udctHeaderSearchBox) udctHeaderSearchBox.classList.add('hidden');
 
     const resetSidebar = () => {
-        [sidebarHome, sidebarDonhang, sidebarSanpham, sidebarBaocao, sidebarBaocaoTong, sidebarUpmisa, sidebarInventory, sidebarDHCT, sidebarUniqueDHCT, sidebarHangHoan, sidebarHHShopDien, sidebarBCHangHoan, sidebarBanDon].forEach(s => {
+        [sidebarHome, sidebarDonhang, sidebarSanpham, sidebarBaocao, sidebarBaocaoTong, sidebarUpmisa, sidebarInventory, sidebarDHCT, sidebarUniqueDHCT, sidebarHangHoan, sidebarHHShopDien, sidebarBCHangHoan, sidebarBanDon, sidebarDhctForm, sidebarDhct, sidebarDonhangTong].forEach(s => {
             if (s) {
                 s.classList.remove('active', 'bg-blue-50', 'text-primary', 'border-r-2', 'border-primary');
                 s.classList.add('text-slate-600');
@@ -296,10 +306,36 @@ function switchModule(module) {
         } else {
             filterReportTong();
         }
+    } else if (module === 'dhct_form') {
+        if (dhctFormModule) dhctFormModule.style.display = 'block';
+        pageTitle.textContent = 'Thêm Đơn hàng chi tiết';
+        resetSidebar();
+        if (sidebarDhct) {
+            sidebarDhct.classList.add('active', 'bg-blue-50', 'text-primary', 'border-r-2', 'border-primary');
+            sidebarDhct.classList.remove('text-slate-600');
+        }
+        if (window.initDhctForm) window.initDhctForm();
+    } else if (module === 'dhct') {
+        if (dhctModule) dhctModule.style.display = 'flex';
+        pageTitle.textContent = 'Đơn hàng chi tiết';
+        resetSidebar();
+        if (sidebarDhct) {
+            sidebarDhct.classList.add('active', 'bg-blue-50', 'text-primary', 'border-r-2', 'border-primary');
+            sidebarDhct.classList.remove('text-slate-600');
+        }
+        if (typeof fetchDHCTData === 'function') fetchDHCTData(true);
+    } else if (module === 'donhang_tong') {
+        if (donhangTongModule) donhangTongModule.style.display = 'flex';
+        pageTitle.textContent = 'Đơn hàng';
+        resetSidebar();
+        if (sidebarDonhangTong) {
+            sidebarDonhangTong.classList.add('active', 'bg-blue-50', 'text-primary', 'border-r-2', 'border-primary');
+            sidebarDonhangTong.classList.remove('text-slate-600');
+        }
+        if (typeof fetchDHCTData === 'function') fetchDHCTData(true);
     }
     if (window.innerWidth <= 1024) closeMobileSidebar();
 }
-
 
     Object.assign(window.AppModules = window.AppModules || {}, { ['main']: true });
     window.toggleSidebar = toggleSidebar;
@@ -311,6 +347,3 @@ function switchModule(module) {
     window.setupDragAndDropDonhang = setupDragAndDropDonhang;
     window.switchModule = switchModule;
 })();
-
-
-

@@ -258,7 +258,6 @@ async function filterReport() {
         });
 
         reportData = filtered;
-        const totalOrders = filtered.length;
 
         let totalRevenue = 0;
         const sanStats = {};
@@ -268,9 +267,14 @@ async function filterReport() {
         const uniqueStatuses = new Set();
         const statusTotalCounts = {};
 
+        const totalMvdSet = new Set();
+
         for (const item of filtered) {
             const rev = item.don_gia * item.slg_xuat;
             totalRevenue += rev;
+
+            const mvdKey = item.mvd ? (item.mvd.trim() + '_' + item.ngayDon) : `empty_${Math.random()}`;
+            totalMvdSet.add(mvdKey);
 
             const tt = item.trang_thai.trim();
             if (tt) {
@@ -278,11 +282,13 @@ async function filterReport() {
                 statusTotalCounts[tt] = (statusTotalCounts[tt] || 0) + 1;
             }
 
-            if (!sanStats[item.san]) sanStats[item.san] = { so_don: 0, doanh_thu: 0 };
+            if (!sanStats[item.san]) sanStats[item.san] = { so_don: 0, doanh_thu: 0, mvd_set: new Set() };
+            sanStats[item.san].mvd_set.add(mvdKey);
             sanStats[item.san].so_don++;
             sanStats[item.san].doanh_thu += rev;
 
-            if (!magianStats[item.ma_gian]) magianStats[item.ma_gian] = { so_don: 0, doanh_thu: 0, statuses: {} };
+            if (!magianStats[item.ma_gian]) magianStats[item.ma_gian] = { so_don: 0, doanh_thu: 0, statuses: {}, mvd_set: new Set() };
+            magianStats[item.ma_gian].mvd_set.add(mvdKey);
             magianStats[item.ma_gian].so_don++;
             magianStats[item.ma_gian].doanh_thu += rev;
             if (tt) {
@@ -297,10 +303,13 @@ async function filterReport() {
                 idspStats[idKey].statuses[tt] = (idspStats[idKey].statuses[tt] || 0) + 1;
             }
 
-            if (!dailyStats[item.ngayDon]) dailyStats[item.ngayDon] = { so_don: 0, doanh_thu: 0 };
+            if (!dailyStats[item.ngayDon]) dailyStats[item.ngayDon] = { so_don: 0, doanh_thu: 0, mvd_set: new Set() };
+            dailyStats[item.ngayDon].mvd_set.add(mvdKey);
             dailyStats[item.ngayDon].so_don++;
             dailyStats[item.ngayDon].doanh_thu += rev;
         }
+
+        const totalOrders = totalMvdSet.size;
 
         document.getElementById('totalOrders').textContent = totalOrders.toLocaleString('vi-VN');
         document.getElementById('totalRevenue').textContent = totalRevenue.toLocaleString('vi-VN');
@@ -326,7 +335,7 @@ async function filterReport() {
             });
         }
         currentStatusesArray = statusesArray;
-        currentMagianStats = Object.entries(magianStats).map(([mg, s]) => ({ mg, ...s }));
+        currentMagianStats = Object.entries(magianStats).map(([mg, s]) => ({ mg, ...s, so_don: s.mvd_set ? s.mvd_set.size : s.so_don }));
         magianSort = { key: 'doanh_thu', asc: false }; // reset sort to default
 
         currentIdspStats = Object.entries(idspStats).map(([idsp, s]) => ({ idsp, ...s }));
@@ -337,11 +346,11 @@ async function filterReport() {
 
         let textSummary = `BÁO CÁO NGÀY: ${fromDate} đến ${toDate}\n`;
         textSummary += `====================================\n`;
-        textSummary += `TỔNG SỐ ĐƠN: ${totalOrders}\n`;
+        textSummary += `TỔNG SỐ ĐƠN: ${totalOrders.toLocaleString('vi-VN')}\n`;
         textSummary += `TỔNG DOANH THU: ${totalRevenue.toLocaleString('vi-VN')}\n\n`;
         textSummary += `\n`;
         Object.entries(sanStats).forEach(([san, stats]) => {
-            textSummary += `- Sàn ${san}: ${stats.so_don} đơn - ${stats.doanh_thu.toLocaleString('vi-VN')}\n`;
+            textSummary += `- Sàn ${san}: ${stats.mvd_set.size.toLocaleString('vi-VN')} đơn - ${stats.doanh_thu.toLocaleString('vi-VN')}\n`;
         });
         if (filterMaGian) textSummary += `\nLỌC THEO MÃ GIAN: ${filterMaGian}\n`;
         document.getElementById('textReportArea').textContent = textSummary;
@@ -437,7 +446,7 @@ function renderDetailTable() {
 function renderCharts(dailyStats) {
     const labels = Object.keys(dailyStats).sort();
     const revenueData = labels.map(l => dailyStats[l].doanh_thu);
-    const ordersData = labels.map(l => dailyStats[l].so_don);
+    const ordersData = labels.map(l => dailyStats[l].mvd_set ? dailyStats[l].mvd_set.size : dailyStats[l].so_don);
 
     if (mergedChart) mergedChart.destroy();
 
