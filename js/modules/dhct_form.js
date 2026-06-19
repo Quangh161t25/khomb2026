@@ -67,7 +67,8 @@
                     so_luong: parseFloat(row.so_luong) || 0,
                     gia_nhap: parseFloat(row.gia_nhap) || 0,
                     thanh_tien: parseFloat(row.thanh_tien_nhap) || 0,
-                    xac_nhan: row.xac_nhan || 'CHỜ XÁC NHẬN'
+                    xac_nhan: row.xac_nhan || 'CHỜ XÁC NHẬN',
+                    ton_lk: window.calculateTonLuyKe(row.id_sp_ct || '')
                 }));
             }
         } else {
@@ -85,7 +86,7 @@
             dhctFormLines.push({
                 id: generateLineId(),
                 sheetRowIndex: null,
-                sku_con: '', id_sp: '', ten_sp: '', so_luong: 1, gia_nhap: 0, thanh_tien: 0, xac_nhan: 'CHỜ XÁC NHẬN'
+                sku_con: '', id_sp: '', ten_sp: '', so_luong: 1, gia_nhap: 0, thanh_tien: 0, xac_nhan: 'CHỜ XÁC NHẬN', ton_lk: { all: 0, conf: 0 }
             });
         }
         
@@ -140,6 +141,39 @@
         return Math.random().toString(36).substring(2, 9);
     }
 
+    window.calculateTonLuyKe = function(skuCon) {
+        if (!skuCon) return { all: 0, conf: 0 };
+        let tonAll = 0;
+        let tonConf = 0;
+        const skuTrimmed = skuCon.toString().trim().toLowerCase();
+        
+        if (typeof dsSpCtData !== 'undefined') {
+            const spCt = dsSpCtData.find(sp => (sp.id_sp_ct || '').toString().trim().toLowerCase() === skuTrimmed);
+            if (spCt) {
+                const tonDau = parseFloat(spCt.ton_dau) || 0;
+                tonAll = tonDau;
+                tonConf = tonDau;
+            }
+        }
+        
+        if (typeof dhctData !== 'undefined') {
+            dhctData.forEach(item => {
+                if ((item.id_sp_ct || '').toString().trim().toLowerCase() === skuTrimmed) {
+                    const sl = parseFloat(item.so_luong) || 0;
+                    const isConfirmed = item.xac_nhan === 'ĐÃ XÁC NHẬN';
+                    if (item.truong === 'NHẬP') {
+                        tonAll += sl;
+                        if (isConfirmed) tonConf += sl;
+                    } else if (item.truong === 'XUẤT') {
+                        tonAll -= sl;
+                        if (isConfirmed) tonConf -= sl;
+                    }
+                }
+            });
+        }
+        return { all: tonAll, conf: tonConf };
+    };
+
     window.addDhctModalLine = function() {
         dhctFormLines.push({
             id: generateLineId(),
@@ -150,7 +184,8 @@
             so_luong: 1,
             gia_nhap: 0,
             thanh_tien: 0,
-            xac_nhan: 'CHỜ XÁC NHẬN'
+            xac_nhan: 'CHỜ XÁC NHẬN',
+            ton_lk: 0
         });
         renderDhctModalLines();
     };
@@ -220,6 +255,9 @@
                         <option value="ĐÃ XÁC NHẬN" ${line.xac_nhan === 'ĐÃ XÁC NHẬN' ? 'selected' : ''}>ĐÃ XÁC</option>
                     </select>
                 </td>
+                <td class="px-2 py-2">
+                    <input type="text" readonly id="modal_ton_lk_${index}" value="( ${(line.ton_lk?.all || 0).toLocaleString('vi-VN')} ) ${(line.ton_lk?.conf || 0).toLocaleString('vi-VN')}" class="w-full px-2 py-1.5 bg-indigo-50/50 border border-indigo-100 rounded text-sm text-indigo-700 font-bold cursor-not-allowed text-right">
+                </td>
                 <td class="px-2 py-2 text-center">
                     <button type="button" onclick="window.removeDhctModalLine(${index})" class="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors" title="Xóa dòng" ${dhctFormLines.length <= 1 ? 'disabled class="opacity-50"' : ''}>
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -262,13 +300,19 @@
             } else {
                 line.ten_sp = '';
             }
+
+            line.ton_lk = window.calculateTonLuyKe(skuCon);
         } else {
             line.id_sp = '';
             line.ten_sp = '';
+            line.ton_lk = { all: 0, conf: 0 };
         }
         
         if (idSpEl) idSpEl.value = line.id_sp;
         if (tenSpEl) tenSpEl.value = line.ten_sp;
+        
+        const tonLkEl = document.getElementById(`modal_ton_lk_${index}`);
+        if (tonLkEl) tonLkEl.value = `( ${(line.ton_lk?.all || 0).toLocaleString('vi-VN')} ) ${(line.ton_lk?.conf || 0).toLocaleString('vi-VN')}`;
         
         const xacNhanEl = document.getElementById(`modal_xac_nhan_${index}`);
         if (xacNhanEl) {

@@ -97,13 +97,13 @@ function renderDHCTTable() {
         const db = toYMD(b.ngay);
         if (da !== db) return db.localeCompare(da);
         
-        // 2. Trường nhập trước xuất sau ("NHẬP" < "XUẤT")
+        // 2. Trường xuất trước nhập sau ("XUẤT" < "NHẬP")
         const truongA = a.truong || '';
         const truongB = b.truong || '';
         if (truongA !== truongB) {
-            if (truongA === 'NHẬP') return -1;
-            if (truongB === 'NHẬP') return 1;
-            return truongA.localeCompare(truongB);
+            if (truongA === 'XUẤT') return -1;
+            if (truongB === 'XUẤT') return 1;
+            return truongB.localeCompare(truongA);
         }
         
         // 3. NCC a-z
@@ -118,8 +118,65 @@ function renderDHCTTable() {
     });
 
     if (filtered.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-slate-500">Không tìm thấy kết quả phù hợp.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-slate-500">Không tìm thấy kết quả phù hợp.</td></tr>';
         return;
+    }
+
+    // Calculate Tồn Lũy Kế globally
+    const cumulativeMapAll = {}; 
+    const cumulativeMapConfirmed = {}; 
+    if (typeof dsSpCtData !== 'undefined') {
+        const sortedData = [...dhctData].sort((a, b) => {
+            const da = toYMD(a.ngay);
+            const db = toYMD(b.ngay);
+            if (da !== db) return db.localeCompare(da);
+            
+            const truongA = a.truong || '';
+            const truongB = b.truong || '';
+            if (truongA !== truongB) {
+                if (truongA === 'XUẤT') return -1;
+                if (truongB === 'XUẤT') return 1;
+                return truongB.localeCompare(truongA);
+            }
+            
+            const nccA = a.ncc || '';
+            const nccB = b.ncc || '';
+            if (nccA !== nccB) return nccA.localeCompare(nccB);
+            
+            const idSpCtA = a.id_sp_ct || '';
+            const idSpCtB = b.id_sp_ct || '';
+            return idSpCtA.localeCompare(idSpCtB);
+        }).reverse();
+
+        dsSpCtData.forEach(sp => {
+            if (sp.id_sp_ct) {
+                const tonDau = parseFloat(sp.ton_dau) || 0;
+                cumulativeMapAll[sp.id_sp_ct.toLowerCase()] = tonDau;
+                cumulativeMapConfirmed[sp.id_sp_ct.toLowerCase()] = tonDau;
+            }
+        });
+
+        sortedData.forEach(item => {
+            const id = (item.id_sp_ct || '').toLowerCase();
+            if (id) {
+                if (cumulativeMapAll[id] === undefined) cumulativeMapAll[id] = 0;
+                if (cumulativeMapConfirmed[id] === undefined) cumulativeMapConfirmed[id] = 0;
+                
+                const sl = parseFloat(item.so_luong) || 0;
+                const isConfirmed = item.xac_nhan === 'ĐÃ XÁC NHẬN';
+                
+                if (item.truong === 'NHẬP') {
+                    cumulativeMapAll[id] += sl;
+                    if (isConfirmed) cumulativeMapConfirmed[id] += sl;
+                } else if (item.truong === 'XUẤT') {
+                    cumulativeMapAll[id] -= sl;
+                    if (isConfirmed) cumulativeMapConfirmed[id] -= sl;
+                }
+                
+                item._tonLuyKeAll = cumulativeMapAll[id];
+                item._tonLuyKeConfirmed = cumulativeMapConfirmed[id];
+            }
+        });
     }
 
     tableBody.innerHTML = filtered.map(item => `
@@ -135,6 +192,10 @@ function renderDHCTTable() {
                     <td class="px-4 py-3 text-sm text-right font-bold text-primary">${(parseFloat(item.thanh_tien_nhap) || 0).toLocaleString('vi-VN')} đ</td>
                     <td class="px-4 py-3 text-sm font-medium">
                         ${item.id_sp_ct ? `<button onclick="event.stopPropagation(); window.toggleConfirmRow('${item.id_dh_ct}', '${item.xac_nhan}')" class="px-2 py-1 rounded text-[11px] font-bold transition-colors border ${item.xac_nhan === 'ĐÃ XÁC NHẬN' ? 'border-green-600 text-green-600 hover:bg-green-50' : 'border-amber-500 text-amber-500 hover:bg-amber-50'}">${item.xac_nhan === 'ĐÃ XÁC NHẬN' ? 'ĐÃ XÁC NHẬN' : 'CHỜ XÁC NHẬN'}</button>` : `<span class="text-slate-400 italic text-[11px]">Không có SP CT</span>`}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-right font-bold text-indigo-700 bg-indigo-50/10 border-l border-indigo-50">
+                        <span class="text-indigo-400 font-medium mr-1">( ${(item._tonLuyKeAll || 0).toLocaleString('vi-VN')} )</span>
+                        ${(item._tonLuyKeConfirmed || 0).toLocaleString('vi-VN')}
                     </td>
                 </tr>
             `).join('');
@@ -271,6 +332,174 @@ window.toggleConfirmOrder = async function(id_dh, currentStatus) {
         alert("Lỗi khi cập nhật trạng thái đơn hàng: " + err.message);
     });
 };
+
+    window.downloadDHCTTemplate = function() {
+        const ws_data = [
+            ['Ngày', 'Trường', 'NCC', 'ID SP CT', 'SL']
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Template_DHCT");
+        XLSX.writeFile(wb, "Mau_Import_DHCT.xlsx");
+    };
+
+    window.exportDHCTToExcel = function() {
+        if (!dhctData || dhctData.length === 0) return alert("Không có dữ liệu để xuất");
+        
+        const searchInput = document.getElementById('filterDHCTSearch');
+        const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const fromDateInput = document.getElementById('filterDHCTFromDate');
+        const toDateInput = document.getElementById('filterDHCTToDate');
+        const nccInput = document.getElementById('filterDHCTNcc');
+        
+        const fromDate = fromDateInput && fromDateInput.value ? fromDateInput.value : '';
+        const toDate = toDateInput && toDateInput.value ? toDateInput.value : '';
+        const nccSearch = nccInput ? nccInput.value.toLowerCase().trim() : '';
+
+        const filtered = dhctData.filter(item => {
+            const matchSearch = (item.id_dh && item.id_dh.toString().toLowerCase().includes(searchTerm)) ||
+                (item.ten && item.ten.toLowerCase().includes(searchTerm)) ||
+                (item.id_sp_ct && item.id_sp_ct.toString().toLowerCase().includes(searchTerm));
+                
+            const itemYMD = toYMD(item.ngay);
+            const matchFromDate = !fromDate || itemYMD >= fromDate;
+            const matchToDate = !toDate || itemYMD <= toDate;
+            const matchNcc = !nccSearch || (item.ncc && item.ncc.toLowerCase().includes(nccSearch));
+            
+            return matchSearch && matchFromDate && matchToDate && matchNcc;
+        });
+
+        const ws_data = [
+            ['ID DH CT', 'ID DH', 'Ngày', 'Trường', 'NCC', 'Kho', 'ID SP CT', 'ID SP', 'Tên Sản Phẩm', 'Số lượng', 'Giá nhập', 'Thành tiền', 'Xác Nhận', 'Tồn Lũy Kế']
+        ];
+        filtered.forEach(item => {
+            ws_data.push([
+                item.id_dh_ct, item.id_dh, item.ngay, item.truong, item.ncc, item.kho, item.id_sp_ct, item.id_sp, item.ten, item.so_luong, item.gia_nhap, item.thanh_tien_nhap, item.xac_nhan, `( ${item._tonLuyKeAll || 0} ) ${item._tonLuyKeConfirmed || 0}`
+            ]);
+        });
+        
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "DHCT_Data");
+        XLSX.writeFile(wb, "DHCT_Export.xlsx");
+    };
+
+    window.uploadDHCTExcelMain = async function(files) {
+        if (!files || files.length === 0) return;
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+        try {
+            const file = files[0];
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data, { cellDates: true });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const excelData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "" });
+
+            if (!excelData || excelData.length < 2) {
+                alert("File không có dữ liệu!");
+                return;
+            }
+
+            const headers = excelData[0].map(h => (h || '').toString().toLowerCase().trim());
+            const findCol = (names) => headers.findIndex(h => names.some(n => h.includes(n)));
+
+            const colIdx = {
+                ngay: findCol(['ngay', 'ngày', 'date']),
+                truong: findCol(['truong', 'trường']),
+                ncc: findCol(['ncc']),
+                id_sp_ct: findCol(['id_sp_ct', 'id sp ct']),
+                sl: findCol(['sl', 'số lượng', 'so luong'])
+            };
+
+            if (colIdx.id_sp_ct === -1 || colIdx.sl === -1) {
+                alert("File Excel thiếu cột ID SP CT hoặc SL.");
+                return;
+            }
+
+            const rows = excelData.slice(1);
+            const appendValues = [];
+            const now = Date.now();
+            const orderIdMap = {};
+
+            rows.forEach((row, idx) => {
+                const id_sp_ct = (row[colIdx.id_sp_ct] || '').toString().trim();
+                if (!id_sp_ct) return;
+
+                let ngay = '';
+                if (colIdx.ngay !== -1 && row[colIdx.ngay]) {
+                    let val = row[colIdx.ngay];
+                    if (typeof val === 'number') {
+                        try {
+                            const d = XLSX.SSF.parse_date_code(val);
+                            ngay = `${String(d.d).padStart(2, '0')}/${String(d.m).padStart(2, '0')}/${d.y}`;
+                        } catch (e) {
+                            const dt = new Date(Math.round((val - 25569) * 86400 * 1000));
+                            ngay = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
+                        }
+                    } else if (val instanceof Date) {
+                        ngay = `${String(val.getDate()).padStart(2, '0')}/${String(val.getMonth() + 1).padStart(2, '0')}/${val.getFullYear()}`;
+                    } else {
+                        ngay = String(val).trim();
+                        if (ngay.includes('-')) ngay = ngay.replace(/-/g, '/');
+                    }
+                }
+                if (!ngay) {
+                    const d = new Date();
+                    ngay = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                }
+
+                const truong = colIdx.truong !== -1 && row[colIdx.truong] ? String(row[colIdx.truong]).trim() : '';
+                const ncc = colIdx.ncc !== -1 && row[colIdx.ncc] ? String(row[colIdx.ncc]).trim() : '';
+                const sl = parseFloat(row[colIdx.sl]) || 1;
+
+                let ten = '';
+                let gia = 0;
+                let id_sp = '';
+                
+                if (typeof dsSpCtData !== 'undefined') {
+                    const sp = dsSpCtData.find(s => (s.id_sp_ct || '').toLowerCase() === id_sp_ct.toLowerCase());
+                    if (sp) {
+                        ten = sp.ten || '';
+                        gia = parseFloat(sp.gia_nhap) || 0;
+                        id_sp = sp.id_sp || '';
+                    }
+                }
+
+                const key = `${ngay} | ${truong} | ${ncc} | MB`;
+                if (!orderIdMap[key]) {
+                    orderIdMap[key] = key;
+                }
+
+                const id_dh = orderIdMap[key];
+                const id_dh_ct = `${ngay} | ${truong} | ${ncc} | MB | KHO | ${id_sp_ct}`;
+                const id_ton_kho = `KHO | ${id_sp_ct}`;
+
+                appendValues.push([
+                    id_dh_ct, id_dh, ngay, truong, ncc, 'KHO', id_sp_ct, id_sp, ten, sl, gia, sl * gia, '', id_ton_kho, 'CHỜ XÁC NHẬN'
+                ]);
+            });
+
+            if (appendValues.length === 0) return alert("Không có dữ liệu hợp lệ để tải lên.");
+
+            appendSheetData(CONFIG.dhctSheetName, appendValues).then(success => {
+                if (success) {
+                    alert(`Đã tải lên thành công ${appendValues.length} dòng!`);
+                    fetchDHCTData();
+                } else {
+                    alert("Lỗi khi kết nối với Google Sheet.");
+                }
+            }).finally(() => {
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                document.getElementById('dhctExcelUploadInput').value = '';
+            });
+        } catch (err) {
+            console.error("Lỗi upload DHCT:", err);
+            alert("Lỗi: " + err.message);
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+            document.getElementById('dhctExcelUploadInput').value = '';
+        }
+    };
 
     Object.assign(window.AppModules = window.AppModules || {}, { ['dhct']: true });
     window.fetchDHCTData = fetchDHCTData;

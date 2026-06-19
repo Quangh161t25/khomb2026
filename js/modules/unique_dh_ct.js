@@ -479,18 +479,20 @@ async function handleExcelUploadUniqueDHCT(files) {
                 }
             }
 
-            const key = `${ngay}|${truong}|${ncc}`;
+            const key = `${ngay} | ${truong} | ${ncc} | MB`;
             if (!orderIdMap[key]) {
-                orderIdMap[key] = 'DH-' + (now + idx).toString().slice(-4);
+                orderIdMap[key] = key;
             }
 
-            const id_dh_ct = 'CT-' + (now + idx).toString().slice(-6);
             const id_dh = orderIdMap[key];
+            const id_dh_ct = `${ngay} | ${truong} | ${ncc} | MB | ${kho} | ${id_sp_ct}`;
+            const id_ton_kho = `${kho} | ${id_sp_ct}`;
 
-            // Cấu trúc 16 cột: [id_dh_ct(0), id_dh(1), ngay(2), truong(3), ncc(4), ghi_chu(5), kho(6), id_sp_ct(7), _, _, ten(10), sl(11), gia(12), thanh_tien(13), _, _]
+            // Cấu trúc 16 cột DH_CT (giống fetchDHCTData):
+            // 0: id_dh_ct, 1: id_dh, 2: ngay, 3: truong, 4: ncc, 5: kho, 6: id_sp_ct, 7: id_sp, 8: ten, 9: so_luong, 10: gia_nhap, 11: thanh_tien_nhap, 12: so_luong_2, 13: id_ton_kho, 14: xac_nhan, 15: ghi_chu
             appendValues.push([
-                id_dh_ct, id_dh, ngay, truong, ncc, ghi_chu, kho, id_sp_ct,
-                '', '', ten, sl, gia, sl * gia, '', ''
+                id_dh_ct, id_dh, ngay, truong, ncc, kho, id_sp_ct,
+                '', ten, sl, gia, sl * gia, '', id_ton_kho, 'CHỜ XÁC NHẬN', ghi_chu
             ]);
         });
 

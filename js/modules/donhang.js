@@ -1,4 +1,4 @@
-﻿// donhang - Module Pattern (IIFE)
+// donhang - Module Pattern (IIFE)
 (function () {
 function openDetailDrawer(originalIndex) {
     currentDrawerMode = 'udct';
@@ -155,7 +155,8 @@ async function saveRowDetail(showLoading = false) {
             trang_thai: document.getElementById('editTrangThai').value,
             ghi_chu: document.getElementById('editGhiChu').value
         };
-        const nextSlgXuat = (newData.trang_thai || '').toLowerCase().includes('hủy') ? 0 : (newData.so_luong || 0);
+        const statusStr = (newData.trang_thai || '').toLowerCase();
+        const nextSlgXuat = (statusStr.includes('hủy') || statusStr.includes('hêt hàng') || statusStr.includes('hết hàng')) ? 0 : (newData.so_luong || 0);
         // so_luong=O, id_sp=P, id_sp_ct=Q, tinh_trang=X, trang_thai=Y, slg_xuat=S, ghi_chu=AA, don_gia=AE
         const batchUpdates = [
             { range: `${CONFIG.udctSheetName}!O${item.rowIndex}`, values: [[newData.so_luong]] },
@@ -684,14 +685,17 @@ async function saveUDCTMainInline(rowIndex, field, value) {
                     item.id_sp = sp.id_sp || (sp.sku_con || '').substring(0, 4);
                     const newPrice = sp.gia_ban;
                     item.don_gia_1 = newPrice;
+                    updates.push({ range: `${CONFIG.udctSheetName}!R${rowIndex}`, values: [[item.ten_sp]] });
+                    updates.push({ range: `${CONFIG.udctSheetName}!P${rowIndex}`, values: [[item.id_sp]] });
+                    updates.push({ range: `${CONFIG.udctSheetName}!AE${rowIndex}`, values: [[newPrice]] });
 
-                    updates.push({ range: `!R`, values: [[item.ten_sp]] });
-                    updates.push({ range: `!P`, values: [[item.id_sp]] });
-                    updates.push({ range: `!AE`, values: [[newPrice]] });
-
-                    if (!(item.trang_thai || '').toLowerCase().includes('hủy')) {
+                    const itemStatus = (item.trang_thai || '').toLowerCase();
+                    if (!(itemStatus.includes('hủy') || itemStatus.includes('hêt hàng') || itemStatus.includes('hết hàng'))) {
                         item.slg_xuat = item.so_luong;
                         updates.push({ range: `${CONFIG.udctSheetName}!S${rowIndex}`, values: [[item.slg_xuat]] });
+                    } else {
+                        item.slg_xuat = 0;
+                        updates.push({ range: `${CONFIG.udctSheetName}!S${rowIndex}`, values: [[0]] });
                     }
                 }
             }
@@ -1180,7 +1184,8 @@ async function quickSetUDCTStatus(originalIndex, statusValue) {
     const success = await updateSheetValue(CONFIG.udctSheetName, `Y${item.rowIndex}`, statusValue);
     if (!success) return alert(`Lỗi khi cập nhật trạng thái cho dòng ${item.rowIndex}`);
     item.trang_thai = statusValue;
-    if ((statusValue || '').toString().toLowerCase().includes('hủy')) {
+    const statusStr = (statusValue || '').toString().toLowerCase();
+    if (statusStr.includes('hủy') || statusStr.includes('hêt hàng') || statusStr.includes('hết hàng')) {
         item.slg_xuat = 0;
         await updateSheetValue(CONFIG.udctSheetName, `S${item.rowIndex}`, 0);
     } else {
@@ -1204,8 +1209,9 @@ async function updateUDCTPrice(originalIndex, silent = false) {
     }
 
     item.don_gia_1 = newPrice;
-
-    if (!(item.trang_thai || '').toLowerCase().includes('hủy')) {
+    
+    const itemStatus = (item.trang_thai || '').toLowerCase();
+    if (!(itemStatus.includes('hủy') || itemStatus.includes('hêt hàng') || itemStatus.includes('hết hàng'))) {
         item.slg_xuat = item.so_luong;
         await updateSheetValue(CONFIG.udctSheetName, `S${item.rowIndex}`, item.slg_xuat);
     }
@@ -1473,8 +1479,25 @@ async function handleExcelUploadDonhang(files) {
                 const sku_shop_up = c_j; // Lấy nguyên cột J
                 const id_sp = c_c;
                 let id_sp_ct = '';
-                if (c_j.substring(0, 4) === c_c) {
-                    id_sp_ct = c_j.substring(0, 10);
+                const c_j_4 = c_j.substring(0, 4).toLowerCase();
+                const c_c_lower = (c_c || '').toLowerCase();
+                
+                if (c_j_4 === c_c_lower && c_j.length >= 10) {
+                    id_sp_ct = c_j.substring(0, 10).toUpperCase();
+                } else {
+                    if (c_c && typeof sanphamData !== 'undefined') {
+                        const matches = sanphamData.filter(sp => {
+                            const spIdSp = (sp.id_sp || '').toString().toLowerCase();
+                            const spSkuCon = (sp.sku_con || '').toString().toLowerCase();
+                            return spIdSp === c_c_lower || spSkuCon.startsWith(c_c_lower);
+                        });
+                        
+                        if (matches.length === 1) {
+                            id_sp_ct = (matches[0].sku_con || '').toUpperCase();
+                        } else {
+                            id_sp_ct = '';
+                        }
+                    }
                 }
                 const newPrice = resolveUDCTPriceBySku(id_sp_ct, id_sp);
 
