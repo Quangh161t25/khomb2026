@@ -3,6 +3,62 @@
 let inventoryCurrentPage = 1;
 const INVENTORY_PER_PAGE = 100;
 let filteredInventoryData = [];
+let inventorySortCol = 'ton_cuoi';
+let inventorySortDir = 'desc';
+
+function computeInventoryCalculations() {
+    const ledgerSums = {};
+    if (typeof dhctData !== 'undefined' && dhctData && dhctData.length > 0) {
+        dhctData.forEach(item => {
+            let idTonKho = (item.id_ton_kho || '').trim();
+            if (!idTonKho) {
+                const khoVal = (item.kho || 'KHO').trim();
+                const spCtVal = (item.id_sp_ct || '').trim();
+                if (spCtVal) {
+                    idTonKho = `${khoVal} | ${spCtVal}`;
+                }
+            }
+            if (!idTonKho) return;
+
+            const isConfirmed = (item.xac_nhan || '').trim() === 'ĐÃ XÁC NHẬN';
+            if (!isConfirmed) return;
+
+            const loai = (item.truong || '').trim().toUpperCase();
+
+            if (!ledgerSums[idTonKho]) ledgerSums[idTonKho] = { nhap: 0, xuat: 0 };
+            const sl = parseFloat(item.so_luong) || 0;
+
+            if (loai === 'NHẬP') ledgerSums[idTonKho].nhap += sl;
+            else if (loai === 'XUẤT') ledgerSums[idTonKho].xuat += sl;
+        });
+    }
+
+    if (inventoryData) {
+        inventoryData.forEach(row => {
+            row.nhap = ledgerSums[row.id]?.nhap || 0;
+            row.xuat = ledgerSums[row.id]?.xuat || 0;
+            row.ton_cuoi = row.ton_dau + row.nhap - row.xuat;
+        });
+    }
+}
+
+function sortInventoryData() {
+    if (!filteredInventoryData) return;
+    filteredInventoryData.sort((a, b) => {
+        let valA = a[inventorySortCol];
+        let valB = b[inventorySortCol];
+        
+        if (valA === undefined || valA === null) valA = '';
+        if (valB === undefined || valB === null) valB = '';
+
+        if (typeof valA === 'string') valA = valA.toLowerCase();
+        if (typeof valB === 'string') valB = valB.toLowerCase();
+        
+        if (valA < valB) return inventorySortDir === 'asc' ? -1 : 1;
+        if (valA > valB) return inventorySortDir === 'asc' ? 1 : -1;
+        return 0;
+    });
+}
 
 // Logic module Tồn Kho
 async function fetchInventoryData() {
@@ -54,6 +110,8 @@ async function fetchInventoryData() {
                 ten_sp: (row[4] || '').toString().trim(),
                 ton_dau: parseFloat(row[5]) || 0
             }));
+            
+            computeInventoryCalculations();
             inventoryCurrentPage = 1;
             filterInventory();
         } else {
@@ -70,34 +128,6 @@ async function fetchInventoryData() {
 function renderInventory() {
     const tbody = document.getElementById('inventoryTableBody');
     if (!tbody) return;
-
-    // Tổng hợp Nhập/Xuất từ dhctData
-    const ledgerSums = {};
-    if (typeof dhctData !== 'undefined' && dhctData && dhctData.length > 0) {
-        dhctData.forEach(item => {
-            let idTonKho = (item.id_ton_kho || '').trim();
-            if (!idTonKho) {
-                const khoVal = (item.kho || 'KHO').trim();
-                const spCtVal = (item.id_sp_ct || '').trim();
-                if (spCtVal) {
-                    idTonKho = `${khoVal} | ${spCtVal}`;
-                }
-            }
-            if (!idTonKho) return;
-
-            // Kiểm tra điều kiện xác nhận
-            const isConfirmed = (item.xac_nhan || '').trim() === 'ĐÃ XÁC NHẬN';
-            if (!isConfirmed) return;
-
-            const loai = (item.truong || '').trim().toUpperCase();
-
-            if (!ledgerSums[idTonKho]) ledgerSums[idTonKho] = { nhap: 0, xuat: 0 };
-            const sl = parseFloat(item.so_luong) || 0;
-
-            if (loai === 'NHẬP') ledgerSums[idTonKho].nhap += sl;
-            else if (loai === 'XUẤT') ledgerSums[idTonKho].xuat += sl;
-        });
-    }
 
     const totalRows = filteredInventoryData.length;
     const totalPages = Math.max(1, Math.ceil(totalRows / INVENTORY_PER_PAGE));
@@ -118,26 +148,17 @@ function renderInventory() {
     }
 
     tbody.innerHTML = paginated.map(row => {
-        const nhap = ledgerSums[row.id]?.nhap || 0;
-        const xuat = ledgerSums[row.id]?.xuat || 0;
-        const ton_cuoi = row.ton_dau + nhap - xuat;
-
         return `
             <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                 <td class="px-3 py-2 text-sm text-slate-700">${row.id}</td>
-                <td class="px-3 py-2 text-sm text-slate-700">${row.kho}</td>
-                <td class="px-3 py-2 text-sm font-semibold text-slate-900">${row.id_sp_ct}</td>
-                <td class="px-3 py-2 text-sm text-slate-700">${row.id_sp}</td>
-                <td class="px-3 py-2 text-sm text-slate-700">${row.ten_sp}</td>
-                <td class="px-3 py-2 text-sm text-right">
-                    <input type="number" 
-                        value="${row.ton_dau}" 
-                        onchange="window.updateTonDau(${row.rowIndex}, this.value)"
-                        class="w-24 text-right px-2 py-1 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white" />
-                </td>
-                <td class="px-3 py-2 text-sm text-right text-emerald-600 font-medium">+${nhap.toLocaleString('vi-VN')}</td>
-                <td class="px-3 py-2 text-sm text-right text-rose-500 font-medium">-${xuat.toLocaleString('vi-VN')}</td>
-                <td class="px-3 py-2 text-sm text-right font-bold text-slate-900">${ton_cuoi.toLocaleString('vi-VN')}</td>
+                <td class="px-3 py-2 text-sm text-slate-700 cursor-pointer" ondblclick="window.enableInventoryEdit(this, ${row.rowIndex}, 'kho', '${(row.kho||'').replace(/'/g, "\\'")}')" title="Click đúp để sửa">${row.kho}</td>
+                <td class="px-3 py-2 text-sm font-semibold text-slate-900 cursor-pointer" ondblclick="window.enableInventoryEdit(this, ${row.rowIndex}, 'id_sp_ct', '${(row.id_sp_ct||'').replace(/'/g, "\\'")}')" title="Click đúp để sửa">${row.id_sp_ct}</td>
+                <td class="px-3 py-2 text-sm text-slate-700 cursor-pointer" ondblclick="window.enableInventoryEdit(this, ${row.rowIndex}, 'id_sp', '${(row.id_sp||'').replace(/'/g, "\\'")}')" title="Click đúp để sửa">${row.id_sp}</td>
+                <td class="px-3 py-2 text-sm text-slate-700 cursor-pointer" ondblclick="window.enableInventoryEdit(this, ${row.rowIndex}, 'ten_sp', '${(row.ten_sp||'').replace(/'/g, "\\'")}')" title="Click đúp để sửa">${row.ten_sp}</td>
+                <td class="px-3 py-2 text-sm text-right cursor-pointer" ondblclick="window.enableInventoryEdit(this, ${row.rowIndex}, 'ton_dau', ${row.ton_dau})" title="Click đúp để sửa">${row.ton_dau}</td>
+                <td class="px-3 py-2 text-sm text-right text-emerald-600 font-medium">+${(row.nhap || 0).toLocaleString('vi-VN')}</td>
+                <td class="px-3 py-2 text-sm text-right text-rose-500 font-medium">-${(row.xuat || 0).toLocaleString('vi-VN')}</td>
+                <td class="px-3 py-2 text-sm text-right font-bold text-slate-900">${(row.ton_cuoi || 0).toLocaleString('vi-VN')}</td>
             </tr>
         `;
     }).join('');
@@ -153,27 +174,93 @@ function filterInventory() {
         return idSpCt.includes(searchTerm) || (tenSp + " " + idSpCt).includes(searchTerm);
     });
 
+    sortInventoryData();
     inventoryCurrentPage = 1;
     renderInventory();
 }
 
-window.updateTonDau = async function(rowIndex, value) {
-    if (!rowIndex) return;
-    const newVal = parseFloat(value) || 0;
+window.sortInventoryBy = function(col) {
+    if (inventorySortCol === col) {
+        inventorySortDir = inventorySortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        inventorySortCol = col;
+        inventorySortDir = 'asc';
+    }
     
-    // Optimistic UI update
+    const headers = document.querySelectorAll('#inventoryTableHead th');
+    headers.forEach(th => {
+        const span = th.querySelector('.sort-icon');
+        if (span) {
+            span.innerHTML = '⇅';
+            span.classList.remove('text-primary', 'font-bold');
+            span.classList.add('text-slate-400');
+        }
+    });
+
+    const activeTh = document.getElementById(`inv_th_${col}`);
+    if (activeTh) {
+        const activeSpan = activeTh.querySelector('.sort-icon');
+        if (activeSpan) {
+            activeSpan.innerHTML = inventorySortDir === 'asc' ? '↑' : '↓';
+            activeSpan.classList.remove('text-slate-400');
+            activeSpan.classList.add('text-primary', 'font-bold');
+        }
+    }
+
+    sortInventoryData();
+    inventoryCurrentPage = 1;
+    renderInventory();
+};
+
+window.enableInventoryEdit = function(tdElement, rowIndex, colKey, currentValue) {
+    if (tdElement.querySelector('input')) return;
+    
+    tdElement.innerHTML = `<input type="text" value="${currentValue}" onblur="window.saveInventoryEdit(this, ${rowIndex}, '${colKey}')" onkeydown="if(event.key==='Enter') this.blur()" class="w-full min-w-[80px] px-2 py-1 border border-primary/50 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white text-center" />`;
+    
+    const input = tdElement.querySelector('input');
+    input.focus();
+    input.select();
+};
+
+window.saveInventoryEdit = async function(inputElement, rowIndex, colKey) {
+    const newValue = inputElement.value;
+    const tdElement = inputElement.parentElement;
+    
+    let finalValue = newValue;
+    if (colKey === 'ton_dau') finalValue = parseFloat(newValue) || 0;
+    
+    tdElement.innerHTML = finalValue;
+    
     const item = inventoryData.find(r => r.rowIndex === rowIndex);
-    if (item) item.ton_dau = newVal;
+    if (!item) return;
+
+    if (item[colKey] === finalValue) return;
+    
+    item[colKey] = finalValue;
+    
+    if (colKey === 'ton_dau') {
+        item.ton_cuoi = item.ton_dau + (item.nhap || 0) - (item.xuat || 0);
+    }
 
     try {
-        // Cập nhật lên cột F (index 5 vì A là 0)
-        await window.updateSheetCell(CONFIG.inventorySheetName, rowIndex, 5, newVal);
-        console.log("Cập nhật Tồn đầu thành công!");
+        const colMap = { 'id': 1, 'kho': 2, 'id_sp_ct': 3, 'id_sp': 4, 'ten_sp': 5, 'ton_dau': 6 };
+        const colIndex = colMap[colKey];
+        
+        await window.updateSheetCell(CONFIG.inventorySheetName, rowIndex, colIndex, finalValue);
+        
+        if (colKey === 'ton_dau') {
+            sortInventoryData();
+            renderInventory();
+        }
     } catch (err) {
-        console.error("Lỗi khi cập nhật Tồn đầu:", err);
-        alert("Có lỗi xảy ra khi lưu Tồn đầu!");
+        console.error("Lỗi khi cập nhật ô:", err);
+        alert("Có lỗi xảy ra khi lưu dữ liệu!");
     }
 };
+
+    window.enableInventoryEdit = window.enableInventoryEdit;
+    window.saveInventoryEdit = window.saveInventoryEdit;
+    window.sortInventoryBy = window.sortInventoryBy;
 
 function changeInventoryPage(delta) {
     inventoryCurrentPage += delta;

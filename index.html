@@ -1699,17 +1699,17 @@
                         </div>
                         <div class="flex-1 overflow-auto table-container">
                             <table class="w-full">
-                                <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
+                                <thead id="inventoryTableHead" class="bg-slate-50 border-b border-slate-200 sticky top-0">
                                     <tr>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Mã Tồn Kho (ID)</th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Kho</th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">ID SP CT</th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">ID SP</th>
-                                        <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Tên Sản Phẩm</th>
-                                        <th class="px-3 py-2 text-right text-[11px] font-semibold text-slate-600">Tồn đầu</th>
-                                        <th class="px-3 py-2 text-right text-[11px] font-semibold text-slate-600">Nhập</th>
-                                        <th class="px-3 py-2 text-right text-[11px] font-semibold text-slate-600">Xuất</th>
-                                        <th class="px-3 py-2 text-right text-[11px] font-semibold text-slate-600">Tồn cuối</th>
+                                        <th id="inv_th_id" class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-100" onclick="sortInventoryBy('id')">Mã Tồn Kho (ID) <span class="sort-icon text-slate-400">⇅</span></th>
+                                        <th id="inv_th_kho" class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-100" onclick="sortInventoryBy('kho')">Kho <span class="sort-icon text-slate-400">⇅</span></th>
+                                        <th id="inv_th_id_sp_ct" class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-100" onclick="sortInventoryBy('id_sp_ct')">ID SP CT <span class="sort-icon text-slate-400">⇅</span></th>
+                                        <th id="inv_th_id_sp" class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-100" onclick="sortInventoryBy('id_sp')">ID SP <span class="sort-icon text-slate-400">⇅</span></th>
+                                        <th id="inv_th_ten_sp" class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-100" onclick="sortInventoryBy('ten_sp')">Tên Sản Phẩm <span class="sort-icon text-slate-400">⇅</span></th>
+                                        <th id="inv_th_ton_dau" class="px-3 py-2 text-right text-[11px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-100" onclick="sortInventoryBy('ton_dau')">Tồn đầu <span class="sort-icon text-slate-400">⇅</span></th>
+                                        <th id="inv_th_nhap" class="px-3 py-2 text-right text-[11px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-100" onclick="sortInventoryBy('nhap')">Nhập <span class="sort-icon text-slate-400">⇅</span></th>
+                                        <th id="inv_th_xuat" class="px-3 py-2 text-right text-[11px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-100" onclick="sortInventoryBy('xuat')">Xuất <span class="sort-icon text-slate-400">⇅</span></th>
+                                        <th id="inv_th_ton_cuoi" class="px-3 py-2 text-right text-[11px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-100" onclick="sortInventoryBy('ton_cuoi')">Tồn cuối <span class="sort-icon text-primary font-bold">↓</span></th>
                                     </tr>
                                 </thead>
                                 <tbody id="inventoryTableBody">
