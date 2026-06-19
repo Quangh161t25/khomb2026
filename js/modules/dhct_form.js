@@ -215,7 +215,7 @@
                     <input type="text" readonly id="modal_thanh_tien_${index}" value="${line.thanh_tien.toLocaleString('vi-VN')}" class="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-sm text-slate-900 font-bold cursor-not-allowed text-right">
                 </td>
                 <td class="px-2 py-2">
-                    <select onchange="window.updateModalLineVal(${index}, 'xac_nhan', this.value)" class="w-full px-2 py-1.5 bg-white border border-slate-200 rounded text-sm focus:ring-2 focus:ring-primary/20 outline-none ${line.xac_nhan === 'ĐÃ XÁC NHẬN' ? 'text-green-600 font-bold' : 'text-amber-600 font-bold'} ${!line.sku_con.trim() ? 'hidden' : ''}">
+                    <select id="modal_xac_nhan_${index}" onchange="window.updateModalLineVal(${index}, 'xac_nhan', this.value)" class="w-full px-2 py-1.5 bg-white border border-slate-200 rounded text-sm focus:ring-2 focus:ring-primary/20 outline-none ${line.xac_nhan === 'ĐÃ XÁC NHẬN' ? 'text-green-600 font-bold' : 'text-amber-600 font-bold'} ${!line.sku_con.trim() ? 'hidden' : ''}">
                         <option value="CHỜ XÁC NHẬN" ${line.xac_nhan === 'CHỜ XÁC NHẬN' ? 'selected' : ''}>CHỜ XÁC</option>
                         <option value="ĐÃ XÁC NHẬN" ${line.xac_nhan === 'ĐÃ XÁC NHẬN' ? 'selected' : ''}>ĐÃ XÁC</option>
                     </select>
@@ -253,7 +253,7 @@
             if (foundSp) {
                 line.ten_sp = foundSp.ten_sp || '';
                 if (truong === 'NHẬP') {
-                    line.gia_nhap = parseFloat(foundSp.gia_ban) || 0;
+                    line.gia_nhap = parseFloat(foundSp.gia_nhap) || 0;
                     if (giaNhapEl) giaNhapEl.value = line.gia_nhap;
                 } else {
                     line.gia_nhap = 0;
@@ -270,6 +270,15 @@
         if (idSpEl) idSpEl.value = line.id_sp;
         if (tenSpEl) tenSpEl.value = line.ten_sp;
         
+        const xacNhanEl = document.getElementById(`modal_xac_nhan_${index}`);
+        if (xacNhanEl) {
+            if (skuCon) {
+                xacNhanEl.classList.remove('hidden');
+            } else {
+                xacNhanEl.classList.add('hidden');
+            }
+        }
+
         window.calculateModalLineTotal(index);
     };
 

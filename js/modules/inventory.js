@@ -180,6 +180,121 @@ function changeInventoryPage(delta) {
     renderInventory();
 }
 
+window.downloadInventoryTemplate = function() {
+    const ws_data = [
+        ["Mã Tồn Kho (ID)", "Kho", "ID SP CT", "ID SP", "Tên Sản Phẩm", "Tồn đầu"]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "TON_KHO_Template");
+    XLSX.writeFile(wb, `Template_Ton_Kho.xlsx`);
+};
+
+window.exportInventoryToExcel = function() {
+    if (!inventoryData || inventoryData.length === 0) {
+        alert("Không có dữ liệu để xuất!");
+        return;
+    }
+    const ws_data = [["Mã Tồn Kho (ID)", "Kho", "ID SP CT", "ID SP", "Tên Sản Phẩm", "Tồn đầu"]];
+    inventoryData.forEach(item => {
+        ws_data.push([
+            item.id || '',
+            item.kho || '',
+            item.id_sp_ct || '',
+            item.id_sp || '',
+            item.ten_sp || '',
+            item.ton_dau || 0
+        ]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "TON_KHO");
+    
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    XLSX.writeFile(wb, `Ton_Kho_${dateStr}.xlsx`);
+};
+
+window.uploadInventoryExcel = async function(files) {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        try {
+            loadingOverlay.classList.remove('hidden');
+
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            
+            if (jsonData.length <= 1) {
+                alert("File không có dữ liệu hợp lệ!");
+                loadingOverlay.classList.add('hidden');
+                return;
+            }
+
+            const updateList = [];
+            const appendList = [];
+
+            for (let i = 1; i < jsonData.length; i++) {
+                const row = jsonData[i];
+                if (!row || row.length === 0) continue;
+                
+                const maTonKho = (row[0] || '').toString().trim();
+                if (!maTonKho) continue; // Bỏ qua dòng không có ID
+                
+                const kho = (row[1] || '').toString().trim();
+                const idSpCt = (row[2] || '').toString().trim();
+                const idSp = (row[3] || '').toString().trim();
+                const tenSp = (row[4] || '').toString().trim();
+                const tonDau = parseFloat(row[5]) || 0;
+
+                const existingItem = inventoryData.find(item => item.id === maTonKho);
+                
+                if (existingItem) {
+                    updateList.push({
+                        rowIndex: existingItem.rowIndex,
+                        data: [maTonKho, kho, idSpCt, idSp, tenSp, tonDau]
+                    });
+                } else {
+                    appendList.push([maTonKho, kho, idSpCt, idSp, tenSp, tonDau]);
+                }
+            }
+
+            let updatedCount = 0;
+            // Cập nhật các dòng đã tồn tại
+            if (updateList.length > 0) {
+                for (const item of updateList) {
+                    await window.updateSheetRow(CONFIG.inventorySheetName, item.rowIndex, item.data);
+                    updatedCount++;
+                }
+            }
+
+            // Thêm mới các dòng chưa có
+            if (appendList.length > 0) {
+                await window.appendSheetData(CONFIG.inventorySheetName, appendList);
+            }
+
+            alert(`Hoàn tất! Đã cập nhật ${updatedCount} dòng và thêm mới ${appendList.length} dòng.`);
+            
+            // Tải lại dữ liệu
+            await fetchInventoryData();
+        } catch (err) {
+            console.error("Lỗi upload Excel tồn kho:", err);
+            alert("Có lỗi xảy ra khi xử lý file: " + err.message);
+        } finally {
+            document.getElementById('inventoryExcelUpload').value = "";
+            loadingOverlay.classList.add('hidden');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+};
+
 
     Object.assign(window.AppModules = window.AppModules || {}, { ['inventory']: true });
     window.fetchInventoryData = fetchInventoryData;

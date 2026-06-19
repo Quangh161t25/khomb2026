@@ -1658,6 +1658,19 @@
                                 <input type="text" id="inventorySearch" oninput="filterInventory()"
                                     placeholder="Tìm theo ID hoặc Tên sản phẩm..."
                                     class="px-3 py-1.5 border border-slate-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary/20">
+                                <button onclick="downloadInventoryTemplate()"
+                                    class="bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium flex items-center gap-2" title="Tải mẫu Excel">
+                                    <span>Tải Mẫu</span>
+                                </button>
+                                <button onclick="exportInventoryToExcel()"
+                                    class="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2" title="Xuất dữ liệu ra Excel">
+                                    <span>Xuất Excel</span>
+                                </button>
+                                <button onclick="document.getElementById('inventoryExcelUpload').click()"
+                                    class="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium flex items-center gap-2" title="Tải lên dữ liệu từ file Excel">
+                                    <span>Tải Lên Excel</span>
+                                </button>
+                                <input type="file" id="inventoryExcelUpload" accept=".xlsx, .xls" class="hidden" onchange="uploadInventoryExcel(this.files)">
                                 <button onclick="fetchInventoryData()"
                                     class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
