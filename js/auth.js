@@ -31,7 +31,7 @@ function applyRoleUI(role) {
         }
     });
 
-    document.querySelectorAll("button[onclick='updateAllPricesBatch()'], button[onclick^='batchUpdateUDCTStatus']").forEach(b => {
+    document.querySelectorAll("button[onclick='updateAllPricesBatch()'], button[onclick^='batchUpdateUDCTStatus'], button[onclick='batchRefreshSelectedRows()']").forEach(b => {
         b.style.display = isRestricted ? 'none' : '';
     });
 

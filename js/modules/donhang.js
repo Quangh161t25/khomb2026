@@ -1,4 +1,4 @@
-// donhang - Module Pattern (IIFE)
+﻿// donhang - Module Pattern (IIFE)
 (function () {
 function openDetailDrawer(originalIndex) {
     currentDrawerMode = 'udct';
@@ -155,8 +155,7 @@ async function saveRowDetail(showLoading = false) {
             trang_thai: document.getElementById('editTrangThai').value,
             ghi_chu: document.getElementById('editGhiChu').value
         };
-        const statusStr = (newData.trang_thai || '').toLowerCase();
-        const nextSlgXuat = (statusStr.includes('hủy') || statusStr.includes('hêt hàng') || statusStr.includes('hết hàng')) ? 0 : (newData.so_luong || 0);
+        const nextSlgXuat = (newData.trang_thai || '').toLowerCase().includes('hủy') ? 0 : (newData.so_luong || 0);
         // so_luong=O, id_sp=P, id_sp_ct=Q, tinh_trang=X, trang_thai=Y, slg_xuat=S, ghi_chu=AA, don_gia=AE
         const batchUpdates = [
             { range: `${CONFIG.udctSheetName}!O${item.rowIndex}`, values: [[newData.so_luong]] },
@@ -679,24 +678,33 @@ async function saveUDCTMainInline(rowIndex, field, value) {
 
             // Tìm thông tin sản phẩm để cập nhật nốt Tên và Giá
             if (sanphamData && sanphamData.length > 0) {
-                const sp = sanphamData.find(s => (s.sku_con || '').toString().toLowerCase() === val.toLowerCase());
-                if (sp) {
-                    item.ten_sp = sp.ten_sp;
-                    item.id_sp = sp.id_sp || (sp.sku_con || '').substring(0, 4);
-                    const newPrice = sp.gia_ban;
-                    item.don_gia_1 = newPrice;
+                let updated = false;
+
+                // Lấy tên theo sku_con
+                const spName = sanphamData.find(s => (s.sku_con || '').toString().toLowerCase() === val.toLowerCase());
+                if (spName) {
+                    item.ten_sp = spName.ten_sp;
+                    item.id_sp = spName.id_sp || (spName.sku_con || '').substring(0, 4);
                     updates.push({ range: `${CONFIG.udctSheetName}!R${rowIndex}`, values: [[item.ten_sp]] });
                     updates.push({ range: `${CONFIG.udctSheetName}!P${rowIndex}`, values: [[item.id_sp]] });
-                    updates.push({ range: `${CONFIG.udctSheetName}!AE${rowIndex}`, values: [[newPrice]] });
+                    updated = true;
+                }
 
-                    const itemStatus = (item.trang_thai || '').toLowerCase();
-                    if (!(itemStatus.includes('hủy') || itemStatus.includes('hêt hàng') || itemStatus.includes('hết hàng'))) {
-                        item.slg_xuat = item.so_luong;
-                        updates.push({ range: `${CONFIG.udctSheetName}!S${rowIndex}`, values: [[item.slg_xuat]] });
-                    } else {
-                        item.slg_xuat = 0;
-                        updates.push({ range: `${CONFIG.udctSheetName}!S${rowIndex}`, values: [[0]] });
+                // Lấy giá theo id_sp (Mã SP Cha)
+                const currentIdSp = (item.id_sp || '').toString().trim();
+                if (currentIdSp) {
+                    const spPrice = sanphamData.find(s => (s.id_sp || '').toString().toLowerCase() === currentIdSp.toLowerCase());
+                    if (spPrice) {
+                        const newPrice = spPrice.gia_ban;
+                        item.don_gia_1 = newPrice;
+                        updates.push({ range: `${CONFIG.udctSheetName}!AE${rowIndex}`, values: [[newPrice]] });
+                        updated = true;
                     }
+                }
+
+                if (updated && !(item.trang_thai || '').toLowerCase().includes('hủy')) {
+                    item.slg_xuat = item.so_luong;
+                    updates.push({ range: `${CONFIG.udctSheetName}!S${rowIndex}`, values: [[item.slg_xuat]] });
                 }
             }
         }
@@ -946,12 +954,11 @@ function ensureUDCTRowSelected(item) {
 }
 
 function resolveUDCTPriceBySku(idSpCt, idSp) {
-    const searchIdCt = (idSpCt || "").toString().trim().toLowerCase();
     const searchIdSp = (idSp || "").toString().trim().toLowerCase();
+    if (!searchIdSp) return '';
     const sp = sanphamData?.find(s => {
         const sIdSp = (s.id_sp || "").toString().trim().toLowerCase();
-        const sSkuCon = (s.sku_con || "").toString().trim().toLowerCase();
-        return (searchIdCt && sSkuCon === searchIdCt) || (searchIdSp && sIdSp === searchIdSp);
+        return sIdSp === searchIdSp;
     });
     return sp ? sp.gia_ban : '';
 }
@@ -1184,8 +1191,7 @@ async function quickSetUDCTStatus(originalIndex, statusValue) {
     const success = await updateSheetValue(CONFIG.udctSheetName, `Y${item.rowIndex}`, statusValue);
     if (!success) return alert(`Lỗi khi cập nhật trạng thái cho dòng ${item.rowIndex}`);
     item.trang_thai = statusValue;
-    const statusStr = (statusValue || '').toString().toLowerCase();
-    if (statusStr.includes('hủy') || statusStr.includes('hêt hàng') || statusStr.includes('hết hàng')) {
+    if ((statusValue || '').toString().toLowerCase().includes('hủy')) {
         item.slg_xuat = 0;
         await updateSheetValue(CONFIG.udctSheetName, `S${item.rowIndex}`, 0);
     } else {
@@ -1209,9 +1215,8 @@ async function updateUDCTPrice(originalIndex, silent = false) {
     }
 
     item.don_gia_1 = newPrice;
-    
-    const itemStatus = (item.trang_thai || '').toLowerCase();
-    if (!(itemStatus.includes('hủy') || itemStatus.includes('hêt hàng') || itemStatus.includes('hết hàng'))) {
+
+    if (!(item.trang_thai || '').toLowerCase().includes('hủy')) {
         item.slg_xuat = item.so_luong;
         await updateSheetValue(CONFIG.udctSheetName, `S${item.rowIndex}`, item.slg_xuat);
     }
@@ -1479,25 +1484,8 @@ async function handleExcelUploadDonhang(files) {
                 const sku_shop_up = c_j; // Lấy nguyên cột J
                 const id_sp = c_c;
                 let id_sp_ct = '';
-                const c_j_4 = c_j.substring(0, 4).toLowerCase();
-                const c_c_lower = (c_c || '').toLowerCase();
-                
-                if (c_j_4 === c_c_lower && c_j.length >= 10) {
-                    id_sp_ct = c_j.substring(0, 10).toUpperCase();
-                } else {
-                    if (c_c && typeof sanphamData !== 'undefined') {
-                        const matches = sanphamData.filter(sp => {
-                            const spIdSp = (sp.id_sp || '').toString().toLowerCase();
-                            const spSkuCon = (sp.sku_con || '').toString().toLowerCase();
-                            return spIdSp === c_c_lower || spSkuCon.startsWith(c_c_lower);
-                        });
-                        
-                        if (matches.length === 1) {
-                            id_sp_ct = (matches[0].sku_con || '').toUpperCase();
-                        } else {
-                            id_sp_ct = '';
-                        }
-                    }
+                if (c_j.substring(0, 4) === c_c) {
+                    id_sp_ct = c_j.substring(0, 10);
                 }
                 const newPrice = resolveUDCTPriceBySku(id_sp_ct, id_sp);
 
@@ -1860,6 +1848,93 @@ document.addEventListener('mousedown', (e) => {
     window.saveNewDHCT = saveNewDHCT;
     window.handleIdSpCtInput = handleIdSpCtInput;
     window.selectSpCtSuggestion = selectSpCtSuggestion;
+    window.batchRefreshSelectedRows = batchRefreshSelectedRows;
+
+    async function batchRefreshSelectedRows() {
+        if (!filteredUDCT.length) return alert("Không có dữ liệu đang hiển thị.");
+        const selectedRows = getSelectedUDCTItems();
+        if (selectedRows.length === 0) return alert("Vui lòng chọn ít nhất 1 đơn hàng để cập nhật lại dòng.");
+
+        if (!confirm(`Bạn có chắc muốn tính toán lại thông tin (tên, giá, số lượng xuất) cho ${selectedRows.length} dòng đã chọn dựa trên mã SKU?`)) return;
+
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+        try {
+            const token = await getAccessToken();
+            const updates = [];
+            let successCount = 0;
+
+            for (const item of selectedRows) {
+                let rowProcessed = false;
+                const valSpCt = (item.id_sp_ct || '').toString().trim();
+                const valSp = (item.id_sp || '').toString().trim();
+
+                if (sanphamData && sanphamData.length > 0) {
+                    if (valSpCt) {
+                        const spName = sanphamData.find(s => (s.sku_con || '').toString().toLowerCase() === valSpCt.toLowerCase());
+                        if (spName) {
+                            item.ten_sp = spName.ten_sp;
+                            item.id_sp = valSp || spName.id_sp || (spName.sku_con || '').substring(0, 4);
+                            updates.push({ range: `${CONFIG.udctSheetName}!R${item.rowIndex}`, values: [[item.ten_sp]] });
+                            updates.push({ range: `${CONFIG.udctSheetName}!P${item.rowIndex}`, values: [[item.id_sp]] });
+                            rowProcessed = true;
+                        }
+                    }
+
+                    const currentIdSp = (item.id_sp || '').toString().trim();
+                    if (currentIdSp) {
+                        const spPrice = sanphamData.find(s => (s.id_sp || '').toString().toLowerCase() === currentIdSp.toLowerCase());
+                        if (spPrice) {
+                            const newPrice = spPrice.gia_ban;
+                            item.don_gia_1 = newPrice;
+                            updates.push({ range: `${CONFIG.udctSheetName}!AE${item.rowIndex}`, values: [[newPrice]] });
+                            rowProcessed = true;
+                        }
+                    }
+                }
+
+                const itemStatus = (item.trang_thai || '').toLowerCase();
+                if (!(itemStatus.includes('hủy') || itemStatus.includes('hêt hàng') || itemStatus.includes('hết hàng'))) {
+                    item.slg_xuat = item.so_luong;
+                    updates.push({ range: `${CONFIG.udctSheetName}!S${item.rowIndex}`, values: [[item.slg_xuat]] });
+                } else {
+                    item.slg_xuat = 0;
+                    updates.push({ range: `${CONFIG.udctSheetName}!S${item.rowIndex}`, values: [[0]] });
+                }
+                rowProcessed = true;
+
+                if (rowProcessed) successCount++;
+            }
+
+            if (updates.length === 0) {
+                alert("Không có dòng nào được cập nhật.");
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                return;
+            }
+
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchUpdate`;
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: updates })
+            });
+
+            if (resp.ok) {
+                renderUDCTTable();
+                alert(`Đã cập nhật thành công ${successCount} dòng!`);
+                refreshUDCTSelectionControls();
+            } else {
+                console.error("Batch Update Inline Error:", await resp.text());
+                alert('Lỗi khi lưu dữ liệu lên hệ thống.');
+            }
+        } catch (err) {
+            console.error("Batch Update Inline Exception:", err);
+            alert('Có lỗi khi lưu: ' + err.message);
+        } finally {
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+        }
+    }
 })();
 
 
