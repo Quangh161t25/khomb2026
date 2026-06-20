@@ -46,8 +46,20 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('service-worker.js')
-                    .then(reg => console.log('Service Worker registered'))
+                    .then(reg => {
+                        console.log('Service Worker registered');
+                        // Kiểm tra update định kỳ mỗi 5 phút
+                        setInterval(() => reg.update(), 5 * 60 * 1000);
+                    })
                     .catch(err => console.log('Service Worker registration failed', err));
+
+                // Nhận tín hiệu SW_UPDATED → tự reload trang
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'SW_UPDATED') {
+                        console.log('App đã cập nhật, đang reload...');
+                        setTimeout(() => window.location.reload(), 800);
+                    }
+                });
             });
         }
     </script>
@@ -2733,12 +2745,14 @@
     </div>
     </div>
 
-    <div id="loadingOverlay" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg p-6 flex flex-col items-center">
-            <div class="spinner mb-4"></div>
-            <p class="text-slate-700 font-medium">Đang xử lý dữ liệu...</p>
-        </div>
+    <!-- Loading overlay (inline, không ẩn nền) -->
+    <div id="loadingOverlay" class="hidden fixed top-12 right-4 z-50 flex items-center gap-2 bg-white border border-slate-200 rounded-xl shadow-lg px-4 py-2.5">
+        <div class="spinner-sm"></div>
+        <p class="text-slate-700 font-medium text-sm">Đang xử lý...</p>
     </div>
+
+    <!-- Network status bar -->
+    <div id="networkStatusBar" class="hidden fixed top-0 left-0 right-0 z-[9998] h-1 bg-amber-400"></div>
     <div id="imagePreviewOverlay" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
         onclick="closeImagePreview()">
         <img id="imagePreviewContent" src="" alt="Ảnh hàng hoàn"
