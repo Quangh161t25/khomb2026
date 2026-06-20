@@ -133,7 +133,7 @@ async function copyDHCTGroup(key) {
 
             // Cấu trúc (16 cột): [id_dh_ct, id_dh, ngay, truong, ncc, ghi_chu, kho, id_sp_ct, _, _, ten, sl, gia, thanh_tien, _, _]
             return [
-                id_dh_ct, id_dh, todayStr, truong, ncc, item.ghi_chu || '', item.kho || 'KHO', item.id_sp_ct || '',
+                id_dh_ct, id_dh, todayStr, truong, ncc, item.ghi_chu || '', item.kho || 'KHO', item.sku_con || '',
                 '', '', item.ten || '', sl, gia, sl * gia, '', ''
             ];
         });
@@ -159,7 +159,7 @@ function getTopUDCTIdSpCts() {
     if (!dhctData) return [];
     const counts = {};
     dhctData.forEach(item => {
-        const id = (item.id_sp_ct || '').toString().trim();
+        const id = (item.sku_con || '').toString().trim();
         if (id) counts[id] = (counts[id] || 0) + 1;
     });
     return Object.entries(counts)
@@ -173,9 +173,9 @@ function quickFillIdSpCt(id) {
     if (input) {
         input.value = id;
         // Tự động tìm thông tin sản phẩm và điền nốt các cột khác
-        if (dsSpCtData && dsSpCtData.length > 0) {
+        if (sanphamData && sanphamData.length > 0) {
             const searchId = id.toString().trim().toLowerCase();
-            const match = dsSpCtData.find(m => (m.id_sp_ct || '').toString().trim().toLowerCase() === searchId);
+            const match = sanphamData.find(m => (m.sku_con || '').toString().trim().toLowerCase() === searchId);
             if (match) {
                 selectSpCtSuggestion(match.id_sp_ct, (match.ten || '').replace(/'/g, "\\'"), match.gia_nhap || 0);
             } else {
@@ -236,7 +236,7 @@ function renderUDCTSubDetails(ngay, truong, ncc) {
                     </button>
                 </td>
                 <td class="p-0 w-24">
-                    <input type="text" value="${item.id_sp_ct || ''}" 
+                    <input type="text" value="${item.sku_con || ''}" 
                            ${isKinhDoanh ? 'disabled' : ''}
                            oninput="handleIdSpCtInput(this, 'row')"
                            onchange="saveUDCTRowInline('${item.id_dh_ct}', 'id_sp_ct', this.value)"
@@ -471,8 +471,8 @@ async function handleExcelUploadUniqueDHCT(files) {
             const ghi_chu = colIdx.ghi_chu !== -1 ? (row[colIdx.ghi_chu] || '').toString().trim() : '';
 
             // Auto-fill Product Info if missing
-            if (dsSpCtData && (!ten || !gia)) {
-                const sp = dsSpCtData.find(s => (s.id_sp_ct || '').toLowerCase() === id_sp_ct.toLowerCase());
+            if (sanphamData && (!ten || !gia)) {
+                const sp = sanphamData.find(s => (s.sku_con || '').toLowerCase() === id_sp_ct.toLowerCase());
                 if (sp) {
                     if (!ten) ten = sp.ten || '';
                     if (!gia) gia = parseFloat(sp.gia_nhap) || 0;
@@ -544,7 +544,7 @@ function exportUniqueDHCTToExcel() {
     const headers = ['ID DH CT', 'ID DH', 'Ngày', 'Trường', 'NCC', 'Ghi chú', 'Kho', 'ID SP CT', 'Tên sản phẩm', 'Số lượng', 'Giá nhập', 'Thành tiền'];
     const rows = dataToExport.map(item => [
         item.id_dh_ct, item.id_dh, item.ngay, item.truong, item.ncc, item.ghi_chu,
-        item.kho, item.id_sp_ct, item.ten, item.so_luong, item.gia_nhap, (item.so_luong * item.gia_nhap)
+        item.kho, item.sku_con, item.ten, item.so_luong, item.gia_nhap, (item.so_luong * item.gia_nhap)
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -660,7 +660,7 @@ async function saveUDCTDetail() {
     const gia = parseFloat(document.getElementById('detail_gia_nhap')?.value) || 0;
 
     // Update local data
-    currentUDCTSelectedItem.id_sp_ct = id_sp_ct;
+    currentUDCTSelectedItem.sku_con = id_sp_ct;
     currentUDCTSelectedItem.ten = ten;
     currentUDCTSelectedItem.so_luong = sl;
     currentUDCTSelectedItem.gia_nhap = gia;
@@ -823,7 +823,7 @@ function closeUniqueDHCTModal() {
         tbody.innerHTML = filtered.map(item => `
                     <tr class="border-b border-slate-100 hover:bg-slate-50">
                         <td class="px-3 py-2 text-sm text-blue-600 font-medium">${item.id_dh || ''}</td>
-                        <td class="px-3 py-2 text-sm font-semibold text-slate-900">${item.id_sp_ct || ''}</td>
+                        <td class="px-3 py-2 text-sm font-semibold text-slate-900">${item.sku_con || ''}</td>
                         <td class="px-3 py-2 text-sm text-slate-700 max-w-[200px] truncate" title="${item.ten || ''}">${item.ten || ''}</td>
                         <td class="px-3 py-2 text-sm text-right font-bold">${(parseFloat(item.so_luong) || 0).toLocaleString('vi-VN')}</td>
                         <td class="px-3 py-2 text-sm text-slate-500">${item.kho || ''}</td>

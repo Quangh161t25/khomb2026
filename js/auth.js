@@ -172,8 +172,7 @@ window.onload = async () => {
                 // Khởi động tải dữ liệu ngay từ đầu để tránh lỗi "Chưa có dữ liệu"
                 loadUDCTData();
                 loadSanphamData();
-                loadDsSpCtData();
-                fetchDHCTData(); // Thêm luôn DH_CT mới
+                                fetchDHCTData(); // Thêm luôn DH_CT mới
 
 
                 // Chuyển nhanh qua module đang yêu cầu (nếu có)
@@ -207,7 +206,6 @@ window.onload = async () => {
                     applyRoleUI(currentUser.role);
                     await loadUDCTData();
                     await loadSanphamData();
-                    await loadDsSpCtData();
                 } else {
                     handleLogout(); // Session invalid
                 }

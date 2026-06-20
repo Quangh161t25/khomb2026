@@ -1,4 +1,4 @@
-﻿// donhang - Module Pattern (IIFE)
+// donhang - Module Pattern (IIFE)
 (function () {
 function openDetailDrawer(originalIndex) {
     currentDrawerMode = 'udct';
@@ -1063,8 +1063,8 @@ function renderUDCTTable() {
             const isMissing = !item.id_sp_ct || item.id_sp_ct === '-' || item.id_sp_ct === '';
             if (!isMissing || !idSp || !sanphamData) return '';
             const matches = sanphamData.filter(s =>
-                (s.sku_con || '').toString().startsWith(idSp) &&
-                (s.sku_con || '').toString().length > 5
+                (s.id_sp || '').toString().trim().toLowerCase() === idSp.trim().toLowerCase() &&
+                (s.sku_con || '').toString().trim().length > 5
             ).slice(0, 4);
             if (matches.length === 0) return '';
             return `
@@ -1481,11 +1481,24 @@ async function handleExcelUploadDonhang(files) {
 
                 if (!c_d && !c_g) continue;
 
-                const sku_shop_up = c_j; // Lấy nguyên cột J
-                const id_sp = c_c;
+                const sku_shop_up = (c_j || '').toString().trim(); // Lấy nguyên cột J
+                const id_sp = (c_c || '').toString().trim();
                 let id_sp_ct = '';
-                if (c_j.substring(0, 4) === c_c) {
-                    id_sp_ct = c_j.substring(0, 10);
+
+                const shopUp4Upper = sku_shop_up.substring(0, 4).toUpperCase();
+                const idSpUpper = id_sp.toUpperCase();
+
+                if (shopUp4Upper === idSpUpper) {
+                    id_sp_ct = sku_shop_up.substring(0, 10);
+                } else {
+                    if (typeof sanphamData !== 'undefined' && sanphamData) {
+                        const matchingSps = sanphamData.filter(s => (s.id_sp || '').toString().trim().toUpperCase() === idSpUpper && (s.sku_con || '').toString().trim().length > 5);
+                        if (matchingSps.length === 1) {
+                            id_sp_ct = matchingSps[0].sku_con || '';
+                        } else {
+                            id_sp_ct = '';
+                        }
+                    }
                 }
                 const newPrice = resolveUDCTPriceBySku(id_sp_ct, id_sp);
 
@@ -1716,12 +1729,12 @@ function handleIdSpCtInput(input, type) {
     const val = input.value.trim().toLowerCase();
     const sugBox = document.getElementById('spctSuggestions');
 
-    if (!val || !dsSpCtData || dsSpCtData.length === 0) {
+    if (!val || !sanphamData || sanphamData.length === 0) {
         if (sugBox) sugBox.classList.add('hidden');
         return;
     }
 
-    const matches = dsSpCtData.filter(item =>
+    const matches = sanphamData.filter(item =>
         (item.id_sp_ct || '').toLowerCase().includes(val) ||
         (item.ten || '').toLowerCase().includes(val)
     ).slice(0, 30);
@@ -1867,10 +1880,20 @@ document.addEventListener('mousedown', (e) => {
 
             for (const item of selectedRows) {
                 let rowProcessed = false;
-                const valSpCt = (item.id_sp_ct || '').toString().trim();
+                let valSpCt = (item.id_sp_ct || '').toString().trim();
                 const valSp = (item.id_sp || '').toString().trim();
 
                 if (sanphamData && sanphamData.length > 0) {
+                    if (!valSpCt && valSp) {
+                        const possibleSpCts = sanphamData.filter(s => (s.id_sp || '').toString().trim().toLowerCase() === valSp.toLowerCase() && (s.sku_con || '').toString().trim().length > 5);
+                        if (possibleSpCts.length === 1) {
+                            valSpCt = possibleSpCts[0].sku_con;
+                            item.id_sp_ct = valSpCt;
+                            updates.push({ range: `${CONFIG.udctSheetName}!Q${item.rowIndex}`, values: [[valSpCt]] });
+                            rowProcessed = true;
+                        }
+                    }
+
                     if (valSpCt) {
                         const spName = sanphamData.find(s => (s.sku_con || '').toString().toLowerCase() === valSpCt.toLowerCase());
                         if (spName) {

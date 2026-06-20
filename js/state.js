@@ -11,7 +11,6 @@ let tokenRequestPromise = null;
 // Data stores
 let udctData = [];
 let sanphamData = [];
-let dsSpCtData = [];
 let reportData = [];
 let mergedChart = null;
 let upmisaData = [];

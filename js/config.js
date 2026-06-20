@@ -4,7 +4,6 @@ const CONFIG = {
     authSheetName: "DSNV",
     udctSheetName: "UD_CT",
     sanphamSheetName: "DS_SP",
-    dsSpCtSheetName: "DS_SP_CT",
     inventorySheetName: "TON_KHO",
     dhctSheetName: "DH_CT",
     hhbhSheetName: "HH_BH",

@@ -119,11 +119,11 @@ function renderIdspTable() {
 
     currentIdspStats.sort((a, b) => {
         let valA, valB;
-        if (idspSort.key === 'id_sp_ct') {
+                if (idspSort.key === 'id_sp_ct') {
             valA = a.idsp.toLowerCase(); valB = b.idsp.toLowerCase();
         } else if (idspSort.key === 'ten_sp') {
             valA = (a.ten_sp || '').toLowerCase(); valB = (b.ten_sp || '').toLowerCase();
-        } else if (idspSort.key === 'slg' || idspSort.key === 'doanh_thu') {
+        } else if (idspSort.key === 'slg' || idspSort.key === 'doanh_thu' || idspSort.key === 'ton_kho') {
             valA = a[idspSort.key]; valB = b[idspSort.key];
         } else {
             valA = a.statuses[idspSort.key] || 0; valB = b.statuses[idspSort.key] || 0;
@@ -146,6 +146,7 @@ function renderIdspTable() {
             <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100" onclick="window.handleSortIdsp('slg')">SL xuất ${getSortIcon('slg')}</th>
             <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100" onclick="window.handleSortIdsp('doanh_thu')">Doanh thu ${getSortIcon('doanh_thu')}</th>
             ${currentStatusesArray.map(st => `<th class="px-4 py-3 text-left text-xs font-semibold text-red-500 cursor-pointer select-none hover:bg-slate-100" onclick="window.handleSortIdsp('${st}')">${st} ${getSortIcon(st)}</th>`).join('')}
+            <th class="px-4 py-3 text-right text-xs font-semibold text-indigo-600 cursor-pointer hover:bg-slate-100 transition-colors" onclick="window.handleSortIdsp('ton_kho')">Tồn kho ${getSortIcon('ton_kho')}</th>
         </tr>
     `;
     thead.innerHTML = headerHtml;
@@ -157,8 +158,19 @@ function renderIdspTable() {
             <td class="px-4 py-3 text-sm text-slate-700">${a.slg.toLocaleString('vi-VN')}</td>
             <td class="px-4 py-3 text-sm text-slate-700">${a.doanh_thu.toLocaleString('vi-VN')}</td>
             ${currentStatusesArray.map(st => `<td class="px-4 py-3 text-sm text-red-500">${a.statuses[st] || 0}</td>`).join('')}
-        </tr>`).join('') : `<tr><td colspan="${4 + currentStatusesArray.length}" class="text-center py-4 text-slate-400">Không có dữ liệu</td></tr>`;
+            <td class="px-4 py-3 text-sm font-bold text-indigo-600 text-right">${(a.ton_kho || 0).toLocaleString('vi-VN')}</td>
+        </tr>`).join('') : `<tr><td colspan="${5 + currentStatusesArray.length}" class="text-center py-4 text-slate-400">Không có dữ liệu</td></tr>`;
 }
+
+window.handleSortIdsp = function(key) {
+    if (idspSort.key === key) {
+        idspSort.asc = !idspSort.asc;
+    } else {
+        idspSort.key = key;
+        idspSort.asc = true;
+    }
+    renderIdspTable();
+};
 
 async function filterReport() {
     const fromDate = document.getElementById('fromDate').value;
@@ -269,6 +281,37 @@ async function filterReport() {
 
         const totalMvdSet = new Set();
 
+                // ----- Build tonKhoMap (Tồn kho = Tồn đầu + Tổng Nhập - Tổng Xuất trước fromDate) -----
+        const tonKhoMap = {};
+        // Lấy tồn đầu từ inventoryData (group by id_sp_ct, cộng tất cả kho)
+        if (typeof inventoryData !== 'undefined' && inventoryData.length > 0) {
+            inventoryData.forEach(sp => {
+                const key = (sp.id_sp_ct || '').trim().toUpperCase();
+                if (key) {
+                    if (tonKhoMap[key] === undefined) tonKhoMap[key] = 0;
+                    tonKhoMap[key] += parseFloat(sp.ton_dau) || 0;
+                }
+            });
+        }
+        // Cộng/trừ nhập xuất từ dhctData, chỉ lấy ĐÃ XÁC NHẬN, ngày < fromDate (không tính ngày fromDate)
+        if (typeof dhctData !== 'undefined' && dhctData.length > 0) {
+            dhctData.forEach(item => {
+                if ((item.xac_nhan || '').trim() !== 'ĐÃ XÁC NHẬN') return;
+                const ngayIso = toIsoDate(item.ngay);
+                if (!ngayIso || ngayIso >= fromDate) return;
+                const id = (item.id_sp_ct || '').trim().toUpperCase();
+                if (!id) return;
+                if (tonKhoMap[id] === undefined) tonKhoMap[id] = 0;
+                const sl = parseFloat(item.so_luong) || 0;
+                const truong = (item.truong || '').trim().toUpperCase();
+                if (truong === 'NHẬP') {
+                    tonKhoMap[id] += sl;
+                } else if (truong === 'XUẤT') {
+                    tonKhoMap[id] -= sl;
+                }
+            });
+        }
+
         for (const item of filtered) {
             const rev = item.don_gia * item.slg_xuat;
             totalRevenue += rev;
@@ -338,7 +381,7 @@ async function filterReport() {
         currentMagianStats = Object.entries(magianStats).map(([mg, s]) => ({ mg, ...s, so_don: s.mvd_set ? s.mvd_set.size : s.so_don }));
         magianSort = { key: 'doanh_thu', asc: false }; // reset sort to default
 
-        currentIdspStats = Object.entries(idspStats).map(([idsp, s]) => ({ idsp, ...s }));
+        currentIdspStats = Object.entries(idspStats).map(([idsp, s]) => ({ idsp, ...s, ton_kho: tonKhoMap[idsp.toUpperCase()] || 0 }));
         idspSort = { key: 'doanh_thu', asc: false }; // reset sort to default
 
         renderMagianTable();
@@ -683,6 +726,9 @@ async function filterReportTong() {
     if (!udctData || udctData.length === 0) return;
 
     // Ensure hangHoanData loaded
+    if (!dhctData || dhctData.length === 0) {
+        try { if (window.fetchDHCTData) await fetchDHCTData(true); } catch (e) { console.error(e); }
+    }
     if (!hangHoanData || hangHoanData.length === 0) {
         try { await fetchHangHoanData(); } catch (e) { console.error(e); }
     }
@@ -739,6 +785,37 @@ async function filterReportTong() {
             });
         }
 
+        // ----- Build tonKhoMap (Tồn kho = Tồn đầu + Tổng Nhập - Tổng Xuất trước fromDate) -----
+        const tonKhoMap = {};
+        // Lấy tồn đầu từ inventoryData (group by id_sp_ct, cộng tất cả kho)
+        if (typeof inventoryData !== 'undefined' && inventoryData.length > 0) {
+            inventoryData.forEach(sp => {
+                const key = (sp.id_sp_ct || '').trim().toUpperCase();
+                if (key) {
+                    if (tonKhoMap[key] === undefined) tonKhoMap[key] = 0;
+                    tonKhoMap[key] += parseFloat(sp.ton_dau) || 0;
+                }
+            });
+        }
+        // Cộng/trừ nhập xuất từ dhctData, chỉ lấy ĐÃ XÁC NHẬN, ngày < fromDate (không tính ngày fromDate)
+        if (typeof dhctData !== 'undefined' && dhctData.length > 0) {
+            dhctData.forEach(item => {
+                if ((item.xac_nhan || '').trim() !== 'ĐÃ XÁC NHẬN') return;
+                const ngayIso = toIsoDate(item.ngay);
+                if (!ngayIso || ngayIso >= fromDate) return;
+                const id = (item.id_sp_ct || '').trim().toUpperCase();
+                if (!id) return;
+                if (tonKhoMap[id] === undefined) tonKhoMap[id] = 0;
+                const sl = parseFloat(item.so_luong) || 0;
+                const truong = (item.truong || '').trim().toUpperCase();
+                if (truong === 'NHẬP') {
+                    tonKhoMap[id] += sl;
+                } else if (truong === 'XUẤT') {
+                    tonKhoMap[id] -= sl;
+                }
+            });
+        }
+
         // ----- Stats by Ma Gian -----
         const magianStats = {};
         const idspStats = {};
@@ -775,6 +852,7 @@ async function filterReportTong() {
                 thHtml += `<th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 whitespace-nowrap">${escapeHtml(st)}</th>`;
             });
             thHtml += '<th class="px-4 py-3 text-right text-xs font-semibold text-rose-600 whitespace-nowrap">Số đơn hoàn</th>';
+            thHtml += '<th class="px-4 py-3 text-right text-xs font-semibold text-indigo-600 whitespace-nowrap">Tồn kho</th>';
             magianThead.innerHTML = thHtml;
         }
 
@@ -797,6 +875,7 @@ async function filterReportTong() {
                         row += `<td class="px-4 py-2 text-sm text-right text-slate-500">${cnt ? cnt.toLocaleString('vi-VN') : '-'}</td>`;
                     });
                     row += `<td class="px-4 py-2 text-sm text-right font-bold ${hoanCount > 0 ? 'text-rose-600' : 'text-slate-400'}">${hoanCount > 0 ? hoanCount.toLocaleString('vi-VN') : '0'}</td>`;
+            row += `<td class="px-4 py-2 text-sm text-right font-bold text-indigo-600">${(s.ton_kho || 0).toLocaleString('vi-VN')}</td>`;
                     row += `</tr>`;
                     return row;
                 }).join('');
@@ -814,12 +893,16 @@ async function filterReportTong() {
                 thHtml += `<th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 whitespace-nowrap">${escapeHtml(st)}</th>`;
             });
             thHtml += '<th class="px-4 py-3 text-right text-xs font-semibold text-rose-600 whitespace-nowrap">Số đơn hoàn</th>';
+            thHtml += '<th class="px-4 py-3 text-right text-xs font-semibold text-indigo-600 whitespace-nowrap">Tồn kho</th>';
             idspThead.innerHTML = thHtml;
         }
 
         const idspEntries = Object.entries(idspStats).sort((a, b) => b[1].doanh_thu - a[1].doanh_thu);
-        reportTongIdspStats = idspEntries;
-        renderIdspTongTable(idspEntries, statusesArray, hhBySkuCt);
+        reportTongIdspStats = idspEntries.map(([idsp, s]) => {
+            s.ton_kho = tonKhoMap[idsp.toUpperCase()] || 0;
+            return [idsp, s];
+        });
+        renderIdspTongTable(reportTongIdspStats, statusesArray, hhBySkuCt);
 
     } catch (error) {
         console.error('FilterReportTong error:', error);
@@ -843,7 +926,7 @@ function renderIdspTongTable(idspEntries, statusesArray, hhBySkuCt) {
     if (!hhBySkuCt) hhBySkuCt = {};
 
     if (entries.length === 0) {
-        const colSpan = 5 + statusesArray.length;
+        const colSpan = 7 + statusesArray.length;
         tbIdsp.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-8 text-slate-500 text-sm">Không có dữ liệu</td></tr>`;
     } else {
         tbIdsp.innerHTML = entries.map(([idsp, s]) => {
@@ -858,6 +941,7 @@ function renderIdspTongTable(idspEntries, statusesArray, hhBySkuCt) {
                 row += `<td class="px-4 py-2 text-sm text-right text-slate-500">${cnt ? cnt.toLocaleString('vi-VN') : '-'}</td>`;
             });
             row += `<td class="px-4 py-2 text-sm text-right font-bold ${hoanCount > 0 ? 'text-rose-600' : 'text-slate-400'}">${hoanCount > 0 ? hoanCount.toLocaleString('vi-VN') : '0'}</td>`;
+            row += `<td class="px-4 py-2 text-sm text-right font-bold text-indigo-600">${(s.ton_kho || 0).toLocaleString('vi-VN')}</td>`;
             row += `</tr>`;
             return row;
         }).join('');
@@ -949,7 +1033,7 @@ function exportReportTongToExcel() {
     }
 
     excelData.push([], ['2. THỐNG KÊ THEO ID_SP_CT']);
-    const idspHeader = ['id_sp_ct', 'Tên SP', 'SL xuất', 'Doanh thu', ...statusesArray, 'Số đơn hoàn'];
+    const idspHeader = ['id_sp_ct', 'Tên SP', 'SL xuất', 'Doanh thu', ...statusesArray, 'Số đơn hoàn', 'Tồn kho'];
     excelData.push(idspHeader);
 
     if (reportTongIdspStats) {
@@ -957,6 +1041,7 @@ function exportReportTongToExcel() {
             const row = [idsp, s.ten_sp, s.slg, s.doanh_thu];
             statusesArray.forEach(st => row.push(s.trang_thai[st] || 0));
             row.push(hhBySkuCt[idsp] || 0);
+            row.push(s.ton_kho || 0);
             excelData.push(row);
         });
     }

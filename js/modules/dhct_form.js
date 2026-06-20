@@ -147,8 +147,8 @@
         let tonConf = 0;
         const skuTrimmed = skuCon.toString().trim().toLowerCase();
         
-        if (typeof dsSpCtData !== 'undefined') {
-            const spCt = dsSpCtData.find(sp => (sp.id_sp_ct || '').toString().trim().toLowerCase() === skuTrimmed);
+        if (typeof sanphamData !== 'undefined') {
+            const spCt = sanphamData.find(sp => (sp.sku_con || '').toString().trim().toLowerCase() === skuTrimmed);
             if (spCt) {
                 const tonDau = parseFloat(spCt.ton_dau) || 0;
                 tonAll = tonDau;

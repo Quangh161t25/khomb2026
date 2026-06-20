@@ -78,38 +78,6 @@ function closeImagePreview() {
     image.src = '';
 }
 
-async function loadDsSpCtData() {
-    try {
-        const data = await fetchSheetData(CONFIG.dsSpCtSheetName);
-        if (!data || data.length <= 1) {
-            dsSpCtData = [];
-            return;
-        }
-        const headers = data[0].map(h => (h || '').toString().toLowerCase().trim());
-        const findIdx = (names) => {
-            for (const name of names) {
-                const idx = headers.indexOf(name.toLowerCase());
-                if (idx !== -1) return idx;
-            }
-            return -1;
-        };
-        const idxIdSp = findIdx(['id_sp', 'sku', 'id sp']);
-        const idxIdSpCt = findIdx(['id_sp_ct', 'sku_ct', 'id sp ct']);
-        const idxTen = findIdx(['ten', 'tên', 'ten_sp', 'tên sản phẩm']);
-        const idxGiaNhap = findIdx(['gia_nhap', 'giá nhập', 'gianhap', 'gia_mua', 'gia']);
-
-        dsSpCtData = data.slice(1).map(row => ({
-            id_sp: (idxIdSp !== -1 ? row[idxIdSp] : row[3] || '').toString().trim(),
-            id_sp_ct: (idxIdSpCt !== -1 ? row[idxIdSpCt] : row[2] || '').toString().trim(),
-            ten: (idxTen !== -1 ? row[idxTen] : row[4] || '').toString().trim(),
-            gia_nhap: (idxGiaNhap !== -1 ? row[idxGiaNhap] : 0)
-        })).filter(item => item.id_sp || item.id_sp_ct || item.ten);
-        populateHhFormOptions();
-    } catch (error) {
-        console.error('Load DS_SP_CT error:', error);
-        dsSpCtData = [];
-    }
-}
 
 function renderHhKhoButtons(value) {
     const current = (value || '').toString().trim().toUpperCase() || 'KHO';
@@ -135,7 +103,7 @@ function populateHhFormOptions() {
         maGianList.innerHTML = uniqueMaGian.map(v => `<option value="${escapeHtml(v)}">`).join('');
     }
     if (skuList) {
-        const uniqueSku = [...new Set(dsSpCtData.map(i => (i.id_sp || '').toString().trim()).filter(Boolean))].sort();
+        const uniqueSku = [...new Set(sanphamData.map(i => (i.id_sp || '').toString().trim()).filter(Boolean))].sort();
         skuList.innerHTML = uniqueSku.map(v => `<option value="${escapeHtml(v)}">`).join('');
     }
     handleHhSkuChange();
@@ -157,7 +125,7 @@ function populateHhFormOptions() {
     }
     if (hhShopSkuList) {
         const uniqueSku = [...new Set([
-            ...dsSpCtData.map(i => (i.id_sp || '').toString().trim()),
+            ...sanphamData.map(i => (i.id_sp || '').toString().trim()),
             ...hhShopDienData.map(i => (i.sku || '').toString().trim())
         ].filter(Boolean))].sort();
         hhShopSkuList.innerHTML = uniqueSku.map(v => `<option value="${escapeHtml(v)}">`).join('');
@@ -165,13 +133,13 @@ function populateHhFormOptions() {
 }
 
 function ensureHhCatalogLoaded(callback) {
-    if (dsSpCtData && dsSpCtData.length > 0) {
+    if (sanphamData && sanphamData.length > 0) {
         if (typeof callback === 'function') callback();
         return;
     }
 
     if (!hhCatalogLoadPromise) {
-        hhCatalogLoadPromise = loadDsSpCtData().finally(() => {
+        hhCatalogLoadPromise = typeof loadSanphamData === 'function' ? loadSanphamData() : Promise.resolve().finally(() => {
             hhCatalogLoadPromise = null;
         });
     }
@@ -188,15 +156,15 @@ function getHhSkuMatches(value, limit = 50) {
     const seen = new Set();
     const matches = [];
 
-    dsSpCtData.forEach(item => {
+    sanphamData.forEach(item => {
         const sku = (item.id_sp || '').toString().trim();
         if (!sku || seen.has(sku)) return;
 
         const skuLower = sku.toLowerCase();
-        const nameLower = (item.ten || '').toString().toLowerCase();
+        const nameLower = (item.ten_sp || '').toString().toLowerCase();
         if (!search || skuLower.includes(search) || nameLower.includes(search)) {
             seen.add(sku);
-            matches.push({ sku, ten: item.ten || '' });
+            matches.push({ sku, ten: item.ten_sp || '' });
         }
     });
 
@@ -209,7 +177,7 @@ function renderHhSkuSuggestions(forceShow = false) {
     if (!input || !sugBox) return;
 
     const value = input.value || '';
-    if ((!dsSpCtData || dsSpCtData.length === 0) && (forceShow || value.trim())) {
+    if ((!sanphamData || sanphamData.length === 0) && (forceShow || value.trim())) {
         sugBox.innerHTML = '<div class="suggestion-item"><span class="item-name">Đang tải danh mục SKU...</span></div>';
         sugBox.classList.remove('hidden');
         ensureHhCatalogLoaded(() => renderHhSkuSuggestions(forceShow));
@@ -222,7 +190,7 @@ function renderHhSkuSuggestions(forceShow = false) {
         sugBox.innerHTML = suggestions.map(item => `
             <div class="suggestion-item" onclick="setHhSku('${escapeHtml(item.sku)}')">
                 <span class="item-code">${escapeHtml(item.sku)}</span>
-                <span class="item-name">${escapeHtml(item.ten)}</span>
+                <span class="item-name">${escapeHtml(item.ten_sp)}</span>
             </div>
         `).join('');
         sugBox.classList.remove('hidden');
@@ -256,22 +224,22 @@ function handleHhSkuChange() {
     const skuCtBtns = document.getElementById('hhSkuCtButtons');
     renderHhSkuSuggestions(false);
 
-    if ((!dsSpCtData || dsSpCtData.length === 0) && sku) {
+    if ((!sanphamData || sanphamData.length === 0) && sku) {
         ensureHhCatalogLoaded(handleHhSkuChange);
         return;
     }
 
     if (sugBox) {
-        const filteredItems = dsSpCtData.filter(item =>
+        const filteredItems = sanphamData.filter(item =>
             (item.id_sp || '').toUpperCase() === sku ||
-            (item.id_sp_ct || '').toUpperCase().startsWith(sku)
+            (item.sku_con || '').toUpperCase().startsWith(sku)
         );
 
         if (sku && filteredItems.length > 0) {
             sugBox.innerHTML = filteredItems.map(item => `
-                <div class="suggestion-item" onclick="setHhSkuCt('${escapeHtml(item.id_sp_ct)}')">
-                    <span class="item-code">${escapeHtml(item.id_sp_ct)}</span>
-                    <span class="item-name">${escapeHtml(item.ten)}</span>
+                <div class="suggestion-item" onclick="setHhSkuCt('${escapeHtml(item.sku_con)}')">
+                    <span class="item-code">${escapeHtml(item.sku_con)}</span>
+                    <span class="item-name">${escapeHtml(item.ten_sp)}</span>
                 </div>
             `).join('');
             // sugBox.classList.remove('hidden'); // Để người dùng tự focus hoặc gõ SKU CT thì hiện
@@ -282,7 +250,7 @@ function handleHhSkuChange() {
 
         // Hiển thị dạng nút chọn nhanh
         if (skuCtBtns) {
-            const uniqueIds = [...new Set(filteredItems.map(i => i.id_sp_ct))].slice(0, 10);
+            const uniqueIds = [...new Set(filteredItems.map(i => i.sku_con))].slice(0, 10);
             if (sku && uniqueIds.length > 0) {
                 skuCtBtns.innerHTML = uniqueIds.map(v => `
                     <button type="button" onclick="setHhSkuCt('${escapeHtml(v)}')" 
@@ -318,7 +286,7 @@ function handleHhSkuCtChange(forceShow = false) {
     const sku = (document.getElementById('hhEditSKU')?.value || '').toString().trim().toLowerCase();
     const sugBox = document.getElementById('hhSkuCtSuggestions');
 
-    if ((!dsSpCtData || dsSpCtData.length === 0) && (val || sku || forceShow)) {
+    if ((!sanphamData || sanphamData.length === 0) && (val || sku || forceShow)) {
         if (sugBox) {
             sugBox.innerHTML = '<div class="suggestion-item"><span class="item-name">Đang tải danh mục SKU CT...</span></div>';
             sugBox.classList.remove('hidden');
@@ -331,21 +299,21 @@ function handleHhSkuCtChange(forceShow = false) {
         if (val.length >= 1 || sku || forceShow) {
             const search = val.toLowerCase();
             // Tìm kiếm theo cả ID và Tên
-            const suggestions = dsSpCtData.filter(item =>
+            const suggestions = sanphamData.filter(item =>
                 search
-                    ? (item.id_sp_ct || '').toLowerCase().includes(search) ||
-                    (item.ten || '').toLowerCase().includes(search)
+                    ? (item.sku_con || '').toLowerCase().includes(search) ||
+                    (item.ten_sp || '').toLowerCase().includes(search)
                     : sku
                         ? (item.id_sp || '').toLowerCase() === sku ||
-                        (item.id_sp_ct || '').toLowerCase().startsWith(sku)
+                        (item.sku_con || '').toLowerCase().startsWith(sku)
                         : true
             ).slice(0, 50);
 
             if (suggestions.length > 0) {
                 sugBox.innerHTML = suggestions.map(item => `
-                    <div class="suggestion-item" onclick="setHhSkuCt('${escapeHtml(item.id_sp_ct)}')">
-                        <span class="item-code">${escapeHtml(item.id_sp_ct)}</span>
-                        <span class="item-name">${escapeHtml(item.ten)}</span>
+                    <div class="suggestion-item" onclick="setHhSkuCt('${escapeHtml(item.sku_con)}')">
+                        <span class="item-code">${escapeHtml(item.sku_con)}</span>
+                        <span class="item-name">${escapeHtml(item.ten_sp)}</span>
                     </div>
                 `).join('');
                 sugBox.classList.remove('hidden');
@@ -362,12 +330,12 @@ function handleHhSkuCtChange(forceShow = false) {
     if (!val) return;
 
     // Kiểm tra nếu có mã khớp hoàn toàn để điền các thông tin khác
-    const match = dsSpCtData.find(item => (item.id_sp_ct || '').toString().toUpperCase() === val.toUpperCase());
+    const match = sanphamData.find(item => (item.sku_con || '').toString().toUpperCase() === val.toUpperCase());
     if (match) {
         if (!document.getElementById('hhEditSKU').value) {
-            document.getElementById('hhEditSKU').value = match.id_sp || match.id_sp_ct.substring(0, 4);
+            document.getElementById('hhEditSKU').value = match.id_sp || match.sku_con.substring(0, 4);
         }
-        document.getElementById('hhEditTenSP').value = match.ten || document.getElementById('hhEditTenSP').value;
+        document.getElementById('hhEditTenSP').value = match.ten_sp || document.getElementById('hhEditTenSP').value;
     }
 }
 
@@ -1053,10 +1021,10 @@ async function saveHhDetail() {
             anh_3: document.getElementById('hhEditAnh3').value
         };
         if (newData.sku_ct && !newData.ten_sp) {
-            const matchedSp = dsSpCtData.find(i => (i.id_sp_ct || '') === newData.sku_ct);
+            const matchedSp = sanphamData.find(i => (i.sku_con || '') === newData.sku_ct);
             if (matchedSp?.ten) newData.ten_sp = matchedSp.ten;
         }
-        const skuCatalog = new Set(dsSpCtData.map(i => (i.id_sp || '').trim()).filter(Boolean));
+        const skuCatalog = new Set(sanphamData.map(i => (i.id_sp || '').trim()).filter(Boolean));
         if (newData.sku && skuCatalog.size && !skuCatalog.has(newData.sku.trim())) {
             alert('SKU không tồn tại trong DS_SP_CT (cột id_sp).');
             return;
@@ -1389,8 +1357,7 @@ function exportHangHoanToMisa() {
     window.changeHangHoanDate = changeHangHoanDate;
     window.openImagePreview = openImagePreview;
     window.closeImagePreview = closeImagePreview;
-    window.loadDsSpCtData = loadDsSpCtData;
-    window.renderHhKhoButtons = renderHhKhoButtons;
+        window.renderHhKhoButtons = renderHhKhoButtons;
     window.setHhKho = setHhKho;
     window.populateHhFormOptions = populateHhFormOptions;
     window.ensureHhCatalogLoaded = ensureHhCatalogLoaded;

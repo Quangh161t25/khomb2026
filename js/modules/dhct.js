@@ -125,7 +125,7 @@ function renderDHCTTable() {
     // Calculate Tồn Lũy Kế globally
     const cumulativeMapAll = {}; 
     const cumulativeMapConfirmed = {}; 
-    if (typeof dsSpCtData !== 'undefined') {
+    if (typeof sanphamData !== 'undefined') {
         const sortedData = [...dhctData].sort((a, b) => {
             const da = toYMD(a.ngay);
             const db = toYMD(b.ngay);
@@ -148,11 +148,11 @@ function renderDHCTTable() {
             return idSpCtA.localeCompare(idSpCtB);
         }).reverse();
 
-        dsSpCtData.forEach(sp => {
-            if (sp.id_sp_ct) {
+        sanphamData.forEach(sp => {
+            if (sp.sku_con) {
                 const tonDau = parseFloat(sp.ton_dau) || 0;
-                cumulativeMapAll[sp.id_sp_ct.toLowerCase()] = tonDau;
-                cumulativeMapConfirmed[sp.id_sp_ct.toLowerCase()] = tonDau;
+                cumulativeMapAll[sp.sku_con.toLowerCase()] = tonDau;
+                cumulativeMapConfirmed[sp.sku_con.toLowerCase()] = tonDau;
             }
         });
 
@@ -457,8 +457,8 @@ window.toggleConfirmOrder = async function(id_dh, currentStatus) {
                 let gia = 0;
                 let id_sp = '';
                 
-                if (typeof dsSpCtData !== 'undefined') {
-                    const sp = dsSpCtData.find(s => (s.id_sp_ct || '').toLowerCase() === id_sp_ct.toLowerCase());
+                if (typeof sanphamData !== 'undefined') {
+                    const sp = sanphamData.find(s => (s.id_sp_ct || '').toLowerCase() === id_sp_ct.toLowerCase());
                     if (sp) {
                         ten = sp.ten || '';
                         gia = parseFloat(sp.gia_nhap) || 0;
