@@ -55,15 +55,23 @@ function filterBCHHData() {
     const fFrom = document.getElementById('bcHHFromDate').value;
     const fTo = document.getElementById('bcHHToDate').value;
     const fGian = (document.getElementById('filterBCHHMaGian').value || '').trim().toLowerCase();
+    const fSkuCt = (document.getElementById('filterBCHHSkuCt').value || '').trim().toLowerCase();
 
-    // Populate Mã gian datalist
+    // Populate Mã gian and SKU CT datalists
     const maGianSet = new Set();
+    const skuCtSet = new Set();
     hangHoanData.forEach(item => {
         if (item.ma_gian) maGianSet.add(item.ma_gian.trim());
+        if (item.sku_ct) skuCtSet.add(item.sku_ct.trim());
     });
+    
     const maGianList = document.getElementById('bcHHMaGianList');
     if (maGianList) {
         maGianList.innerHTML = Array.from(maGianSet).sort().map(mg => `<option value="${mg.replace(/"/g, '&quot;')}">`).join('');
+    }
+    const skuCtList = document.getElementById('bcHHSkuCtList');
+    if (skuCtList) {
+        skuCtList.innerHTML = Array.from(skuCtSet).sort().map(s => `<option value="${s.replace(/"/g, '&quot;')}">`).join('');
     }
 
     bchhFilteredData = hangHoanData.filter(item => {
@@ -71,6 +79,7 @@ function filterBCHHData() {
         if (fFrom && ngay < fFrom) return false;
         if (fTo && ngay > fTo) return false;
         if (fGian && !(item.ma_gian || '').toLowerCase().includes(fGian)) return false;
+        if (fSkuCt && !(item.sku_ct || '').toLowerCase().includes(fSkuCt)) return false;
         return true;
     });
 
@@ -85,6 +94,7 @@ function renderBCHHStats() {
     const byMaGian = {};
     const byTinhTrang = {};
     const bySku = {};
+    const bySkuCt = {};
     const byKho = {};
     const byNgay = {};
 
@@ -92,6 +102,7 @@ function renderBCHHStats() {
         const mg = item.ma_gian || 'Trống';
         const tt = item.tinh_trang || 'Trống';
         const sku = item.sku || 'Trống';
+        const skuCt = item.sku_ct || 'Trống';
         const kho = item.kho || 'Trống';
         const q = parseFloat(item.slg) || 0;
 
@@ -106,6 +117,10 @@ function renderBCHHStats() {
         if (!bySku[sku]) bySku[sku] = { don: 0, sp: 0 };
         bySku[sku].don += 1;
         bySku[sku].sp += q;
+
+        if (!bySkuCt[skuCt]) bySkuCt[skuCt] = { don: 0, sp: 0 };
+        bySkuCt[skuCt].don += 1;
+        bySkuCt[skuCt].sp += q;
 
         if (!byKho[kho]) byKho[kho] = { don: 0, sp: 0 };
         byKho[kho].don += 1;
@@ -149,6 +164,21 @@ function renderBCHHStats() {
             tbSku.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500">Không có dữ liệu</td></tr>';
         } else {
             tbSku.innerHTML = Object.entries(bySku).sort((a, b) => b[1].don - a[1].don).map(([k, v]) => `
+                <tr class="border-b border-slate-100 hover:bg-slate-50">
+                    <td class="px-4 py-2 text-sm font-medium text-slate-900">${escapeHtml(k)}</td>
+                    <td class="px-4 py-2 text-sm text-slate-700">${v.don.toLocaleString('vi-VN')}</td>
+                    <td class="px-4 py-2 text-sm text-slate-700">${v.sp.toLocaleString('vi-VN')}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    const tbSkuCt = document.getElementById('bchhSkuCtTableBody');
+    if (tbSkuCt) {
+        if (!Object.keys(bySkuCt).length) {
+            tbSkuCt.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-500">Không có dữ liệu</td></tr>';
+        } else {
+            tbSkuCt.innerHTML = Object.entries(bySkuCt).sort((a, b) => b[1].don - a[1].don).map(([k, v]) => `
                 <tr class="border-b border-slate-100 hover:bg-slate-50">
                     <td class="px-4 py-2 text-sm font-medium text-slate-900">${escapeHtml(k)}</td>
                     <td class="px-4 py-2 text-sm text-slate-700">${v.don.toLocaleString('vi-VN')}</td>
@@ -244,6 +274,99 @@ function exportBCHHToExcel() {
     XLSX.writeFile(wb, fName);
 }
 
+async function transferBCHHToDonHangCT() {
+    const tbody = document.getElementById('bchhSkuCtTableBody');
+    if (!tbody || tbody.innerHTML.includes('Không có dữ liệu') || tbody.innerHTML.includes('Chọn ngày')) {
+        alert('Không có dữ liệu để chuyển!');
+        return;
+    }
+
+    const fFrom = document.getElementById('bcHHFromDate').value;
+    if (!fFrom) {
+        alert('Vui lòng chọn Ngày lọc (Từ ngày)!');
+        return;
+    }
+    
+    const parts = fFrom.split('-');
+    let ngay_format = '';
+    if (parts.length === 3) {
+        ngay_format = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    } else {
+        alert('Ngày lọc không hợp lệ!');
+        return;
+    }
+
+    const truong = 'NHẬP';
+    const ncc = 'HÀNG HOÀN';
+    const appendValues = [];
+
+    const rows = tbody.querySelectorAll('tr');
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 3) {
+            const sku_ct = cells[0].textContent.trim();
+            let sl_nhap = cells[2].textContent.trim();
+            sl_nhap = parseFloat(sl_nhap.replace(/,/g, '').replace(/\./g, '')) || 0;
+
+            if (sl_nhap > 0) {
+                let id_sp = '';
+                let gia = 0;
+                let ten_sp = '';
+                
+                if (typeof sanphamData !== 'undefined') {
+                    const sp = sanphamData.find(s => (s.sku_con || '').toLowerCase() === sku_ct.toLowerCase());
+                    if (sp) {
+                        id_sp = sp.id_sp || '';
+                        gia = parseFloat(sp.gia_nhap) || 0;
+                        ten_sp = sp.ten_sp || '';
+                    } else {
+                        id_sp = sku_ct.substring(0, 4);
+                    }
+                } else {
+                    id_sp = sku_ct.substring(0, 4);
+                }
+
+                const key = `${ngay_format} | ${truong} | ${ncc} | MB`;
+                const id_dh = key;
+                const id_dh_ct = `${ngay_format} | ${truong} | ${ncc} | MB | KHO | ${sku_ct}`;
+                const id_ton_kho = `KHO | ${sku_ct}`;
+
+                appendValues.push([
+                    id_dh_ct, id_dh, ngay_format, truong, ncc, 'KHO', sku_ct, id_sp, ten_sp, sl_nhap, gia, sl_nhap * gia, '', id_ton_kho, 'CHỜ XÁC NHẬN'
+                ]);
+            }
+        }
+    });
+
+    if (appendValues.length === 0) {
+        alert('Không có dữ liệu hợp lệ (SL sản phẩm > 0) để chuyển!');
+        return;
+    }
+
+    if (!confirm(`Bạn có chắc muốn chuyển ${appendValues.length} dòng sang Đơn hàng CT?`)) {
+        return;
+    }
+
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+    try {
+        const success = await window.appendSheetData(CONFIG.dhctSheetName, appendValues);
+        if (success) {
+            alert(`Đã chuyển thành công ${appendValues.length} dòng sang Đơn hàng CT!`);
+            if (typeof window.fetchDHCTData === 'function') {
+                window.fetchDHCTData(true);
+            }
+        } else {
+            alert('Lỗi khi chuyển dữ liệu sang Google Sheet.');
+        }
+    } catch (err) {
+        console.error('Lỗi khi chuyển sang Đơn hàng CT:', err);
+        alert('Lỗi: ' + err.message);
+    } finally {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    }
+}
 
 
     Object.assign(window.AppModules = window.AppModules || {}, { ['bchh']: true });
@@ -253,4 +376,5 @@ function exportBCHHToExcel() {
     window.filterBCHHData = filterBCHHData;
     window.renderBCHHStats = renderBCHHStats;
     window.exportBCHHToExcel = exportBCHHToExcel;
+    window.transferBCHHToDonHangCT = transferBCHHToDonHangCT;
 })();

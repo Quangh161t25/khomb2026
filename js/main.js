@@ -8,20 +8,14 @@
 
 // Chạy ngay khi DOM vừa tải để tránh chớp màn hình đăng nhập
 document.addEventListener('DOMContentLoaded', () => {
-    const isLoginPage = window.location.pathname.endsWith('login.html');
+    const ls = document.getElementById('loginScreen');
+    const ma = document.getElementById('mainApp');
     if (localStorage.getItem('erp_current_user')) {
-        if (isLoginPage) {
-            window.location.href = 'index.html';
-        } else {
-            const ls = document.getElementById('loginScreen');
-            const ma = document.getElementById('mainApp');
-            if (ls) ls.classList.add('hidden');
-            if (ma) ma.classList.remove('hidden');
-        }
+        if (ls) ls.classList.add('hidden');
+        if (ma) ma.classList.remove('hidden');
     } else {
-        if (!isLoginPage) {
-            window.location.href = 'login.html';
-        }
+        if (ls) ls.classList.remove('hidden');
+        if (ma) ma.classList.add('hidden');
     }
 });
 
@@ -275,10 +269,10 @@ function switchModule(module) {
             sidebarBCHangHoan.classList.remove('text-slate-600');
         }
         if (!hangHoanData || hangHoanData.length === 0) {
-            fetchHangHoanData().then(() => setBCHHQuickDate('thisMonth'));
+            fetchHangHoanData().then(() => setBCHHQuickDate('today'));
         } else {
             if (!document.getElementById('bcHHFromDate').value) {
-                setBCHHQuickDate('thisMonth');
+                setBCHHQuickDate('today');
             } else {
                 filterBCHHData();
             }

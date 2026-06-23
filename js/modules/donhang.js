@@ -155,7 +155,9 @@ async function saveRowDetail(showLoading = false) {
             trang_thai: document.getElementById('editTrangThai').value,
             ghi_chu: document.getElementById('editGhiChu').value
         };
-        const nextSlgXuat = (newData.trang_thai || '').toLowerCase().includes('hủy') ? 0 : (newData.so_luong || 0);
+        const trangThaiLower = (newData.trang_thai || '').toLowerCase();
+        const isHuyOrHetHang1 = trangThaiLower.includes('hủy') || trangThaiLower.includes('hết hàng') || trangThaiLower.includes('hêt hàng');
+        const nextSlgXuat = isHuyOrHetHang1 ? 0 : (newData.so_luong || 0);
         // so_luong=O, id_sp=P, id_sp_ct=Q, tinh_trang=X, trang_thai=Y, slg_xuat=S, ghi_chu=AA, don_gia=AE
         const batchUpdates = [
             { range: `${CONFIG.udctSheetName}!O${item.rowIndex}`, values: [[newData.so_luong]] },
@@ -702,7 +704,9 @@ async function saveUDCTMainInline(rowIndex, field, value) {
                     }
                 }
 
-                if (updated && !(item.trang_thai || '').toLowerCase().includes('hủy')) {
+                const itemTrangThaiLower = (item.trang_thai || '').toLowerCase();
+                const isHuyOrHetHang2 = itemTrangThaiLower.includes('hủy') || itemTrangThaiLower.includes('hết hàng') || itemTrangThaiLower.includes('hêt hàng');
+                if (updated && !isHuyOrHetHang2) {
                     item.slg_xuat = item.so_luong;
                     updates.push({ range: `${CONFIG.udctSheetName}!S${rowIndex}`, values: [[item.slg_xuat]] });
                 }
@@ -1080,7 +1084,7 @@ function renderUDCTTable() {
         })()}
                     </td>
                     <td class="px-3 py-2 text-[13px] text-slate-900 max-w-[6rem] truncate">${item.ten_sp || '-'}</td>
-                    <td class="px-3 py-2 text-[13px] text-slate-900 font-semibold">${item.slg_xuat || '-'}</td>
+                    <td class="px-3 py-2 text-[13px] text-slate-900 font-semibold">${item.slg_xuat === 0 ? '0' : (item.slg_xuat || '-')}</td>
                     <td class="px-3 py-2 text-[13px] text-slate-900">${parseFloat(item.don_gia_1 || 0).toLocaleString('vi-VN')}</td>
                     <td class="px-3 py-2 text-[13px]">
                         <span class="px-2 py-0.5 rounded-full text-[11px] font-medium ${item.trang_thai === '1 THAY THẾ' ? 'bg-green-100 text-green-700' : (item.trang_thai === '2 HỦY' ? 'bg-red-100 text-red-700' : (item.trang_thai === '3 HÊT HÀNG' ? 'bg-amber-100 text-amber-700' : (item.trang_thai === '4 MAI GỌI' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700')))}">
@@ -1191,7 +1195,8 @@ async function quickSetUDCTStatus(originalIndex, statusValue) {
     const success = await updateSheetValue(CONFIG.udctSheetName, `Y${item.rowIndex}`, statusValue);
     if (!success) return alert(`Lỗi khi cập nhật trạng thái cho dòng ${item.rowIndex}`);
     item.trang_thai = statusValue;
-    if ((statusValue || '').toString().toLowerCase().includes('hủy')) {
+    const stLowerCase = (statusValue || '').toString().toLowerCase();
+    if (stLowerCase.includes('hủy') || stLowerCase.includes('hết hàng') || stLowerCase.includes('hêt hàng')) {
         item.slg_xuat = 0;
         await updateSheetValue(CONFIG.udctSheetName, `S${item.rowIndex}`, 0);
     } else {
@@ -1216,7 +1221,8 @@ async function updateUDCTPrice(originalIndex, silent = false) {
 
     item.don_gia_1 = newPrice;
 
-    if (!(item.trang_thai || '').toLowerCase().includes('hủy')) {
+    const trLowerCase1 = (item.trang_thai || '').toLowerCase();
+    if (!(trLowerCase1.includes('hủy') || trLowerCase1.includes('hết hàng') || trLowerCase1.includes('hêt hàng'))) {
         item.slg_xuat = item.so_luong;
         await updateSheetValue(CONFIG.udctSheetName, `S${item.rowIndex}`, item.slg_xuat);
     }
@@ -1227,8 +1233,11 @@ async function updateUDCTPrice(originalIndex, silent = false) {
     if (success) {
         if (!silent) {
             const row = udctData.find(d => d.rowIndex === item.rowIndex);
-            if (row && !(row.trang_thai || '').toLowerCase().includes('hủy')) {
-                row.slg_xuat = row.so_luong;
+            if (row) {
+                const rowTrLowerCase = (row.trang_thai || '').toLowerCase();
+                if (!(rowTrLowerCase.includes('hủy') || rowTrLowerCase.includes('hết hàng') || rowTrLowerCase.includes('hêt hàng'))) {
+                    row.slg_xuat = row.so_luong;
+                }
             }
             renderUDCTTable();
             console.log(`Updated row ${item.rowIndex} price to ${newPrice}`);
@@ -1272,7 +1281,8 @@ async function updateAllPricesBatch() {
                     values: [[newPrice]]
                 });
 
-                if (!(item.trang_thai || '').toLowerCase().includes('hủy')) {
+                const itemTrLowerCase = (item.trang_thai || '').toLowerCase();
+                if (!(itemTrLowerCase.includes('hủy') || itemTrLowerCase.includes('hết hàng') || itemTrLowerCase.includes('hêt hàng'))) {
                     item.slg_xuat = item.so_luong;
                     updates.push({
                         range: `${CONFIG.udctSheetName}!S${item.rowIndex}`,
@@ -1334,9 +1344,10 @@ async function batchUpdateUDCTStatus(statusValue) {
         const updates = [];
 
         selectedRows.forEach(item => {
-            const isHuy = (statusValue || '').toString().toLowerCase().includes('hủy');
+            const stLowerCase = (statusValue || '').toString().toLowerCase();
+            const isHuyOrHetHang = stLowerCase.includes('hủy') || stLowerCase.includes('hết hàng') || stLowerCase.includes('hêt hàng');
             item.trang_thai = statusValue;
-            if (isHuy) {
+            if (isHuyOrHetHang) {
                 item.slg_xuat = 0;
             } else {
                 item.slg_xuat = item.so_luong;
@@ -1481,8 +1492,8 @@ async function handleExcelUploadDonhang(files) {
 
                 if (!c_d && !c_g) continue;
 
-                const sku_shop_up = (c_j || '').toString().trim(); // Lấy nguyên cột J
-                const id_sp = (c_c || '').toString().trim();
+                const sku_shop_up = (c_j || '').toString().trim().toUpperCase(); // Lấy nguyên cột J
+                const id_sp = (c_c || '').toString().trim().toUpperCase();
                 let id_sp_ct = '';
 
                 const shopUp4Upper = sku_shop_up.substring(0, 4).toUpperCase();
@@ -1580,7 +1591,10 @@ async function handleExcelUpload(files) {
             for (let i = 0; i < 32; i++) {
                 let value = '';
                 if (i < row.length && row[i] !== undefined && row[i] !== null) {
-                    value = row[i].toString();
+                    value = row[i].toString().trim();
+                    if (i === 0 || i === 1) {
+                        value = value.toUpperCase();
+                    }
                 }
                 newRow.push(value);
             }

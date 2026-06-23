@@ -46,27 +46,54 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('service-worker.js')
-                    .then(reg => {
-                        console.log('Service Worker registered');
-                        // Kiểm tra update định kỳ mỗi 5 phút
-                        setInterval(() => reg.update(), 5 * 60 * 1000);
-                    })
+                    .then(reg => console.log('Service Worker registered'))
                     .catch(err => console.log('Service Worker registration failed', err));
-
-                // Nhận tín hiệu SW_UPDATED → tự reload trang
-                navigator.serviceWorker.addEventListener('message', (event) => {
-                    if (event.data && event.data.type === 'SW_UPDATED') {
-                        console.log('App đã cập nhật, đang reload...');
-                        setTimeout(() => window.location.reload(), 800);
-                    }
-                });
             });
         }
     </script>
 </head>
 
 <body class="min-h-screen bg-slate-50">
-    <div id="mainApp" class="fixed inset-0 bg-white flex">
+    <div id="loginScreen"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4">
+        <div class="w-full max-w-md rounded-3xl bg-white/95 shadow-2xl border border-white/20 p-8 login-card">
+            <div class="text-center mb-8">
+                <div
+                    class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 text-white font-black text-2xl shadow-lg">
+                    U</div>
+                <h1 class="mt-5 text-2xl font-bold text-slate-900">Đăng nhập hệ thống</h1>
+                <p class="mt-2 text-sm text-slate-500">Tài khoản đăng nhập là <b>id</b>, mật khẩu là <b>mat_khau</b>
+                    từ sheet DSNV.</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1" for="loginId">Tài khoản</label>
+                    <input id="loginId" type="text" placeholder="Nhập id nhân viên"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        onkeypress="if(event.key === 'Enter') handleLogin()">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1" for="loginPassword">Mật khẩu</label>
+                    <input id="loginPassword" type="password" placeholder="Nhập mật khẩu"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        onkeypress="if(event.key === 'Enter') handleLogin()">
+                </div>
+                <button onclick="handleLogin()"
+                    class="w-full py-3.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20">Đăng
+                    nhập</button>
+                <p id="loginError" class="hidden text-sm text-rose-600 text-center"></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="loginLoading" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-white/80">
+        <div class="flex flex-col items-center py-6">
+            <div class="spinner mb-4"></div>
+            <p class="text-sm text-slate-600 font-medium">Đang xác thực dữ liệu...</p>
+        </div>
+    </div>
+
+    <div id="mainApp" class="hidden fixed inset-0 bg-white flex">
         <div id="sidebar"
             class="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 sidebar-transition relative">
             <div class="p-3.5 border-b border-slate-200 flex items-center justify-between">
@@ -1296,11 +1323,18 @@
                                     <div
                                         class="px-3 py-2 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                                         <h3 class="text-sm font-semibold text-slate-900">Thống kê theo id_sp_ct</h3>
-                                        <button onclick="exportIdSPExcel()"
-                                            class="bg-green-600 hover:bg-green-700 text-white px-2 py-1 flex items-center gap-1 rounded text-xs font-medium transition-colors"
-                                            title="Xuất (ID SP, SL xuất) ra Excel">
-                                            📥 Tải Excel
-                                        </button>
+                                        <div class="flex gap-2">
+                                            <button onclick="transferToDonHangCT()"
+                                                class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 flex items-center gap-1 rounded text-xs font-medium transition-colors"
+                                                title="Tải sang Đơn hàng CT">
+                                                ➡️ Tải sang Đơn hàng CT
+                                            </button>
+                                            <button onclick="exportIdSPExcel()"
+                                                class="bg-green-600 hover:bg-green-700 text-white px-2 py-1 flex items-center gap-1 rounded text-xs font-medium transition-colors"
+                                                title="Xuất (ID SP, SL xuất) ra Excel">
+                                                📥 Tải Excel
+                                            </button>
+                                        </div>
                                     </div>
                                     <div class="overflow-x-auto max-h-64">
                                         <table class="w-full">
@@ -1379,6 +1413,14 @@
                                                 </th>
                                                 <th
                                                     class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">
+                                                    <button onclick="sortDetailTable('ma_gian')"
+                                                        class="inline-flex items-center gap-1 hover:text-slate-900">
+                                                        <span>Gian</span><span id="detailSortMaGian"
+                                                            class="text-[9px] text-slate-400">↕</span>
+                                                    </button>
+                                                </th>
+                                                <th
+                                                    class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">
                                                     <button onclick="sortDetailTable('mvd')"
                                                         class="inline-flex items-center gap-1 hover:text-slate-900">
                                                         <span>MVD</span><span id="detailSortMvd"
@@ -1445,7 +1487,7 @@
                                         </thead>
                                         <tbody id="detailTableBody">
                                             <tr>
-                                                <td colspan="10" class="text-center py-8 text-slate-500">Chọn ngày để
+                                                <td colspan="11" class="text-center py-8 text-slate-500">Chọn ngày để
                                                     xem
                                                     chi tiết</td>
                                             </tr>
@@ -2130,8 +2172,15 @@
                                 gian</label>
                             <input type="text" list="bcHHMaGianList" id="filterBCHHMaGian" oninput="filterBCHHParams()"
                                 placeholder="Tất cả"
-                                class="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20">
+                                class="px-3 py-2 w-32 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20">
                             <datalist id="bcHHMaGianList"></datalist>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-700 mb-0.5 uppercase">SKU CT</label>
+                            <input type="text" list="bcHHSkuCtList" id="filterBCHHSkuCt" oninput="filterBCHHParams()"
+                                placeholder="Tất cả"
+                                class="px-3 py-2 w-32 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20">
+                            <datalist id="bcHHSkuCtList"></datalist>
                         </div>
                         <div class="flex gap-2">
                             <button onclick="filterBCHHData()"
@@ -2238,7 +2287,7 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
                             <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
                                 <h3 class="text-sm font-semibold text-slate-900">Thống kê theo SKU</h3>
@@ -2256,6 +2305,33 @@
                                         </tr>
                                     </thead>
                                     <tbody id="bchhSkuTableBody">
+                                        <tr>
+                                            <td colspan="3" class="text-center py-8 text-slate-500">Chọn ngày để
+                                                xem báo cáo</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                            <div class="px-3 py-2 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                                <h3 class="text-sm font-semibold text-slate-900">Thống kê theo SKU CT</h3>
+                                <button onclick="transferBCHHToDonHangCT()" class="px-2 py-1 bg-primary text-white text-xs font-semibold rounded hover:bg-blue-600 transition-colors">Tải sang Đơn hàng CT</button>
+                            </div>
+                            <div class="overflow-x-auto max-h-64">
+                                <table class="w-full">
+                                    <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                SKU CT</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                Số đơn</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                                                SL sản phẩm</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bchhSkuCtTableBody">
                                         <tr>
                                             <td colspan="3" class="text-center py-8 text-slate-500">Chọn ngày để
                                                 xem báo cáo</td>
@@ -2745,14 +2821,12 @@
     </div>
     </div>
 
-    <!-- Loading overlay (inline, không ẩn nền) -->
-    <div id="loadingOverlay" class="hidden fixed top-12 right-4 z-50 flex items-center gap-2 bg-white border border-slate-200 rounded-xl shadow-lg px-4 py-2.5">
-        <div class="spinner-sm"></div>
-        <p class="text-slate-700 font-medium text-sm">Đang xử lý...</p>
+    <div id="loadingOverlay" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 flex flex-col items-center">
+            <div class="spinner mb-4"></div>
+            <p class="text-slate-700 font-medium">Đang xử lý dữ liệu...</p>
+        </div>
     </div>
-
-    <!-- Network status bar -->
-    <div id="networkStatusBar" class="hidden fixed top-0 left-0 right-0 z-[9998] h-1 bg-amber-400"></div>
     <div id="imagePreviewOverlay" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
         onclick="closeImagePreview()">
         <img id="imagePreviewContent" src="" alt="Ảnh hàng hoàn"

@@ -423,7 +423,7 @@ window.toggleConfirmOrder = async function(id_dh, currentStatus) {
             const orderIdMap = {};
 
             rows.forEach((row, idx) => {
-                const id_sp_ct = (row[colIdx.id_sp_ct] || '').toString().trim();
+                const id_sp_ct = (row[colIdx.id_sp_ct] || '').toString().trim().toUpperCase();
                 if (!id_sp_ct) return;
 
                 let ngay = '';

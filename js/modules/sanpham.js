@@ -140,7 +140,7 @@ async function handleExcelUpload(files) {
         sheetData.push(["Mã", "Mã SP Cha", "Tên", "Giá nhập", "Giá bán lẻ", "Giá đón gói", "Giá bán thấp nhất"]);
 
         for (const row of rows) {
-            const ma = row[idxMa] ? row[idxMa].toString().trim() : '';
+            const ma = row[idxMa] ? row[idxMa].toString().trim().toUpperCase() : '';
             if (!ma) continue;
 
             const maCha = ma.substring(0, 4);

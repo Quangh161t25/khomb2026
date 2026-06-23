@@ -336,8 +336,8 @@ window.uploadInventoryExcel = async function(files) {
                 if (!maTonKho) continue; // Bỏ qua dòng không có ID
                 
                 const kho = (row[1] || '').toString().trim();
-                const idSpCt = (row[2] || '').toString().trim();
-                const idSp = (row[3] || '').toString().trim();
+                const idSpCt = (row[2] || '').toString().trim().toUpperCase();
+                const idSp = (row[3] || '').toString().trim().toUpperCase();
                 const tenSp = (row[4] || '').toString().trim();
                 const tonDau = parseFloat(row[5]) || 0;
 

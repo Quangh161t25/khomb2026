@@ -1,31 +1,6 @@
 // api - Module Pattern (IIFE)
 (function () {
 // tokenRequestPromise is declared in js/state.js
-
-// ═══════════════════════════════════════════════════════════════
-// CACHE helpers (read cache cho offline)
-// ═══════════════════════════════════════════════════════════════
-const CACHE_PREFIX = 'erp_cache_';
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
-
-function cacheSet(key, data) {
-    try {
-        localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ ts: Date.now(), data }));
-    } catch (e) {
-        // localStorage đầy → bỏ qua
-    }
-}
-
-function cacheGet(key) {
-    try {
-        const raw = localStorage.getItem(CACHE_PREFIX + key);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (Date.now() - parsed.ts > CACHE_TTL) return null;
-        return parsed.data;
-    } catch { return null; }
-}
-
 async function getAccessToken() {
     if (accessToken && Date.now() < tokenExpiry - 300000) return accessToken;
     if (tokenRequestPromise) return tokenRequestPromise;
@@ -59,7 +34,7 @@ async function getAccessToken() {
                 return accessToken;
             } catch (err) {
                 console.error("Token fetch error:", err);
-                throw err;
+                alert("Không thể xác thực với Google API: " + err.message);
             }
         } finally {
             tokenRequestPromise = null;
@@ -69,21 +44,9 @@ async function getAccessToken() {
 }
 
 async function fetchSheetData(sheetName) {
-    // Thử lấy từ mạng, fallback về cache nếu offline
-    if (!navigator.onLine) {
-        const cached = cacheGet('sheet_' + sheetName);
-        if (cached) {
-            console.log(`[Cache] Dùng cache offline cho ${sheetName}`);
-            return cached;
-        }
-        return [];
-    }
     try {
         const token = await getAccessToken();
-        if (!token) {
-            const cached = cacheGet('sheet_' + sheetName);
-            return cached || [];
-        }
+        if (!token) return [];
         const range = typeof getSheetRange === 'function'
             ? getSheetRange(sheetName, 'read')
             : `A1:AF${sheetName === CONFIG.udctSheetName ? 100000 : 10000}`;
@@ -91,21 +54,12 @@ async function fetchSheetData(sheetName) {
         const resp = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
         if (!resp.ok) {
             console.error(`Fetch ${sheetName} failed:`, resp.status);
-            const cached = cacheGet('sheet_' + sheetName);
-            return cached || [];
+            return [];
         }
         const data = await resp.json();
-        const values = data.values || [];
-        // Lưu vào cache
-        if (values.length > 0) cacheSet('sheet_' + sheetName, values);
-        return values;
+        return data.values || [];
     } catch (err) {
         console.error(`Fetch ${sheetName} error:`, err);
-        const cached = cacheGet('sheet_' + sheetName);
-        if (cached) {
-            console.log(`[Cache] Fallback cache cho ${sheetName} do lỗi mạng`);
-            return cached;
-        }
         return [];
     }
 }
@@ -135,10 +89,6 @@ async function fetchAuthData() {
 }
 
 async function clearSheetData(sheetName) {
-    if (!navigator.onLine) {
-        console.warn('[Offline] clearSheetData bị bỏ qua khi offline');
-        return false;
-    }
     try {
         const token = await getAccessToken();
         if (!token) return false;
@@ -155,6 +105,7 @@ async function clearSheetData(sheetName) {
             console.error("Lỗi khi xóa dữ liệu:", errorText);
             return false;
         }
+        console.log(`Đã xóa dữ liệu cũ trong ${sheetName}`);
         return true;
     } catch (err) {
         console.error("Lỗi clearSheetData:", err);
@@ -163,13 +114,6 @@ async function clearSheetData(sheetName) {
 }
 
 async function appendSheetData(sheetName, values) {
-    if (!navigator.onLine) {
-        // Đưa vào hàng đợi offline
-        if (typeof enqueueOfflineOp === 'function') {
-            enqueueOfflineOp({ type: 'appendRow', sheetName, values });
-        }
-        return 'offline';
-    }
     try {
         const token = await getAccessToken();
         if (!token) return false;
@@ -185,28 +129,21 @@ async function appendSheetData(sheetName, values) {
             console.error("Lỗi khi ghi dữ liệu:", errorText);
             return false;
         }
+        const result = await resp.json();
+        console.log("Ghi dữ liệu thành công:", result);
         return true;
     } catch (err) {
         console.error("Lỗi appendSheetData:", err);
-        if (typeof enqueueOfflineOp === 'function') {
-            enqueueOfflineOp({ type: 'appendRow', sheetName, values });
-            return 'offline';
-        }
         return false;
     }
 }
 
 async function updateSheetCell(sheetName, rowIndex, colIndex, value) {
-    if (!navigator.onLine) {
-        if (typeof enqueueOfflineOp === 'function') {
-            enqueueOfflineOp({ type: 'updateCell', sheetName, rowIndex, colIndex, value });
-        }
-        return 'offline';
-    }
     try {
         const token = await getAccessToken();
         if (!token) return false;
 
+        // Convert colIndex (1-based) to Letter (A=1, B=2...)
         let colLetter = "";
         let temp = colIndex;
         while (temp > 0) {
@@ -224,30 +161,67 @@ async function updateSheetCell(sheetName, rowIndex, colIndex, value) {
             body: JSON.stringify({ values: [[value]] })
         });
 
-        if (!resp.ok) {
-            if (typeof enqueueOfflineOp === 'function') {
-                enqueueOfflineOp({ type: 'updateCell', sheetName, rowIndex, colIndex, value });
-                return 'offline';
-            }
-        }
         return resp.ok;
     } catch (err) {
         console.error("Lỗi updateSheetCell:", err);
-        if (typeof enqueueOfflineOp === 'function') {
-            enqueueOfflineOp({ type: 'updateCell', sheetName, rowIndex, colIndex, value });
-            return 'offline';
-        }
         return false;
     }
 }
 
 async function updateSheetValue(sheetName, range, value) {
-    if (!navigator.onLine) {
-        if (typeof enqueueOfflineOp === 'function') {
-            enqueueOfflineOp({ type: 'updateCell', sheetName, rowIndex: range, colIndex: 1, value });
+    try {
+        const token = await getAccessToken();
+        if (!token) return false;
+        const resp = await fetch(url, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ values: values, majorDimension: "ROWS" })
+        });
+        if (!resp.ok) {
+            const errorText = await resp.text();
+            console.error("Lỗi khi ghi dữ liệu:", errorText);
+            return false;
         }
-        return 'offline';
+        const result = await resp.json();
+        console.log("Ghi dữ liệu thành công:", result);
+        return true;
+    } catch (err) {
+        console.error("Lỗi appendSheetData:", err);
+        return false;
     }
+}
+
+async function updateSheetCell(sheetName, rowIndex, colIndex, value) {
+    try {
+        const token = await getAccessToken();
+        if (!token) return false;
+
+        // Convert colIndex (1-based) to Letter (A=1, B=2...)
+        let colLetter = "";
+        let temp = colIndex;
+        while (temp > 0) {
+            let mod = (temp - 1) % 26;
+            colLetter = String.fromCharCode(65 + mod) + colLetter;
+            temp = Math.floor((temp - mod) / 26);
+        }
+
+        const range = `${sheetName}!${colLetter}${rowIndex}`;
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${range}?valueInputOption=USER_ENTERED`;
+
+        const resp = await fetch(url, {
+            method: "PUT",
+            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ values: [[value]] })
+        });
+
+        return resp.ok;
+    } catch (err) {
+        console.error("Lỗi updateSheetCell:", err);
+        return false;
+    }
+}
+
+async function updateSheetValue(sheetName, range, value) {
     try {
         const token = await getAccessToken();
         if (!token) return false;
@@ -265,16 +239,11 @@ async function updateSheetValue(sheetName, range, value) {
 }
 
 async function updateSheetRow(sheetName, rowIndex, rowDataArray) {
-    if (!navigator.onLine) {
-        if (typeof enqueueOfflineOp === 'function') {
-            enqueueOfflineOp({ type: 'updateRow', sheetName, rowIndex, rowData: rowDataArray });
-        }
-        return 'offline';
-    }
     try {
         const token = await getAccessToken();
         if (!token) return false;
         
+        // Cập nhật nguyên một dòng từ cột A
         const range = `${sheetName}!A${rowIndex}`;
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${range}?valueInputOption=USER_ENTERED`;
         
@@ -287,22 +256,43 @@ async function updateSheetRow(sheetName, rowIndex, rowDataArray) {
         if (!resp.ok) {
             const errorText = await resp.text();
             console.error("Lỗi khi cập nhật dòng:", errorText);
-            if (typeof enqueueOfflineOp === 'function') {
-                enqueueOfflineOp({ type: 'updateRow', sheetName, rowIndex, rowData: rowDataArray });
-                return 'offline';
-            }
             return false;
         }
         return true;
     } catch (err) {
         console.error("Lỗi updateSheetRow:", err);
-        if (typeof enqueueOfflineOp === 'function') {
-            enqueueOfflineOp({ type: 'updateRow', sheetName, rowIndex, rowData: rowDataArray });
-            return 'offline';
-        }
         return false;
     }
 }
+
+async function batchUpdateSheetValues(batchData) {
+    try {
+        const token = await getAccessToken();
+        if (!token) return false;
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchUpdate`;
+        const resp = await fetch(url, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+                valueInputOption: "USER_ENTERED",
+                data: batchData
+            })
+        });
+        if (!resp.ok) {
+            const errorText = await resp.text();
+            console.error("Lỗi batch update:", errorText);
+            return false;
+        }
+        return true;
+    } catch (err) {
+        console.error("Lỗi batchUpdateSheetValues:", err);
+        return false;
+    }
+}
+
+// fetchAuthData removed as login is disabled
+
+
 
     Object.assign(window.AppModules = window.AppModules || {}, { ['api']: true });
     window.getAccessToken = getAccessToken;
@@ -313,6 +303,5 @@ async function updateSheetRow(sheetName, rowIndex, rowDataArray) {
     window.updateSheetCell = updateSheetCell;
     window.updateSheetValue = updateSheetValue;
     window.updateSheetRow = updateSheetRow;
-    window.cacheSet = cacheSet;
-    window.cacheGet = cacheGet;
+    window.batchUpdateSheetValues = batchUpdateSheetValues;
 })();

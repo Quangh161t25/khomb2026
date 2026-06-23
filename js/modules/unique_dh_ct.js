@@ -423,7 +423,7 @@ async function handleExcelUploadUniqueDHCT(files) {
 
         const orderIdMap = {};
         rows.forEach((row, idx) => {
-            const id_sp_ct = colIdx.id_sp_ct !== -1 ? (row[colIdx.id_sp_ct] || '').toString().trim() : '';
+            const id_sp_ct = colIdx.id_sp_ct !== -1 ? (row[colIdx.id_sp_ct] || '').toString().trim().toUpperCase() : '';
             if (!id_sp_ct) return;
 
             let rawNgay = colIdx.ngay !== -1 ? row[colIdx.ngay] : null;

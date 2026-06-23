@@ -419,6 +419,7 @@ const detailSortState = {
 function normalizeDetailValue(item, key) {
     if (key === 'ngay') return item.ngay || '';
     if (key === 'san') return item.san || '';
+    if (key === 'ma_gian') return item.ma_gian || '';
     if (key === 'mvd') return item.mvd || '';
     if (key === 'mdh') return item.mdh || '';
     if (key === 'ten_sp') return item.ten_sp || '';
@@ -431,13 +432,13 @@ function normalizeDetailValue(item, key) {
 }
 
 function updateDetailSortIndicators() {
-    const keys = ['Ngay', 'San', 'Mvd', 'Mdh', 'TenSp', 'IdSp', 'SlgXuat', 'DonGia', 'ThanhTien', 'TrangThai'];
+    const keys = ['Ngay', 'San', 'MaGian', 'Mvd', 'Mdh', 'TenSp', 'IdSp', 'SlgXuat', 'DonGia', 'ThanhTien', 'TrangThai'];
     keys.forEach(k => {
         const el = document.getElementById(`detailSort${k}`);
         if (el) el.textContent = '↕';
     });
     const activeKeyMap = {
-        ngay: 'Ngay', san: 'San', mvd: 'Mvd', mdh: 'Mdh', ten_sp: 'TenSp', id_sp: 'IdSp', slg_xuat: 'SlgXuat', don_gia: 'DonGia', thanh_tien: 'ThanhTien', trang_thai: 'TrangThai'
+        ngay: 'Ngay', san: 'San', ma_gian: 'MaGian', mvd: 'Mvd', mdh: 'Mdh', ten_sp: 'TenSp', id_sp: 'IdSp', slg_xuat: 'SlgXuat', don_gia: 'DonGia', thanh_tien: 'ThanhTien', trang_thai: 'TrangThai'
     };
     const activeEl = document.getElementById(`detailSort${activeKeyMap[detailSortState.key]}`);
     if (activeEl) activeEl.textContent = detailSortState.dir === 'asc' ? '↑' : '↓';
@@ -466,12 +467,13 @@ function renderDetailTable() {
         return detailSortState.dir === 'asc' ? cmp : -cmp;
     });
     if (rows.length === 0) {
-        detailBody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-slate-500">Không có dữ liệu</td></tr>';
+        detailBody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-slate-500">Không có dữ liệu</td></tr>';
     } else {
         detailBody.innerHTML = rows.map(item => `
                     <tr class="border-b border-slate-100 hover:bg-slate-50">
                         <td class="px-4 py-3 text-sm text-slate-900">${item.ngay || '-'}</td>
                         <td class="px-4 py-3 text-sm text-slate-900">${item.san || '-'}</td>
+                        <td class="px-4 py-3 text-sm text-slate-900">${item.ma_gian || '-'}</td>
                         <td class="px-4 py-3 text-sm text-slate-900">${item.mvd || '-'}</td>
                         <td class="px-4 py-3 text-sm text-slate-900">${item.mdh || '-'}</td>
                         <td class="px-4 py-3 text-sm text-slate-900">${item.ten_sp || '-'}</td>
@@ -653,7 +655,7 @@ function exportIdSPExcel() {
                 let text = c.textContent.trim();
                 // Loại bỏ dấu phẩy/chấm ở cột số lượng, doanh thu và các cột trạng thái
                 if (i >= 2) {
-                    text = text.replace(/,/g, '').replace(/\./g, '');
+                    text = text.replace(/,/g, '').replace(/\./g, '');
                 }
                 return text;
             });
@@ -671,6 +673,98 @@ function exportIdSPExcel() {
     XLSX.utils.book_append_sheet(wb, ws, 'ThongKe_ID_SP');
     XLSX.writeFile(wb, `ThongKe_ID_SP_${document.getElementById('fromDate').value}_${document.getElementById('toDate').value}.xlsx`);
 }
+
+async function transferToDonHangCT() {
+    const tbody = document.getElementById('idspTableBody');
+    if (!tbody || tbody.innerHTML.includes('Không lấy được dữ liệu') || tbody.innerHTML.includes('Chọn ngày')) {
+        alert('Không có dữ liệu để chuyển! Vui lòng chọn ngày và lọc báo cáo trước.');
+        return;
+    }
+
+    const ngay_loc = document.getElementById('fromDate').value;
+    let ngay_format = '';
+    if (ngay_loc) {
+        const parts = ngay_loc.split('-');
+        if (parts.length === 3) {
+            ngay_format = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+    }
+    if (!ngay_format) {
+        alert('Vui lòng chọn ngày lọc hợp lệ.');
+        return;
+    }
+
+    const truong = 'XUẤT';
+    const ncc = 'HẰNG NGÀY';
+    const appendValues = [];
+
+    const rows = tbody.querySelectorAll('tr');
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 4) {
+            const id_sp_ct = cells[0].textContent.trim();
+            const ten_sp = cells[1].textContent.trim();
+            let sl_xuat = cells[2].textContent.trim();
+            sl_xuat = parseFloat(sl_xuat.replace(/,/g, '').replace(/\./g, '')) || 0;
+            
+            if (sl_xuat > 0) {
+                let id_sp = '';
+                let gia = 0;
+                if (typeof sanphamData !== 'undefined') {
+                    const sp = sanphamData.find(s => (s.sku_con || '').toLowerCase() === id_sp_ct.toLowerCase());
+                    if (sp) {
+                        id_sp = sp.id_sp || '';
+                        gia = parseFloat(sp.gia_nhap) || 0;
+                    } else {
+                        id_sp = id_sp_ct.substring(0, 4);
+                    }
+                } else {
+                    id_sp = id_sp_ct.substring(0, 4);
+                }
+
+                const key = `${ngay_format} | ${truong} | ${ncc} | MB`;
+                const id_dh = key;
+                const id_dh_ct = `${ngay_format} | ${truong} | ${ncc} | MB | KHO | ${id_sp_ct}`;
+                const id_ton_kho = `KHO | ${id_sp_ct}`;
+
+                appendValues.push([
+                    id_dh_ct, id_dh, ngay_format, truong, ncc, 'KHO', id_sp_ct, id_sp, ten_sp, sl_xuat, gia, sl_xuat * gia, '', id_ton_kho, 'CHỜ XÁC NHẬN'
+                ]);
+            }
+        }
+    });
+
+    if (appendValues.length === 0) {
+        alert('Không có dữ liệu hợp lệ (SL xuất > 0) để chuyển!');
+        return;
+    }
+
+    if (!confirm(`Bạn có chắc muốn chuyển ${appendValues.length} dòng sang Đơn hàng CT?`)) {
+        return;
+    }
+
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+    try {
+        const success = await window.appendSheetData(CONFIG.dhctSheetName, appendValues);
+        if (success) {
+            alert(`Đã chuyển thành công ${appendValues.length} dòng sang Đơn hàng CT!`);
+            if (typeof window.fetchDHCTData === 'function') {
+                window.fetchDHCTData(true);
+            }
+        } else {
+            alert('Lỗi khi chuyển dữ liệu sang Google Sheet.');
+        }
+    } catch (err) {
+        console.error('Lỗi khi chuyển sang Đơn hàng CT:', err);
+        alert('Lỗi: ' + err.message);
+    } finally {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    }
+}
+
+window.transferToDonHangCT = transferToDonHangCT;
 
 // ===================== BÁO CÁO TỔNG LOGIC =====================
 let reportTongData = [];

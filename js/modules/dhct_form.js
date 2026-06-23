@@ -410,15 +410,26 @@
             let appendSuccess = true;
             let updateSuccess = true;
             
-            // Delete removed rows (by updating them to empty array)
+            // Build batch update for deleted and updated rows
+            const batchData = [];
             const emptyRowData = Array(15).fill("");
+            
             for (const rIndex of deletedSheetRows) {
-                await window.updateSheetRow(CONFIG.dhctSheetName, rIndex, emptyRowData);
+                batchData.push({
+                    range: `${CONFIG.dhctSheetName}!A${rIndex}`,
+                    values: [emptyRowData]
+                });
             }
-
-            // Update existing rows
+            
             for (const updateObj of finalRowsToUpdate) {
-                const ok = await window.updateSheetRow(CONFIG.dhctSheetName, updateObj.rowIndex, updateObj.data);
+                batchData.push({
+                    range: `${CONFIG.dhctSheetName}!A${updateObj.rowIndex}`,
+                    values: [updateObj.data]
+                });
+            }
+            
+            if (batchData.length > 0) {
+                const ok = await window.batchUpdateSheetValues(batchData);
                 if (!ok) updateSuccess = false;
             }
 
@@ -428,65 +439,72 @@
                 if (!ok) appendSuccess = false;
             }
 
-            // Tự động thêm vào Tồn Kho nếu chưa có
             if (appendSuccess && updateSuccess) {
-                try {
-                    if (!inventoryData || inventoryData.length === 0) {
-                        const token = await window.getAccessToken();
-                        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${CONFIG.inventorySheetName}!A:A`;
-                        const resp = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
-                        const resJson = await resp.json();
-                        if (resJson.values && resJson.values.length > 0) {
-                            inventoryData = resJson.values.slice(1).map(row => ({
-                                id: (row[0] || '').toString().trim()
-                            }));
-                        } else {
-                            inventoryData = [];
-                        }
-                    }
-
-                    const newInventoryRows = [];
-                    for (const line of validLines) {
-                        const idSpCt = line.sku_con.trim();
-                        const idTonKho = `${kho} | ${idSpCt}`;
-                        
-                        const exists = inventoryData.some(r => r.id === idTonKho);
-                        const alreadyAdding = newInventoryRows.some(r => r[0] === idTonKho);
-
-                        if (!exists && !alreadyAdding) {
-                            const idSp = idSpCt.substring(0, 4);
-                            newInventoryRows.push([
-                                idTonKho,
-                                kho,
-                                idSpCt,
-                                idSp,
-                                line.ten_sp,
-                                0
-                            ]);
-                        }
-                    }
-
-                    if (newInventoryRows.length > 0) {
-                        await window.appendSheetData(CONFIG.inventorySheetName, newInventoryRows);
-                        inventoryData = []; // Reset để fetch lại đầy đủ khi mở tab
-                    }
-                } catch (invErr) {
-                    console.error("Lỗi khi đồng bộ tồn kho:", invErr);
-                }
-            }
-
-            if (appendSuccess && updateSuccess) {
+                // Tắt trạng thái đang lưu trên nút trước khi alert (nếu muốn)
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                
                 alert(`Đã lưu thành công dữ liệu!`);
                 window.closeDhctModal();
-                if (window.fetchDHCTData) {
-                    window.fetchDHCTData(true);
-                }
+
+                // Chạy ngầm các tác vụ phụ để tránh nút Lưu bị đơ (tồn kho, fetch data)
+                (async () => {
+                    try {
+                        // Tự động thêm vào Tồn Kho nếu chưa có
+                        if (!inventoryData || inventoryData.length === 0) {
+                            const token = await window.getAccessToken();
+                            const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${CONFIG.inventorySheetName}!A:A`;
+                            const resp = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
+                            const resJson = await resp.json();
+                            if (resJson.values && resJson.values.length > 0) {
+                                inventoryData = resJson.values.slice(1).map(row => ({
+                                    id: (row[0] || '').toString().trim()
+                                }));
+                            } else {
+                                inventoryData = [];
+                            }
+                        }
+
+                        const newInventoryRows = [];
+                        for (const line of validLines) {
+                            const idSpCt = line.sku_con.trim();
+                            const idTonKho = `${kho} | ${idSpCt}`;
+                            
+                            const exists = inventoryData.some(r => r.id === idTonKho);
+                            const alreadyAdding = newInventoryRows.some(r => r[0] === idTonKho);
+
+                            if (!exists && !alreadyAdding) {
+                                const idSp = idSpCt.substring(0, 4);
+                                newInventoryRows.push([
+                                    idTonKho,
+                                    kho,
+                                    idSpCt,
+                                    idSp,
+                                    line.ten_sp,
+                                    0
+                                ]);
+                            }
+                        }
+
+                        if (newInventoryRows.length > 0) {
+                            await window.appendSheetData(CONFIG.inventorySheetName, newInventoryRows);
+                            inventoryData = []; // Reset để fetch lại đầy đủ khi mở tab
+                        }
+                    } catch (invErr) {
+                        console.error("Lỗi khi đồng bộ tồn kho:", invErr);
+                    }
+
+                    if (window.fetchDHCTData) {
+                        window.fetchDHCTData(true);
+                    }
+                })();
             } else {
                 alert("Có lỗi xảy ra trong quá trình lưu dữ liệu. Vui lòng kiểm tra lại.");
             }
         } catch(err) {
             alert("Đã xảy ra lỗi: " + err.message);
         } finally {
+            // Đảm bảo nút khôi phục lại trạng thái ban đầu nếu chưa được khôi phục
             btn.disabled = false;
             btn.innerHTML = originalText;
         }

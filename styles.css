@@ -272,24 +272,3 @@ body {
     from { transform: translateX(0); opacity: 1; opacity: 1; transform: translateX(0); }
     to { transform: translateX(100%); opacity: 0; }
 }
-/* Spinner nhỏ cho loading overlay inline */
-.spinner-sm {
-    width: 16px;
-    height: 16px;
-    border: 2px solid #e2e8f0;
-    border-top-color: #2563eb;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    flex-shrink: 0;
-}
-
-/* Network status pulse khi offline */
-@keyframes networkPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-}
-#networkStatusBar.offline-pulse {
-    animation: networkPulse 1.2s ease-in-out infinite;
-    background: #f59e0b;
-}
-
