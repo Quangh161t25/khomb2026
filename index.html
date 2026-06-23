@@ -2628,27 +2628,54 @@
                 </div>
                 <!-- Image upload section -->
                 <div class="col-span-2 space-y-2">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Ảnh thực tế</label>
-                    <div class="flex justify-center">
-                        <div class="w-1/2 aspect-square max-w-[150px]">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Ảnh thực tế (Tối đa 3 ảnh)</label>
+                    <div class="flex justify-center gap-2">
+                        <!-- Ảnh 1 -->
+                        <div class="flex-1 aspect-square max-w-[100px]">
                             <div id="hhImagePreview1"
                                 class="relative group h-full w-full bg-slate-100 rounded-lg border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary/50 transition-all shadow-inner"
                                 onclick="document.getElementById('hhImageFileInput1').click()">
-                                <div class="text-center p-2">
-                                    <svg class="w-8 h-8 mx-auto text-slate-300 group-hover:text-primary transition-colors"
-                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <div class="text-center p-1">
+                                    <svg class="w-6 h-6 mx-auto text-slate-300 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                                     </svg>
-                                    <span class="text-[10px] text-slate-400 block mt-1 font-bold">Chạm để tải ảnh</span>
+                                    <span class="text-[9px] text-slate-400 block mt-1 font-bold">Ảnh 1</span>
                                 </div>
-                                <input type="file" id="hhImageFileInput1" accept="image/*" class="hidden"
-                                    onchange="uploadImageHh(this, 1)">
                             </div>
+                            <input type="file" id="hhImageFileInput1" accept="image/*" class="hidden" onchange="uploadImageHh(this, 1)">
                             <input type="hidden" id="hhEditAnh1" value="">
+                        </div>
+                        <!-- Ảnh 2 -->
+                        <div class="flex-1 aspect-square max-w-[100px]">
+                            <div id="hhImagePreview2"
+                                class="relative group h-full w-full bg-slate-100 rounded-lg border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary/50 transition-all shadow-inner"
+                                onclick="document.getElementById('hhImageFileInput2').click()">
+                                <div class="text-center p-1">
+                                    <svg class="w-6 h-6 mx-auto text-slate-300 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    <span class="text-[9px] text-slate-400 block mt-1 font-bold">Ảnh 2</span>
+                                </div>
+                            </div>
+                            <input type="file" id="hhImageFileInput2" accept="image/*" class="hidden" onchange="uploadImageHh(this, 2)">
                             <input type="hidden" id="hhEditAnh2" value="">
+                        </div>
+                        <!-- Ảnh 3 -->
+                        <div class="flex-1 aspect-square max-w-[100px]">
+                            <div id="hhImagePreview3"
+                                class="relative group h-full w-full bg-slate-100 rounded-lg border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary/50 transition-all shadow-inner"
+                                onclick="document.getElementById('hhImageFileInput3').click()">
+                                <div class="text-center p-1">
+                                    <svg class="w-6 h-6 mx-auto text-slate-300 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    <span class="text-[9px] text-slate-400 block mt-1 font-bold">Ảnh 3</span>
+                                </div>
+                            </div>
+                            <input type="file" id="hhImageFileInput3" accept="image/*" class="hidden" onchange="uploadImageHh(this, 3)">
                             <input type="hidden" id="hhEditAnh3" value="">
                         </div>
                     </div>
