@@ -24,8 +24,6 @@ document.addEventListener('click', (e) => {
     const list = [
         { sug: 'hhSkuSuggestions', input: 'hhEditSKU' },
         { sug: 'hhSkuCtSuggestions', input: 'hhEditSKUCT' },
-        { sug: 'hhShopMvdSuggestions', input: 'hhShopEditMVD' },
-        { sug: 'hhShopMdhSuggestions', input: 'hhShopEditMDH' }
     ];
     list.forEach(item => {
         const sug = document.getElementById(item.sug);
@@ -136,7 +134,6 @@ function switchModule(module) {
     const upmisaModule = document.getElementById('moduleUpmisa');
     const inventoryModule = document.getElementById('moduleInventory');
     const hangHoanModule = document.getElementById('moduleHangHoan');
-    const hhShopDienModule = document.getElementById('moduleHHShopDien');
 
     const bcHangHoanModule = document.getElementById('moduleBCHangHoan');
     const baocaoTongModule = document.getElementById('moduleBaocaoTong');
@@ -156,7 +153,6 @@ function switchModule(module) {
     const sidebarDHCT = document.getElementById('sidebarDHCT');
     const sidebarUniqueDHCT = document.getElementById('sidebarUniqueDHCT');
     const sidebarHangHoan = document.getElementById('sidebarHangHoan');
-    const sidebarHHShopDien = document.getElementById('sidebarHHShopDien');
     const sidebarBCHangHoan = document.getElementById('sidebarBCHangHoan');
     const sidebarBanDon = document.getElementById('sidebarBanDon');
     const sidebarDhctForm = document.getElementById('sidebarDhctForm');
@@ -170,7 +166,6 @@ function switchModule(module) {
     upmisaModule.style.display = 'none';
     inventoryModule.style.display = 'none';
     if (hangHoanModule) hangHoanModule.style.display = 'none';
-    if (hhShopDienModule) hhShopDienModule.style.display = 'none';
     if (bcHangHoanModule) bcHangHoanModule.style.display = 'none';
     if (baocaoTongModule) baocaoTongModule.style.display = 'none';
     if (banDonModule) banDonModule.style.display = 'none';
@@ -181,7 +176,7 @@ function switchModule(module) {
     if (udctHeaderSearchBox) udctHeaderSearchBox.classList.add('hidden');
 
     const resetSidebar = () => {
-        [sidebarHome, sidebarDonhang, sidebarSanpham, sidebarBaocao, sidebarBaocaoTong, sidebarUpmisa, sidebarInventory, sidebarDHCT, sidebarUniqueDHCT, sidebarHangHoan, sidebarHHShopDien, sidebarBCHangHoan, sidebarBanDon, sidebarDhctForm, sidebarDhct, sidebarDonhangTong].forEach(s => {
+        [sidebarHome, sidebarDonhang, sidebarSanpham, sidebarBaocao, sidebarBaocaoTong, sidebarUpmisa, sidebarInventory, sidebarDHCT, sidebarUniqueDHCT, sidebarHangHoan, sidebarBCHangHoan, sidebarBanDon, sidebarDhctForm, sidebarDhct, sidebarDonhangTong].forEach(s => {
             if (s) {
                 s.classList.remove('active', 'bg-blue-50', 'text-primary', 'border-r-2', 'border-primary');
                 s.classList.add('text-slate-600');
@@ -251,15 +246,6 @@ function switchModule(module) {
             sidebarHangHoan.classList.remove('text-slate-600');
         }
         fetchHangHoanData();
-    } else if (module === 'hh_shop_dien') {
-        if (hhShopDienModule) hhShopDienModule.style.display = 'flex';
-        pageTitle.textContent = 'HH SHOP ĐIỀN';
-        resetSidebar();
-        if (sidebarHHShopDien) {
-            sidebarHHShopDien.classList.add('active', 'bg-blue-50', 'text-primary', 'border-r-2', 'border-primary');
-            sidebarHHShopDien.classList.remove('text-slate-600');
-        }
-        fetchHHShopDienData();
     } else if (module === 'bc_hang_hoan') {
         if (bcHangHoanModule) bcHangHoanModule.style.display = 'flex';
         pageTitle.textContent = 'Báo cáo hàng hoàn';

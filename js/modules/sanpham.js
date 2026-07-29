@@ -3,6 +3,163 @@
 let sanphamCurrentPage = 1;
 const SP_PER_PAGE = 100;
 
+function getSanphamPrefixFilterButtonClass(isActive) {
+    const base = 'px-3 py-1.5 border rounded-lg text-xs font-semibold transition-colors';
+    return isActive
+        ? `${base} border-primary bg-primary text-white hover:bg-blue-600`
+        : `${base} border-slate-200 bg-white text-slate-700 hover:bg-slate-100`;
+}
+
+function getSanphamSkuConValue(item) {
+    const directValue = item?.sku_con || item?.id_sp_con || item?.ID_SP_CON || item?.ma || item?.['Mã'];
+    if (directValue) return directValue.toString().trim().toUpperCase();
+
+    const firstMappedValue = Array.isArray(item?.mapping) ? item.mapping[0] : '';
+    return (firstMappedValue || '').toString().trim().toUpperCase();
+}
+
+function getSanphamSkuPrefix(item, length) {
+    return getSanphamSkuConValue(item).slice(0, length);
+}
+
+function getSanphamPrefixes(length, parentPrefix = '') {
+    const parent = (parentPrefix || '').toString().trim().toUpperCase();
+    const prefixes = [...new Set((sanphamData || [])
+        .map(item => getSanphamSkuPrefix(item, length))
+        .filter(prefix => prefix.length === length && (!parent || prefix.startsWith(parent)))
+    )];
+
+    return prefixes.sort((a, b) => length === 1
+        ? b.localeCompare(a, 'vi', { numeric: true })
+        : a.localeCompare(b, 'vi', { numeric: true })
+    );
+}
+
+function getSanphamPrefixFilter() {
+    return {
+        length: Number(document.getElementById('spFilterPrefixLength')?.value || 0),
+        value: (document.getElementById('spFilterPrefixValue')?.value || '').toString().trim().toUpperCase()
+    };
+}
+
+function updateSanphamPrefixFilterControls() {
+    const current = getSanphamPrefixFilter();
+    const selectedOnePrefix = current.length ? current.value.slice(0, 1) : '';
+
+    document.querySelectorAll('button[data-sp-prefix-length]').forEach(button => {
+        const length = Number(button.dataset.spPrefixLength || 0);
+        const value = (button.dataset.spPrefixValue || '').toUpperCase();
+        const isActive = length === current.length && value === current.value;
+        button.className = getSanphamPrefixFilterButtonClass(isActive);
+    });
+
+    const oneSelect = document.getElementById('spFilterPrefixOneSelect');
+    const twoSelect = document.getElementById('spFilterPrefixTwoSelect');
+    if (oneSelect) oneSelect.value = selectedOnePrefix;
+    if (twoSelect) twoSelect.value = current.length === 2 ? current.value : '';
+}
+
+function setSanphamPrefixFilter(length, value) {
+    const normalizedValue = (value || '').toString().trim().toUpperCase();
+    const lengthInput = document.getElementById('spFilterPrefixLength');
+    const valueInput = document.getElementById('spFilterPrefixValue');
+    if (lengthInput) lengthInput.value = normalizedValue ? String(length) : '';
+    if (valueInput) valueInput.value = normalizedValue;
+    renderSanphamPrefixFilterButtons();
+    renderSanphamTable(1);
+}
+
+function setSanphamPrefixFilterFromSelect(select) {
+    const length = Number(select?.dataset.spPrefixLength || 0);
+    const value = select?.value || '';
+    if (length === 2 && !value) {
+        const parentPrefix = document.getElementById('spFilterPrefixOneSelect')?.value || '';
+        setSanphamPrefixFilter(parentPrefix ? 1 : 0, parentPrefix);
+        return;
+    }
+    setSanphamPrefixFilter(length, value);
+}
+
+function createSanphamPrefixButton(length, value, label, options = {}) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label || value;
+    button.dataset.spPrefixLength = value ? String(length) : '0';
+    button.dataset.spPrefixValue = value || '';
+    button.className = getSanphamPrefixFilterButtonClass(false);
+    button.addEventListener('click', () => {
+        if (!value && options.parentPrefix) {
+            setSanphamPrefixFilter(1, options.parentPrefix);
+            return;
+        }
+        setSanphamPrefixFilter(value ? length : 0, value || '');
+    });
+    return button;
+}
+
+function renderSanphamPrefixFilterButtons() {
+    const current = getSanphamPrefixFilter();
+    const selectedOnePrefix = current.length ? current.value.slice(0, 1) : '';
+
+    const onePrefixes = getSanphamPrefixes(1);
+    const twoPrefixes = getSanphamPrefixes(2, selectedOnePrefix);
+
+    const oneContainer = document.getElementById('spFilterPrefixOneButtons');
+    if (oneContainer) {
+        oneContainer.innerHTML = '';
+        oneContainer.appendChild(createSanphamPrefixButton(0, '', 'Tất cả'));
+        onePrefixes.forEach(prefix => oneContainer.appendChild(createSanphamPrefixButton(1, prefix, prefix)));
+    }
+
+    const twoContainer = document.getElementById('spFilterPrefixTwoButtons');
+    if (twoContainer) {
+        twoContainer.innerHTML = '';
+        twoContainer.appendChild(createSanphamPrefixButton(0, '', 'Tất cả', { parentPrefix: selectedOnePrefix }));
+        twoPrefixes.forEach(prefix => twoContainer.appendChild(createSanphamPrefixButton(2, prefix, prefix)));
+    }
+
+    const mobileTwoContainer = document.getElementById('spFilterPrefixTwoMobileButtons');
+    if (mobileTwoContainer) {
+        mobileTwoContainer.innerHTML = '';
+        mobileTwoContainer.classList.toggle('hidden', !selectedOnePrefix || twoPrefixes.length === 0);
+        if (selectedOnePrefix && twoPrefixes.length) {
+            mobileTwoContainer.appendChild(createSanphamPrefixButton(0, '', `Tất cả ${selectedOnePrefix}`, { parentPrefix: selectedOnePrefix }));
+            twoPrefixes.forEach(prefix => mobileTwoContainer.appendChild(createSanphamPrefixButton(2, prefix, prefix)));
+        }
+    }
+
+    const oneSelect = document.getElementById('spFilterPrefixOneSelect');
+    if (oneSelect) {
+        oneSelect.innerHTML = '';
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = 'Lọc 1 ký tự';
+        oneSelect.appendChild(defaultOption);
+        onePrefixes.forEach(prefix => {
+            const option = document.createElement('option');
+            option.value = prefix;
+            option.textContent = prefix;
+            oneSelect.appendChild(option);
+        });
+    }
+
+    const twoSelect = document.getElementById('spFilterPrefixTwoSelect');
+    if (twoSelect) {
+        twoSelect.innerHTML = '';
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = selectedOnePrefix ? `Lọc 2 ký tự (${selectedOnePrefix})` : 'Lọc 2 ký tự';
+        twoSelect.appendChild(defaultOption);
+        twoPrefixes.forEach(prefix => {
+            const option = document.createElement('option');
+            option.value = prefix;
+            option.textContent = prefix;
+            twoSelect.appendChild(option);
+        });
+    }
+
+    updateSanphamPrefixFilterControls();
+}
 async function loadSanphamData() {
     const tbody = document.getElementById('sanphamTableBody');
     if (tbody) tbody.innerHTML = generateSkeletonRows(7, 10);
@@ -39,6 +196,7 @@ async function loadSanphamData() {
             mapping: row
         })).filter(item => item.sku_con !== '');
 
+        renderSanphamPrefixFilterButtons();
         renderSanphamTable(1);
         populateSPLists();
     } else {
@@ -51,12 +209,23 @@ function renderSanphamTable(page = 1) {
     const tbody = document.getElementById('sanphamTableBody');
     if (!tbody) return;
 
+    const oneSelect = document.getElementById('spFilterPrefixOneSelect');
+    const twoSelect = document.getElementById('spFilterPrefixTwoSelect');
+    if ((sanphamData || []).length && ((oneSelect && oneSelect.options.length <= 1) || (twoSelect && twoSelect.options.length <= 1))) {
+        renderSanphamPrefixFilterButtons();
+    }
+
     const search = (document.getElementById('spFilterSearch')?.value || '').toLowerCase().trim();
+    const prefixFilter = getSanphamPrefixFilter();
+    updateSanphamPrefixFilterControls();
 
     let filtered = sanphamData;
     if (search) filtered = filtered.filter(item =>
         item.mapping.some(c => (c || '').toString().toLowerCase().includes(search))
     );
+    if (prefixFilter.length && prefixFilter.value) {
+        filtered = filtered.filter(item => getSanphamSkuPrefix(item, prefixFilter.length) === prefixFilter.value);
+    }
 
     const totalRows = filtered.length;
     const totalPages = Math.max(1, Math.ceil(totalRows / SP_PER_PAGE));
@@ -182,6 +351,8 @@ async function handleExcelUpload(files) {
     Object.assign(window.AppModules = window.AppModules || {}, { ['sanpham']: true });
     window.loadSanphamData = loadSanphamData;
     window.renderSanphamTable = renderSanphamTable;
+    window.setSanphamPrefixFilter = setSanphamPrefixFilter;
+    window.setSanphamPrefixFilterFromSelect = setSanphamPrefixFilterFromSelect;
     window.changeSanphamPage = changeSanphamPage;
     window.handleExcelUpload = handleExcelUpload;
 })();

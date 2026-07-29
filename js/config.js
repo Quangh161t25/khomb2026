@@ -7,7 +7,6 @@ const CONFIG = {
     inventorySheetName: "TON_KHO",
     dhctSheetName: "DH_CT",
     hhbhSheetName: "HH_BH",
-    hhNvDienSheetName: "HH_NV_DIEN",
     banDonSheetName: "BAN_DON",
     imgbbApiKey: "1bad1429a242d7040fda3f2cfddb3a25",
     serviceAccountEmail: "test-gia-ason@api-test-sheet-161.iam.gserviceaccount.com",
@@ -17,8 +16,7 @@ const CONFIG = {
     storageKeys: {
         currentUser: "erp_current_user",
         lastUserId: "erp_last_user_id",
-        filters: "erp_filters",
-        hhShopDienFilterState: "hhShopDienFilterState"
+        filters: "erp_filters"
     },
     statusClasses: {
         thayThe: "bg-green-100 text-green-700",

@@ -34,7 +34,6 @@
             }
         },
         HH_BH: { read: 'A:Z', append: 'A:Z' },
-        HH_NV_DIEN: { read: 'A:L', append: 'A:L' },
         DH_CT: { read: 'A:P', append: 'A:A' },
         TON_KHO: { read: 'A:K' },
         BAN_DON: {

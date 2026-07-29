@@ -96,14 +96,6 @@ body {
     transform: translateX(0);
 }
 
-#hhShopDrawer {
-    transition: transform 0.3s ease-in-out;
-    transform: translateX(100%);
-}
-
-#hhShopDrawer.open {
-    transform: translateX(0);
-}
 
 .table-container::-webkit-scrollbar {
     height: 8px;

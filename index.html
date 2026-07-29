@@ -183,15 +183,6 @@
                     </svg>
                     <span class="font-medium sidebar-text">Hàng hoàn</span>
                 </div>
-                <div onclick="switchModule('hh_shop_dien')" id="sidebarHHShopDien"
-                    class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
-                    title="HH SHOP ĐIỀN">
-                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M7 8h10M7 12h6m-8 8h14a2 2 0 002-2V8l-4-4H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span class="font-medium sidebar-text">HH SHOP ĐIỀN</span>
-                </div>
                 <div onclick="switchModule('bc_hang_hoan')" id="sidebarBCHangHoan"
                     class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
                     title="Báo cáo hàng hoàn">
@@ -231,7 +222,7 @@
             </div>
             <div class="p-2.5 border-t border-slate-200">
                 <div class="flex items-center justify-between overflow-hidden">
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center justify-between sm:justify-start gap-2">
                         <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
                             <span class="text-blue-600 font-semibold text-sm" id="userInitial">U</span>
                         </div>
@@ -596,7 +587,7 @@
                                             </div>
                                         </div>
                                         <div class="flex items-center gap-3 px-2">
-                                            <div class="flex items-center gap-2">
+                                            <div class="flex items-center justify-between sm:justify-start gap-2">
                                                 <div
                                                     class="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
                                                     <button onclick="changeUDCTDate('filterUDCTFrom', -1)"
@@ -607,7 +598,7 @@
                                                         class="px-2 py-1 hover:bg-slate-50 text-slate-400 text-xs">➕</button>
                                                 </div>
                                             </div>
-                                            <div class="flex items-center gap-2">
+                                            <div class="flex items-center justify-between sm:justify-start gap-2">
                                                 <div
                                                     class="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
                                                     <button onclick="changeUDCTDate('filterUDCTTo', -1)"
@@ -644,7 +635,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex items-center justify-between sm:justify-start gap-2">
                                         <div class="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm"
                                             title="Tổng số dòng đang hiển thị">
                                             <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24"
@@ -983,22 +974,41 @@
                 <div id="moduleSanpham" class="h-full flex flex-col p-1" style="display: none;">
                     <div
                         class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
-                        <div
-                            class="p-2.5 border-b border-slate-200 bg-white flex flex-wrap justify-between items-start sm:items-center gap-3">
-                            <div>
-                                <h2 class="text-base font-bold text-slate-900">Danh sách sản phẩm phần mềm</h2>
-                                <p class="text-[11px] text-slate-500 mt-0.5">Quản lý thông tin sản phẩm từ sheet
-                                    DS_SP_PM (32 cột)</p>
-                            </div>
+                        <div class="p-2 sm:p-2.5 border-b border-slate-200 bg-slate-50 space-y-2">
                             <div class="flex flex-wrap gap-2 items-center">
                                 <input type="text" id="spFilterSearch" oninput="renderSanphamTable(1)"
                                     placeholder="Tìm kiếm..."
-                                    class="px-3 py-1.5 border border-slate-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary/20">
+                                    class="px-3 py-2 sm:py-1.5 border border-slate-200 rounded-lg text-sm w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-primary/20">
+                                <input type="hidden" id="spFilterPrefixLength" value="">
+                                <input type="hidden" id="spFilterPrefixValue" value="">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 sm:hidden">
+                                <select id="spFilterPrefixOneSelect" data-sp-prefix-length="1"
+                                    onchange="setSanphamPrefixFilterFromSelect(this)"
+                                    class="w-full px-2.5 py-2 border border-slate-200 rounded-lg bg-white text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20">
+                                    <option value="">Lọc 1 ký tự</option>
+                                </select>
+                                <select id="spFilterPrefixTwoSelect" data-sp-prefix-length="2"
+                                    onchange="setSanphamPrefixFilterFromSelect(this)"
+                                    class="w-full px-2.5 py-2 border border-slate-200 rounded-lg bg-white text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20">
+                                    <option value="">Lọc 2 ký tự</option>
+                                </select>
+                            </div>
+                            <div id="spFilterPrefixTwoMobileButtons" class="hidden sm:hidden flex flex-wrap gap-1.5 items-center"></div>
+                            <div id="spFilterPrefixOneButtons" class="hidden sm:flex flex-wrap gap-1.5 items-center max-h-16 overflow-y-auto pr-1"></div>
+                            <div id="spFilterPrefixTwoButtons" class="hidden sm:flex flex-wrap gap-1.5 items-center max-h-16 overflow-y-auto pr-1"></div>
+                        </div>
+                        <div
+                            class="p-2.5 border-b border-slate-200 bg-white flex flex-wrap justify-between items-start sm:items-center gap-3">
+                            <div>
+                                <h2 class="text-sm sm:text-base font-bold text-slate-900">Danh sách sản phẩm phần mềm</h2>
+                                <p class="hidden sm:block text-[11px] text-slate-500 mt-0.5">Quản lý thông tin sản phẩm từ sheet
+                                    DS_SP_PM (32 cột)</p>
                             </div>
                         </div>
                         <!-- Dropzone compact -->
                         <div id="dropZone"
-                            class="mx-4 mt-2 border border-dashed border-slate-300 rounded-lg py-2 px-4 text-center cursor-pointer drop-zone hover:bg-slate-50 flex items-center justify-center gap-2"
+                            class="hidden sm:flex mx-4 mt-2 border border-dashed border-slate-300 rounded-lg py-2 px-4 text-center cursor-pointer drop-zone hover:bg-slate-50 items-center justify-center gap-2"
                             onclick="document.getElementById('excelUpload').click()">
                             <input type="file" id="excelUpload" accept=".xlsx, .xls" class="hidden"
                                 onchange="handleExcelUpload(this.files)">
@@ -1006,13 +1016,13 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                             </svg>
-                            <p class="text-slate-500 text-sm">Kéo thả file Excel vào đây hoặc click để chọn</p>
+                            <p class="text-slate-500 text-xs sm:text-sm">Excel</p>
                         </div>
                         <!-- Phân trang -->
-                        <div class="px-4 py-2 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                        <div class="px-2 sm:px-4 py-2 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2">
                             <span id="spStatsText" class="text-xs font-medium text-slate-500">Hiển thị: 0/0 sản
                                 phẩm</span>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center justify-between sm:justify-start gap-2">
                                 <button onclick="changeSanphamPage(-1)" id="spPrevBtn"
                                     class="px-2 py-1 bg-white border border-slate-200 rounded text-xs hover:bg-slate-50 disabled:opacity-40">←
                                     Trước</button>
@@ -1509,7 +1519,7 @@
                             </p>
                         </div>
                         <div class="p-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap gap-4 items-center">
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center justify-between sm:justify-start gap-2">
                                 <label class="text-sm font-semibold text-slate-700">Lọc ngày:</label>
                                 <button onclick="changeUpmisaDate(-1)"
                                     class="px-2 py-1 bg-white border border-slate-200 rounded-md text-slate-600 hover:bg-slate-100 transition-colors"
@@ -1520,13 +1530,13 @@
                                     class="px-2 py-1 bg-white border border-slate-200 rounded-md text-slate-600 hover:bg-slate-100 transition-colors"
                                     title="Tiến 1 ngày">➕</button>
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center justify-between sm:justify-start gap-2">
                                 <label class="text-sm font-semibold text-slate-700">Tìm kiếm:</label>
                                 <input type="text" id="upmisaSearchInput" oninput="renderUpmisaTable(1)"
                                     placeholder="Tìm kiếm trong UPMISA..."
                                     class="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm w-64">
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center justify-between sm:justify-start gap-2">
                                 <label class="text-sm font-semibold text-slate-700">Dòng/Trang:</label>
                                 <select id="upmisaRowsPerPage" onchange="renderUpmisaTable(1)"
                                     class="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm">
@@ -1552,7 +1562,7 @@
                         <div class="px-4 py-2 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                             <span id="upmisaStatsText" class="text-xs font-medium text-slate-500">Hiển thị: 0/0
                                 dòng</span>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center justify-between sm:justify-start gap-2">
                                 <button onclick="changeUpmisaPage(-1)" id="upmisaPrevBtn"
                                     class="px-2 py-1 bg-white border border-slate-200 rounded text-xs hover:bg-slate-50 disabled:opacity-50">←
                                     Trước</button>
@@ -1760,10 +1770,10 @@
                             </div>
                         </div>
                         <!-- Phân trang Tồn kho -->
-                        <div class="px-4 py-2 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                        <div class="px-2 sm:px-4 py-2 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2">
                             <span id="inventoryStatsText" class="text-xs font-medium text-slate-500">Hiển thị: 0/0 sản
                                 phẩm</span>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center justify-between sm:justify-start gap-2">
                                 <button onclick="changeInventoryPage(-1)" id="inventoryPrevBtn"
                                     class="px-2 py-1 bg-white border border-slate-200 rounded text-xs hover:bg-slate-50 disabled:opacity-40">←
                                     Trước</button>
@@ -1973,153 +1983,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4" />
                     </svg>
                 </button>
-            </div>
-        </div>
-
-        <!-- Module HH SHOP ĐIỀN -->
-        <div id="moduleHHShopDien" class="h-full flex flex-col p-1" style="display: none;">
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
-                <div class="p-2.5 border-b border-slate-200 bg-white flex flex-wrap justify-between items-center gap-2">
-                    <div>
-                        <div id="hhShopStats" class="text-[11px] text-slate-500 mt-1">Số dòng: 0</div>
-                    </div>
-                    <div
-                        class="w-full flex flex-col gap-3 relative z-30 isolate lg:flex-row lg:items-start lg:justify-between lg:gap-4">
-                        <div
-                            class="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm overflow-x-auto w-full lg:flex-[1_1_0%] lg:min-w-0">
-                            <div class="flex flex-nowrap items-end gap-3 w-max min-w-full relative z-30">
-                                <div class="flex flex-col gap-1 shrink-0">
-                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Từ
-                                        ngày</label>
-                                    <div class="flex items-center gap-1">
-                                        <button type="button" onclick="shiftHHShopNgayTra('from', -1)"
-                                            class="relative z-20 pointer-events-auto shrink-0 w-7 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">-</button>
-                                        <input type="date" id="hhShopNgayTraFrom"
-                                            oninput="saveHHShopFilterState(); renderHHShopDienTable()"
-                                            class="relative z-10 pointer-events-auto w-40 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                                        <button type="button" onclick="shiftHHShopNgayTra('from', 1)"
-                                            class="relative z-20 pointer-events-auto shrink-0 w-7 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">+</button>
-                                    </div>
-                                </div>
-                                <div class="flex flex-col gap-1 shrink-0">
-                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Đến
-                                        ngày</label>
-                                    <div class="flex items-center gap-1">
-                                        <button type="button" onclick="shiftHHShopNgayTra('to', -1)"
-                                            class="relative z-20 pointer-events-auto shrink-0 w-7 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">-</button>
-                                        <input type="date" id="hhShopNgayTraTo"
-                                            oninput="saveHHShopFilterState(); renderHHShopDienTable()"
-                                            class="relative z-10 pointer-events-auto w-40 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                                        <button type="button" onclick="shiftHHShopNgayTra('to', 1)"
-                                            class="relative z-20 pointer-events-auto shrink-0 w-7 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold hover:bg-slate-50 cursor-pointer">+</button>
-                                    </div>
-                                </div>
-                                <div class="flex flex-col gap-1 shrink-0">
-                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mã
-                                        gian</label>
-                                    <input type="text" id="hhShopFilterMaGian" list="hhShopMaGianFilterList"
-                                        oninput="saveHHShopFilterState(); renderHHShopDienTable()"
-                                        placeholder="Lọc mã gian"
-                                        class="relative z-10 pointer-events-auto w-40 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                                    <datalist id="hhShopMaGianFilterList"></datalist>
-                                </div>
-                                <div class="flex flex-col gap-1 shrink-0 min-w-[160px]">
-                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xác
-                                        nhận</label>
-                                    <div id="hhShopXacNhanFilterButtons" class="flex flex-wrap gap-2">
-                                        <button type="button" data-value="" onclick="setHHShopXacNhanFilter('')"
-                                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-slate-100 text-slate-700 shadow-sm">Tất
-                                            cả</button>
-                                        <button type="button" data-value="trống"
-                                            onclick="setHHShopXacNhanFilter('trống')"
-                                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50">Trống</button>
-                                        <button type="button" data-value="xác nhận"
-                                            onclick="setHHShopXacNhanFilter('xác nhận')"
-                                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50">Xác
-                                            nhận</button>
-                                    </div>
-                                </div>
-                                <div class="flex flex-col gap-1 shrink-0 min-w-[160px]">
-                                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Đã
-                                        nhận</label>
-                                    <div id="hhShopDaNhanFilterButtons" class="flex flex-wrap gap-2">
-                                        <button type="button" data-value="" onclick="setHHShopDaNhanFilter('')"
-                                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-slate-100 text-slate-700 shadow-sm">Tất
-                                            cả</button>
-                                        <button type="button" data-value="có đơn"
-                                            onclick="setHHShopDaNhanFilter('có đơn')"
-                                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50">Có
-                                            đơn</button>
-                                        <button type="button" data-value="trống"
-                                            onclick="setHHShopDaNhanFilter('trống')"
-                                            class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50">Trống</button>
-                                    </div>
-                                </div>
-                                <div class="flex gap-2 items-end shrink-0 ml-auto">
-                                    <button onclick="setHHShopNgayTraFilterToday()"
-                                        class="px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-50 shadow-sm">Hôm
-                                        nay</button>
-                                    <button onclick="setHHShopNgayTraFilterThisWeek()"
-                                        class="px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-semibold bg-primary text-white hover:bg-blue-700 shadow-sm">Tuần
-                                        này</button>
-                                    <button onclick="clearHHShopNgayTraFilter()"
-                                        class="px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-100 shadow-sm">Bỏ
-                                        lọc</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div
-                            class="flex gap-2 w-full lg:w-[420px] shrink-0 self-start lg:self-auto flex-wrap lg:flex-nowrap items-start lg:items-end lg:justify-end">
-                            <input type="text" id="hhShopSearchMvd"
-                                oninput="saveHHShopFilterState(); renderHHShopDienTable()" placeholder="Tìm kiếm..."
-                                class="flex-1 min-w-[180px] sm:w-72 px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                            <div class="flex gap-2 w-full sm:w-auto justify-end">
-                                <button onclick="openHHShopNewDrawer()"
-                                    class="flex-1 sm:flex-none bg-indigo-600 text-white px-4 py-2.5 rounded-xl hover:bg-indigo-700 transition-all text-sm font-medium shadow-sm">➕
-                                    Thêm mới</button>
-                                <button onclick="fetchHHShopDienData()"
-                                    class="flex-1 sm:flex-none bg-primary text-white px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-all text-sm font-medium shadow-sm">🔄
-                                    Làm mới</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex-1 overflow-auto table-container">
-                    <table class="w-full min-w-[980px]">
-                        <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
-                            <tr>
-                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">MVD
-                                </th>
-                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">MDH
-                                </th>
-                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Mã gian
-                                </th>
-                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">SKU
-                                </th>
-                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">
-                                    Hoàn/Trả</th>
-                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Ngày
-                                    trả</th>
-                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">MVD trả
-                                </th>
-                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">SKU trả
-                                </th>
-                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Ghi chú
-                                </th>
-                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Xác
-                                    nhận</th>
-                                <th class="px-3 py-2 text-left text-[11px] font-semibold text-slate-600">Đã nhận
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody id="hhShopTableBody">
-                            <tr>
-                                <td colspan="11" class="text-center py-8 text-slate-500">Đang tải dữ liệu...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
             </div>
         </div>
 
@@ -2564,19 +2427,6 @@
                         <datalist id="hhMaGianList"></datalist>
                     </div>
                 </div>
-                <div><label class="block text-xs font-semibold text-slate-500 uppercase mb-1">SKU</label>
-                    <div class="relative group">
-                        <input id="hhEditSKU" list="hhSkuList" oninput="handleHhSkuChange()"
-                            onfocus="renderHhSkuSuggestions(true)"
-                            class="w-full pl-3 pr-8 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20">
-                        <button onclick="clearHhInput('hhEditSKU')"
-                            class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center bg-slate-100 text-slate-400 rounded-full hover:bg-slate-200 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold">✕</button>
-                        <datalist id="hhSkuList"></datalist>
-                        <div id="hhSkuSuggestions"
-                            class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-[60] max-h-64 overflow-y-auto overflow-x-hidden">
-                        </div>
-                    </div>
-                </div>
                 <div class="relative">
                     <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">SKU CT</label>
                     <div class="relative group">
@@ -2584,12 +2434,22 @@
                             class="w-full pl-3 pr-8 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20"
                             autocomplete="off" placeholder="Nhập ID hoặc Tên sản phẩm...">
                         <button onclick="clearHhInput('hhEditSKUCT')"
-                            class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center bg-slate-100 text-slate-400 rounded-full hover:bg-slate-200 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold">✕</button>
+                            class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center bg-slate-100 text-slate-400 rounded-full hover:bg-slate-200 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold">x</button>
                     </div>
                     <div id="hhSkuCtSuggestions"
                         class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-[60] max-h-64 overflow-y-auto overflow-x-hidden">
                     </div>
                     <div id="hhSkuCtButtons" class="flex flex-wrap gap-2 mt-1"></div>
+                </div>
+                <div><label class="block text-xs font-semibold text-slate-500 uppercase mb-1">SKU</label>
+                    <div class="relative group">
+                        <input id="hhEditSKU" list="hhSkuList" readonly tabindex="-1"
+                            class="w-full pl-3 pr-8 py-2 border border-slate-200 rounded-lg text-sm outline-none bg-slate-50 text-slate-600">
+                        <datalist id="hhSkuList"></datalist>
+                        <div id="hhSkuSuggestions"
+                            class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-[60] max-h-64 overflow-y-auto overflow-x-hidden">
+                        </div>
+                    </div>
                 </div>
                 <div><label class="block text-xs font-semibold text-slate-500 uppercase mb-1">SLG</label>
                     <div class="relative group">
@@ -2692,126 +2552,6 @@
         </div>
     </div>
 
-    <!-- HH SHOP ĐIỀN Drawer -->
-    <div id="hhShopDrawerOverlay" class="hidden fixed inset-0 bg-black/50 z-40 transition-opacity"
-        onclick="closeHHShopDrawer()"></div>
-    <div id="hhShopDrawer"
-        class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 overflow-hidden flex flex-col sidebar-transition">
-        <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-            <div>
-                <h3 class="text-base font-bold text-slate-900">Thêm HH SHOP ĐIỀN</h3>
-                <p class="text-[10px] text-slate-500 mt-1 uppercase" id="hhShopDrawerRowId">NEW</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <button id="hhShopDeleteButton" onclick="deleteHHShopDien()"
-                    class="hidden px-3 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold transition-colors">Xóa</button>
-                <button onclick="closeHHShopDrawer()"
-                    class="p-2 rounded-full hover:bg-slate-200 text-slate-500 transition-colors">
-                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-        </div>
-        <div class="flex-1 overflow-y-auto p-4 space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-                <div class="col-span-2 relative">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">MVD</label>
-                    <input id="hhShopEditMVD" oninput="handleHHShopMvdChange(); scheduleHHShopAutoSave()"
-                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                        autocomplete="off">
-                    <div id="hhShopMvdSuggestions"
-                        class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-[60] max-h-64 overflow-y-auto">
-                    </div>
-                </div>
-                <div class="col-span-2 relative">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">MDH</label>
-                    <input id="hhShopEditMDH" oninput="handleHHShopMdhChange(); scheduleHHShopAutoSave()"
-                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20 bg-white"
-                        autocomplete="off">
-                    <div id="hhShopMdhSuggestions"
-                        class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-[60] max-h-64 overflow-y-auto">
-                    </div>
-                </div>
-                <div class="col-span-2">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Mã gian</label>
-                    <input id="hhShopEditMaGian" list="hhShopMaGianList"
-                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20 bg-white">
-                    <datalist id="hhShopMaGianList"></datalist>
-                </div>
-                <div class="col-span-2">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">SKU (id_sp)</label>
-                    <input id="hhShopEditSKU" list="hhShopSkuList" oninput="scheduleHHShopAutoSave()"
-                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20 bg-white">
-                    <datalist id="hhShopSkuList"></datalist>
-                </div>
-                <div class="col-span-2">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Hoàn/Trả</label>
-                    <input type="hidden" id="hhShopEditHoanTra" value="hoàn">
-                    <div id="hhShopHoanTraButtons" class="flex gap-2">
-                        <button type="button" data-value="hoàn" onclick="setHHShopHoanTra('hoàn')"
-                            class="px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold bg-slate-100">Hoàn</button>
-                        <button type="button" data-value="trả" onclick="setHHShopHoanTra('trả')"
-                            class="px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold bg-white">Trả</button>
-                    </div>
-                </div>
-
-                <div class="col-span-2">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Ngày trả</label>
-                    <input type="hidden" id="hhShopEditNgayTraRaw" value="">
-                    <div class="grid grid-cols-[auto,1fr,auto,auto] gap-2 items-center">
-                        <button type="button" onclick="changeHHShopNgayTra(-1)"
-                            class="relative z-10 px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white hover:bg-slate-50">−</button>
-                        <input id="hhShopEditNgayTra" readonly
-                            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm pointer-events-none">
-                        <button type="button" onclick="openHHShopNgayTraPicker()"
-                            class="relative z-10 px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white hover:bg-slate-50"
-                            title="Chọn ngày">📅</button>
-                        <button type="button" onclick="changeHHShopNgayTra(1)"
-                            class="relative z-10 px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white hover:bg-slate-50">+</button>
-                    </div>
-                    <input type="date" id="hhShopNgayTraPicker" class="hidden"
-                        onchange="setHHShopNgayTraRaw(this.value)">
-                </div>
-                <div class="col-span-2">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Xác nhận</label>
-                    <input type="hidden" id="hhShopEditXacNhan" value="">
-                    <div id="hhShopXacNhanButtons" class="flex gap-2">
-                        <button type="button" data-value="" onclick="setHHShopXacNhan('')"
-                            class="px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold bg-red-50 text-red-700 hover:bg-red-100">Trống</button>
-                        <button type="button" data-value="xác nhận" onclick="setHHShopXacNhan('Xác nhận')"
-                            class="px-3 py-2 rounded-lg border border-emerald-200 text-sm font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100">Xác
-                            nhận</button>
-                    </div>
-                </div>
-                <div class="col-span-2">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">MVD trả</label>
-                    <input id="hhShopEditMVDTra" oninput="markHHShopMvdTraManual(true); scheduleHHShopAutoSave()"
-                        placeholder="Có thể sửa tay"
-                        class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20">
-                </div>
-                <div class="col-span-2">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">SKU trả</label>
-                    <input id="hhShopEditSKUTra" oninput="markHHShopSkuTraManual(true); scheduleHHShopAutoSave()"
-                        placeholder="Có thể sửa tay"
-                        class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20">
-                </div>
-                <div class="col-span-2">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Ghi chú</label>
-                    <textarea id="hhShopEditGhiChu" oninput="scheduleHHShopAutoSave()" rows="2"
-                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20 resize-none"></textarea>
-                </div>
-            </div>
-            <div class="pt-4 border-t border-slate-200 flex gap-3">
-                <button onclick="saveHHShopDien()"
-                    class="flex-1 bg-primary text-white font-bold py-2.5 rounded-xl hover:bg-blue-700 transition-all">Lưu</button>
-                <button onclick="closeHHShopDrawer()"
-                    class="px-6 py-2.5 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all">Hủy</button>
-            </div>
-        </div>
-    </div>
-
     <div id="uniqueDHCTDetailOverlay" class="hidden fixed inset-0 bg-black/50 z-40 transition-opacity"
         onclick="closeUniqueDHCTModal()"></div>
     <div id="uniqueDHCTDetailModal"
@@ -2868,7 +2608,6 @@
     <script src="js/shared/sheet-ranges.js"></script>
     <script src="js/api.js"></script>
     <script src="js/modules/hanghoan.js"></script>
-    <script src="js/modules/hh_shop_dien.js"></script>
     <script src="js/modules/donhang.js"></script>
     <script src="js/modules/bandon.js"></script>
     <script src="js/modules/sanpham.js"></script>

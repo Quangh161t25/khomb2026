@@ -1,8 +1,7 @@
-const CACHE_NAME = 'upmisa-v3';
+const CACHE_NAME = 'upmisa-v5';
 const ASSETS = [
     '/',
     'index.html',
-    'dh_chi_tiet.html',
 
     'styles.css',
     'icon.png',

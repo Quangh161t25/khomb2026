@@ -107,29 +107,6 @@ function populateHhFormOptions() {
         skuList.innerHTML = uniqueSku.map(v => `<option value="${escapeHtml(v)}">`).join('');
     }
     handleHhSkuChange();
-
-    // HH SHOP ĐIỀN suggestions
-    const hhShopMaGianList = document.getElementById('hhShopMaGianList');
-    const hhShopMaGianFilterList = document.getElementById('hhShopMaGianFilterList');
-    const hhShopSkuList = document.getElementById('hhShopSkuList');
-    const uniqueMaGian = [...new Set([
-        ...hangHoanData.map(i => (i.ma_gian || '').toString().trim()),
-        ...hhShopDienData.map(i => (i.ma_gian || '').toString().trim()),
-        ...udctData.map(i => (i.ma_gian || '').toString().trim())
-    ].filter(Boolean))].sort();
-    if (hhShopMaGianList) {
-        hhShopMaGianList.innerHTML = uniqueMaGian.map(v => `<option value="${escapeHtml(v)}">`).join('');
-    }
-    if (hhShopMaGianFilterList) {
-        hhShopMaGianFilterList.innerHTML = uniqueMaGian.map(v => `<option value="${escapeHtml(v)}">`).join('');
-    }
-    if (hhShopSkuList) {
-        const uniqueSku = [...new Set([
-            ...sanphamData.map(i => (i.id_sp || '').toString().trim()),
-            ...hhShopDienData.map(i => (i.sku || '').toString().trim())
-        ].filter(Boolean))].sort();
-        hhShopSkuList.innerHTML = uniqueSku.map(v => `<option value="${escapeHtml(v)}">`).join('');
-    }
 }
 
 function ensureHhCatalogLoaded(callback) {
@@ -332,10 +309,10 @@ function handleHhSkuCtChange(forceShow = false) {
     // Kiểm tra nếu có mã khớp hoàn toàn để điền các thông tin khác
     const match = sanphamData.find(item => (item.sku_con || '').toString().toUpperCase() === val.toUpperCase());
     if (match) {
-        if (!document.getElementById('hhEditSKU').value) {
-            document.getElementById('hhEditSKU').value = match.id_sp || match.sku_con.substring(0, 4);
-        }
-        document.getElementById('hhEditTenSP').value = match.ten_sp || document.getElementById('hhEditTenSP').value;
+        const skuInput = document.getElementById('hhEditSKU');
+        if (skuInput) skuInput.value = match.id_sp || match.sku_con.substring(0, 4);
+        const tenSpInput = document.getElementById('hhEditTenSP');
+        if (tenSpInput) tenSpInput.value = match.ten_sp || tenSpInput.value;
     }
 }
 
@@ -418,7 +395,6 @@ function handleHhMvdInputChange(val) {
         return;
     }
 
-    // 1. So sánh với sheet UD_CT (Dữ liệu đơn hàng) để tự động điền thông tin
     const udctMatch = udctData.find(item => (item.mvd || '').toString().trim() === mvd);
     if (udctMatch && hhDrawerMode === 'create') {
         const maGianEl = document.getElementById('hhEditMaGian');
@@ -428,45 +404,27 @@ function handleHhMvdInputChange(val) {
         const tenSpEl = document.getElementById('hhEditTenSP');
 
         if (maGianEl && !maGianEl.value) maGianEl.value = (udctMatch.ma_gian || '').toString().toUpperCase();
-        if (skuEl && !skuEl.value) skuEl.value = (udctMatch.id_sp || '').toString().toUpperCase();
         if (skuCtEl && !skuCtEl.value) {
             skuCtEl.value = (udctMatch.id_sp_ct || '').toString().toUpperCase();
-            // Kích hoạt gợi ý/logic khớp SKU CT
             if (typeof handleHhSkuCtChange === 'function') handleHhSkuCtChange();
         }
+        if (skuEl && !skuEl.value) skuEl.value = (udctMatch.id_sp || '').toString().toUpperCase();
         if (slgEl && (!slgEl.value || slgEl.value === '1')) slgEl.value = udctMatch.slg_xuat || '';
         if (tenSpEl && !tenSpEl.value) tenSpEl.value = udctMatch.ten_sp || '';
     }
 
-    // 1.b So sánh thêm với sheet HH_NV_DIEN (hhShopDienData)
-    const hhShopMatch = hhShopDienData.find(item => (item.mvd_tra || '').toString().trim() === mvd);
-    if (hhShopMatch && hhDrawerMode === 'create') {
-        const mvd2El = document.getElementById('hhEditMVD2');
-        const maGianEl = document.getElementById('hhEditMaGian');
-        const skuEl = document.getElementById('hhEditSKU');
-        const slgEl = document.getElementById('hhEditSLG');
-
-        if (mvd2El && !mvd2El.value) mvd2El.value = (hhShopMatch.mvd || '').toString().toUpperCase();
-        if (maGianEl && !maGianEl.value) maGianEl.value = (hhShopMatch.ma_gian || '').toString().toUpperCase();
-        if (skuEl && !skuEl.value) skuEl.value = (hhShopMatch.sku_tra || '').toString().toUpperCase();
-        if (slgEl) slgEl.value = '1';
-    }
-
-    // 2. Tìm trong dữ liệu hàng hoàn hiện có để cảnh báo trùng (như cũ)
     if (!noticeEl) return;
     const duplicate = hangHoanData.find(item => {
         const isDuplicateMvd = (item.mvd || '').toString().trim() === mvd || (item.mvd_2 || '').toString().trim() === mvd;
         if (!isDuplicateMvd) return false;
-
         if (hhDrawerMode === 'edit' && currentHangHoanEditIndex !== -1) {
-            const currentItem = hangHoanData[currentHangHoanEditIndex];
-            return item !== currentItem;
+            return item !== hangHoanData[currentHangHoanEditIndex];
         }
         return true;
     });
 
     if (duplicate) {
-        noticeEl.textContent = `⚠️ MVD điền vào ngày ${duplicate.ngay_nhan || '?'}`;
+        noticeEl.textContent = `MVD da co trong Hang hoan ngay ${duplicate.ngay_nhan || '?'}`;
         noticeEl.classList.remove('hidden');
     } else {
         noticeEl.classList.add('hidden');
@@ -484,61 +442,44 @@ async function scanQrForHhMvd2() {
 async function uploadImageHh(input, index) {
     const file = input.files[0];
     if (!file) return;
-
-    // Chặn tự động lưu trong khi đang upload
     isUploading = true;
-
     const statusLabel = document.getElementById('saveStatus');
     if (statusLabel) {
-        statusLabel.textContent = "Đang tải ảnh lên ImgBB...";
+        statusLabel.textContent = 'Dang tai anh len ImgBB...';
         statusLabel.style.display = 'block';
     }
 
     try {
         const formData = new FormData();
         formData.append('image', file);
-
-        // 1. Gửi ảnh lên ImgBB
         const response = await fetch(`https://api.imgbb.com/1/upload?key=${CONFIG.imgbbApiKey}`, {
             method: 'POST',
             body: formData
         });
-
         const result = await response.json();
-
         if (result.success) {
-            const directUrl = result.data.url;
-
-            // 2. Cập nhật link vào ô Input tương ứng
             const targetInput = document.getElementById(`hhEditAnh${index}`);
-            if (targetInput) {
-                targetInput.value = directUrl;
-            }
-
-            // 3. Cập nhật preview và lưu dữ liệu
+            if (targetInput) targetInput.value = result.data.url;
             refreshHhImagePreviews();
             isUploading = false;
             await saveHhDetail();
         } else {
-            alert("Lỗi tải ảnh lên ImgBB: " + (result.error?.message || "Không xác định"));
+            alert('Loi tai anh len ImgBB: ' + (result.error?.message || 'Khong xac dinh'));
             isUploading = false;
             refreshHhImagePreviews();
         }
     } catch (err) {
-        console.error("Upload error:", err);
-        alert("Lỗi kết nối khi tải ảnh: " + err.message);
+        console.error('Upload error:', err);
+        alert('Loi ket noi khi tai anh: ' + err.message);
         isUploading = false;
         refreshHhImagePreviews();
     } finally {
-        if (statusLabel) {
-            statusLabel.style.display = 'none';
-        }
-        input.value = ""; // Reset input file
+        if (statusLabel) statusLabel.style.display = 'none';
+        input.value = '';
     }
 }
 
 function refreshHhImagePreviews() {
-    // Luôn quét qua 3 ô tiềm năng để đảm bảo đồng bộ
     for (let i = 1; i <= 3; i++) {
         const urlEl = document.getElementById(`hhEditAnh${i}`);
         const preview = document.getElementById(`hhImagePreview${i}`);
@@ -558,14 +499,11 @@ function refreshHhImagePreviews() {
         } else {
             preview.innerHTML = `
                 <div class="text-center p-2">
-                    <svg class="w-8 h-8 mx-auto text-slate-300 group-hover:text-primary transition-colors"
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <svg class="w-8 h-8 mx-auto text-slate-300 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <span class="text-[10px] text-slate-400 block mt-1 font-bold">Chạm để tải ảnh</span>
+                    <span class="text-[10px] text-slate-400 block mt-1 font-bold">Cham de tai anh</span>
                 </div>
             `;
             preview.classList.add('border-dashed');
@@ -587,7 +525,6 @@ async function appendHangHoanQuickByMvd(mvdRaw) {
     if (!token) return false;
     const today = new Date().toISOString().split('T')[0];
 
-    // Tự động tìm kiếm thông tin như khi nhập tay
     let mvd2 = '';
     let maGian = '';
     let sku = '';
@@ -595,7 +532,6 @@ async function appendHangHoanQuickByMvd(mvdRaw) {
     let slg = '1';
     let tenSp = '';
 
-    // 1. Tìm trong UD_CT (Dữ liệu đơn hàng)
     const udctMatch = udctData.find(item => (item.mvd || '').toString().trim() === mvd);
     if (udctMatch) {
         maGian = (udctMatch.ma_gian || '').toString().toUpperCase();
@@ -605,13 +541,12 @@ async function appendHangHoanQuickByMvd(mvdRaw) {
         tenSp = udctMatch.ten_sp || '';
     }
 
-    // 2. Tìm trong HH_NV_DIEN (Dữ liệu shop điền)
-    const hhShopMatch = hhShopDienData.find(item => (item.mvd_tra || '').toString().trim() === mvd);
-    if (hhShopMatch) {
-        mvd2 = (hhShopMatch.mvd || '').toString().toUpperCase();
-        if (!maGian) maGian = (hhShopMatch.ma_gian || '').toString().toUpperCase();
-        if (!sku) sku = (hhShopMatch.sku_tra || '').toString().toUpperCase();
-        slg = '1';
+    if (skuCt) {
+        const matchedSp = sanphamData.find(i => (i.sku_con || '').toString().trim().toUpperCase() === skuCt.toString().trim().toUpperCase());
+        if (matchedSp) {
+            sku = matchedSp.id_sp || matchedSp.sku_con.substring(0, 4) || sku;
+            if (!tenSp) tenSp = matchedSp.ten_sp || matchedSp.ten || '';
+        }
     }
 
     const appendValues = [[
@@ -620,27 +555,27 @@ async function appendHangHoanQuickByMvd(mvdRaw) {
         mvd,
         mvd2,
         maGian,
-        '', // anh_1
-        '', // anh_2
-        '', // anh_3
-        '', // ngay_xly
+        '',
+        '',
+        '',
+        '',
         sku,
         skuCt,
         slg,
         tenSp,
-        '', // ghi_chu
-        '', // tinh_trang
-        '', // trang_thai
-        '', // sku_slg
-        '', // id_nv
-        '', // udt
-        (mvd && maGian) ? `${mvd}-${maGian}` : '', // mvd_gian
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        (mvd && maGian) ? `${mvd}-${maGian}` : '',
         'KHO',
-        '', // lb3
-        '', // id_dh
-        '', // id_dh_ct
-        '', // stt
-        '' // danh_dau
+        '',
+        '',
+        '',
+        '',
+        ''
     ]];
     const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${CONFIG.hhbhSheetName}!A:A:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
     const appendResp = await fetch(appendUrl, {
@@ -1020,9 +955,14 @@ async function saveHhDetail() {
             anh_2: document.getElementById('hhEditAnh2').value,
             anh_3: document.getElementById('hhEditAnh3').value
         };
-        if (newData.sku_ct && !newData.ten_sp) {
-            const matchedSp = sanphamData.find(i => (i.sku_con || '') === newData.sku_ct);
-            if (matchedSp?.ten) newData.ten_sp = matchedSp.ten;
+        if (newData.sku_ct) {
+            const matchedSp = sanphamData.find(i => (i.sku_con || '').toString().trim().toUpperCase() === newData.sku_ct.toString().trim().toUpperCase());
+            if (matchedSp) {
+                newData.sku = matchedSp.id_sp || matchedSp.sku_con.substring(0, 4) || newData.sku;
+                if (!newData.ten_sp) newData.ten_sp = matchedSp.ten_sp || matchedSp.ten || '';
+                const skuInput = document.getElementById('hhEditSKU');
+                if (skuInput) skuInput.value = newData.sku;
+            }
         }
         const skuCatalog = new Set(sanphamData.map(i => (i.id_sp || '').trim()).filter(Boolean));
         if (newData.sku && skuCatalog.size && !skuCatalog.has(newData.sku.trim())) {

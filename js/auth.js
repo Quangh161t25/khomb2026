@@ -12,8 +12,6 @@ function applyRoleUI(role) {
 
     const hangHoanModule = document.getElementById('sidebarHangHoan');
     if (hangHoanModule) hangHoanModule.style.display = isDemo ? 'none' : '';
-    const hhShopDienModule = document.getElementById('sidebarHHShopDien');
-    if (hhShopDienModule) hhShopDienModule.style.display = isDemo ? 'none' : '';
 
     if (isKinhDoanh) {
         const hhActions = [
@@ -175,7 +173,6 @@ window.onload = async () => {
                     'ton_kho': 'inventory',
                     'dh_ct': 'dh_ct',
                     'hang_hoan': 'hang_hoan',
-                    'hh_shop_dien': 'hh_shop_dien'
                 };
                 if (link && moduleMapping[link]) {
                     if (typeof switchModule === 'function') switchModule(moduleMapping[link]);
