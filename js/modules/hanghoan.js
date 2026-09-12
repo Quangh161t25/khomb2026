@@ -133,16 +133,10 @@ function setHhKho(value) {
 
 function populateHhFormOptions() {
     const maGianList = document.getElementById('hhMaGianList');
-    const skuList = document.getElementById('hhSkuList');
     if (maGianList) {
         const uniqueMaGian = [...new Set(hangHoanData.map(i => (i.ma_gian || '').toString().trim()).filter(Boolean))].sort();
         maGianList.innerHTML = uniqueMaGian.map(v => `<option value="${escapeHtml(v)}">`).join('');
     }
-    if (skuList) {
-        const uniqueSku = [...new Set(sanphamData.map(i => (i.id_sp || '').toString().trim()).filter(Boolean))].sort();
-        skuList.innerHTML = uniqueSku.map(v => `<option value="${escapeHtml(v)}">`).join('');
-    }
-    handleHhSkuChange();
 }
 
 function ensureHhCatalogLoaded(callback) {
@@ -184,7 +178,7 @@ function getHhSkuMatches(value, limit = 50) {
     return matches.sort((a, b) => a.sku.localeCompare(b.sku)).slice(0, limit);
 }
 
-function renderHhSkuSuggestions(forceShow = false) {
+function renderHhSkuSuggestions(forceShow = false) { return;
     const input = document.getElementById('hhEditSKU');
     const sugBox = document.getElementById('hhSkuSuggestions');
     if (!input || !sugBox) return;
@@ -360,7 +354,7 @@ function handleHhMvd2Change(forceShow = false) {
     if (sugBox) {
         if (val.length >= 1 || forceShow) {
             const seen = new Set();
-            hhCurrentMvd2Suggestions = [];
+            const matches = [];
             for (const item of udctData) {
                 const mvd = (item.mvd || '').toString().trim();
                 const mdh = (item.mdh || '').toString().trim();
@@ -372,10 +366,12 @@ function handleHhMvd2Change(forceShow = false) {
 
                 if (!val || mvd.toLowerCase().includes(val) || mdh.toLowerCase().includes(val) || maGian.toLowerCase().includes(val) || skuCt.toLowerCase().includes(val) || tenSp.toLowerCase().includes(val)) {
                     seen.add(key);
-                    hhCurrentMvd2Suggestions.push(item);
-                    if (hhCurrentMvd2Suggestions.length >= 10) break;
+                    matches.push(item);
                 }
             }
+
+            matches.sort((a, b) => (b.mvd || b.mdh || '').toString().localeCompare((a.mvd || a.mdh || '').toString()));
+            hhCurrentMvd2Suggestions = matches.slice(0, 10);
 
             if (hhCurrentMvd2Suggestions.length > 0) {
                 sugBox.innerHTML = hhCurrentMvd2Suggestions.map((item, idx) => renderUdctSuggestionItem(item, idx, 'mvd2')).join('');
@@ -420,7 +416,7 @@ function handleHhMdhChange(forceShow = false) {
     if (sugBox) {
         if (val.length >= 1 || forceShow) {
             const seen = new Set();
-            hhCurrentMdhSuggestions = [];
+            const matches = [];
             for (const item of udctData) {
                 const mdh = (item.mdh || '').toString().trim();
                 const mvd = (item.mvd || '').toString().trim();
@@ -432,10 +428,12 @@ function handleHhMdhChange(forceShow = false) {
 
                 if (!val || mdh.toLowerCase().includes(val) || mvd.toLowerCase().includes(val) || maGian.toLowerCase().includes(val) || skuCt.toLowerCase().includes(val) || tenSp.toLowerCase().includes(val)) {
                     seen.add(key);
-                    hhCurrentMdhSuggestions.push(item);
-                    if (hhCurrentMdhSuggestions.length >= 10) break;
+                    matches.push(item);
                 }
             }
+
+            matches.sort((a, b) => (b.mdh || b.mvd || '').toString().localeCompare((a.mdh || a.mvd || '').toString()));
+            hhCurrentMdhSuggestions = matches.slice(0, 10);
 
             if (hhCurrentMdhSuggestions.length > 0) {
                 sugBox.innerHTML = hhCurrentMdhSuggestions.map((item, idx) => renderUdctSuggestionItem(item, idx, 'mdh')).join('');
@@ -481,14 +479,15 @@ function handleHhSkuChange() {
     }
 
     if (sugBox) {
-        const filteredItems = sanphamData.filter(item =>
-            (item.id_sp || '').toUpperCase() === sku ||
-            (item.sku_con || '').toUpperCase().startsWith(sku)
-        );
+        const filteredItems = sanphamData.filter(item => {
+            const code = (item.sku_con || '').toString().trim();
+            if (code.length <= 5) return false;
+            return (item.id_sp || '').toUpperCase() === sku || code.toUpperCase().startsWith(sku);
+        }).sort((a, b) => (b.sku_con || '').toString().localeCompare((a.sku_con || '').toString()));
 
         if (sku && filteredItems.length > 0) {
             sugBox.innerHTML = filteredItems.map(item => `
-                <div class="suggestion-item" onclick="setHhSkuCt('${escapeHtml(item.sku_con)}')">
+                <div class="suggestion-item" onmousedown="event.preventDefault(); setHhSkuCt('${escapeHtml(item.sku_con)}')" onclick="setHhSkuCt('${escapeHtml(item.sku_con)}')">
                     <span class="item-code">${escapeHtml(item.sku_con)}</span>
                     <span class="item-name">${escapeHtml(item.ten_sp)}</span>
                 </div>
@@ -546,19 +545,22 @@ function handleHhSkuCtChange(forceShow = false) {
     if (sugBox) {
         if (val.length >= 1 || sku || forceShow) {
             const search = val.toLowerCase();
-            const suggestions = sanphamData.filter(item =>
-                search
-                    ? (item.sku_con || '').toLowerCase().includes(search) ||
-                    (item.ten_sp || '').toLowerCase().includes(search)
-                    : sku
+            const suggestions = sanphamData.filter(item => {
+                const code = (item.sku_con || '').toString().trim();
+                if (code.length <= 5) return false;
+                if (!search) {
+                    return sku
                         ? (item.id_sp || '').toLowerCase() === sku ||
-                        (item.sku_con || '').toLowerCase().startsWith(sku)
-                        : true
-            ).slice(0, 50);
+                        code.toLowerCase().startsWith(sku)
+                        : true;
+                }
+                return code.toLowerCase().includes(search) ||
+                    (item.ten_sp || '').toLowerCase().includes(search);
+            }).sort((a, b) => (b.sku_con || '').toString().localeCompare((a.sku_con || '').toString())).slice(0, 50);
 
             if (suggestions.length > 0) {
                 sugBox.innerHTML = suggestions.map(item => `
-                    <div class="suggestion-item" onclick="setHhSkuCt('${escapeHtml(item.sku_con)}')">
+                    <div class="suggestion-item" onmousedown="event.preventDefault(); setHhSkuCt('${escapeHtml(item.sku_con)}')" onclick="setHhSkuCt('${escapeHtml(item.sku_con)}')">
                         <span class="item-code">${escapeHtml(item.sku_con)}</span>
                         <span class="item-name">${escapeHtml(item.ten_sp)}</span>
                     </div>
@@ -1115,6 +1117,11 @@ function openHhDetail(index) {
     document.querySelectorAll('#hhEditKhoButtons button').forEach(btn => btn.disabled = isKinhDoanh);
     const copyBtn = document.getElementById('hhCopyButton');
     if (copyBtn) copyBtn.style.display = isKinhDoanh ? 'none' : 'inline-flex';
+    const deleteBtn = document.getElementById('hhDeleteButton');
+    if (deleteBtn) {
+        deleteBtn.style.display = isKinhDoanh ? 'none' : 'inline-block';
+        deleteBtn.classList.toggle('hidden', isKinhDoanh);
+    }
     const footer = document.getElementById('hhDrawerFooter') || document.querySelector('#hhDrawer .pt-4.border-t.border-slate-200.flex.gap-3');
     if (footer) footer.style.display = '';
     document.getElementById('hhDrawerOverlay').classList.remove('hidden');
@@ -1160,6 +1167,11 @@ function openNewHangHoanDrawer() {
     document.querySelectorAll('#hhEditKhoButtons button').forEach(btn => btn.disabled = false);
     const copyBtn = document.getElementById('hhCopyButton');
     if (copyBtn) copyBtn.style.display = 'none';
+    const deleteBtn = document.getElementById('hhDeleteButton');
+    if (deleteBtn) {
+        deleteBtn.style.display = 'none';
+        deleteBtn.classList.add('hidden');
+    }
     const footer = document.getElementById('hhDrawerFooter') || document.querySelector('#hhDrawer .pt-4.border-t.border-slate-200.flex.gap-3');
     if (footer) footer.style.display = '';
     document.getElementById('hhDrawerOverlay').classList.remove('hidden');
@@ -1195,6 +1207,11 @@ function copyCurrentHangHoan() {
 
     const copyBtn = document.getElementById('hhCopyButton');
     if (copyBtn) copyBtn.style.display = 'none';
+    const deleteBtn = document.getElementById('hhDeleteButton');
+    if (deleteBtn) {
+        deleteBtn.style.display = 'none';
+        deleteBtn.classList.add('hidden');
+    }
 
     const noticeEl = document.getElementById('hhMvdDuplicateNotice');
     if (noticeEl) noticeEl.classList.add('hidden');
@@ -1220,8 +1237,99 @@ function closeHhDetailDrawer() {
     if (skuSug) skuSug.classList.add('hidden');
     const skuCtSug = document.getElementById('hhSkuCtSuggestions');
     if (skuCtSug) skuCtSug.classList.add('hidden');
+    const deleteBtn = document.getElementById('hhDeleteButton');
+    if (deleteBtn) {
+        deleteBtn.style.display = 'none';
+        deleteBtn.classList.add('hidden');
+    }
     currentHangHoanEditIndex = -1;
     hhDrawerMode = 'edit';
+}
+
+async function deleteCurrentHangHoan() {
+    if (hhDrawerMode === 'create' || currentHangHoanEditIndex === -1) {
+        return;
+    }
+    const isKinhDoanh = currentUser && currentUser.role === 'kinhdoanh';
+    if (isKinhDoanh) {
+        alert('Tài khoản KINHDOANH không có quyền xóa dữ liệu Hàng hoàn.');
+        return;
+    }
+    const item = hangHoanData[currentHangHoanEditIndex];
+    if (!item) {
+        if (typeof showToast === 'function') showToast('Không xác định được dòng cần xóa.', 'error');
+        else alert('Không xác định được dòng cần xóa.');
+        return;
+    }
+    const rowIndex = item.rowIndex || (currentHangHoanEditIndex + 2);
+    const confirmMsg = `Bạn có chắc chắn muốn xóa dòng Hàng hoàn này?\n- MVD: ${item.mvd || item.mvd_2 || '-'}\n- SKU CT: ${item.sku_ct || '-'}\n- Số lượng: ${item.slg || '1'}`;
+    if (!confirm(confirmMsg)) return;
+
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+
+    try {
+        const token = await getAccessToken();
+        if (!token) {
+            alert('Không thể xác thực Google Sheets. Vui lòng đăng nhập lại.');
+            return;
+        }
+
+        let sheetId = null;
+        if (typeof fetchSheetMeta === 'function') {
+            sheetId = await fetchSheetMeta(CONFIG.hhbhSheetName, token);
+        }
+        if (sheetId === null || sheetId === undefined) {
+            const metaResp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}?fields=sheets(properties(sheetId,title))`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const metaData = await metaResp.json();
+            const sheet = (metaData.sheets || []).find(s => s.properties?.title === CONFIG.hhbhSheetName);
+            sheetId = sheet?.properties?.sheetId ?? null;
+        }
+
+        if (sheetId === null || sheetId === undefined) {
+            throw new Error(`Không tìm thấy sheetId của ${CONFIG.hhbhSheetName}`);
+        }
+
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}:batchUpdate`;
+        const body = {
+            requests: [{
+                deleteDimension: {
+                    range: {
+                        sheetId: sheetId,
+                        dimension: 'ROWS',
+                        startIndex: rowIndex - 1,
+                        endIndex: rowIndex
+                    }
+                }
+            }]
+        };
+
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (!resp.ok) {
+            const errText = await resp.text();
+            console.error('Delete HH error:', errText);
+            alert('Lỗi khi xóa dòng Hàng hoàn trên Google Sheet.');
+            return;
+        }
+
+        closeHhDetailDrawer();
+        await fetchHangHoanData();
+        if (typeof showToast === 'function') {
+            showToast('Đã xóa dòng Hàng hoàn thành công!', 'success');
+        }
+    } catch (err) {
+        console.error('Delete HH error:', err);
+        alert('Có lỗi khi xóa Hàng hoàn: ' + (err.message || 'Lỗi không xác định'));
+    } finally {
+        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    }
 }
 
 async function saveHhDetail() {
@@ -1684,6 +1792,7 @@ document.addEventListener('click', (e) => {
     window.openNewHangHoanDrawer = openNewHangHoanDrawer;
     window.copyCurrentHangHoan = copyCurrentHangHoan;
     window.closeHhDetailDrawer = closeHhDetailDrawer;
+    window.deleteCurrentHangHoan = deleteCurrentHangHoan;
     window.saveHhDetail = saveHhDetail;
     window.buildSkuTongMap = buildSkuTongMap;
     window.getSkuTongForItem = getSkuTongForItem;
