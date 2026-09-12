@@ -268,3 +268,21 @@ body {
 #hhDrawerFooter {
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
+
+/* Hide clear buttons and disable interactions when input is disabled */
+input:disabled ~ button[onclick*="clearHhInput"],
+input:disabled + button[onclick*="clearHhInput"],
+input[disabled] ~ button[onclick*="clearHhInput"],
+input[disabled] + button[onclick*="clearHhInput"] {
+    display: none !important;
+    pointer-events: none !important;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+    background-color: #f1f5f9 !important;
+    color: #64748b !important;
+    cursor: not-allowed !important;
+    border-color: #cbd5e1 !important;
+}

@@ -91,8 +91,8 @@
                     </svg>
                 </button>
             </div>
-            <div class="flex-1 py-2 overflow-y-auto">
-                <div onclick="window.location.href='index.html'" id="sidebarHome"
+                        <div class="flex-1 py-2 overflow-y-auto">
+                <div onclick="switchModule('home')" id="sidebarHome"
                     class="sidebar-item active px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 border-r-2 border-primary bg-blue-50 text-primary"
                     title="Trang chủ">
                     <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -101,7 +101,7 @@
                     </svg>
                     <span class="font-medium sidebar-text">Trang chủ</span>
                 </div>
-                <div onclick="window.location.href='index.html?link=don_chi_tiet'" id="sidebarDonhang"
+                <div onclick="switchModule('donhang')" id="sidebarDonhang"
                     class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
                     title="UP Đơn chi tiết">
                     <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -110,7 +110,7 @@
                     </svg>
                     <span class="font-medium sidebar-text">UP Đơn chi tiết</span>
                 </div>
-                <div onclick="window.location.href='index.html?link=san_pham'" id="sidebarSanpham"
+                <div onclick="switchModule('sanpham')" id="sidebarSanpham"
                     class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
                     title="Sản phẩm PM">
                     <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -119,34 +119,7 @@
                     </svg>
                     <span class="font-medium sidebar-text">Sản phẩm PM</span>
                 </div>
-                <div onclick="window.location.href='index.html?link=bao_cao'" id="sidebarBaocao"
-                    class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
-                    title="Báo cáo">
-                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 19v-6a2 2 0 00-2 2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    <span class="font-medium sidebar-text">Báo cáo</span>
-                </div>
-                <div onclick="window.location.href='index.html?link=upmisa'" id="sidebarUpmisa"
-                    class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
-                    title="UPMISA">
-                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span class="font-medium sidebar-text">UPMISA</span>
-                </div>
-                <div onclick="window.location.href='index.html?link=ton_kho'" id="sidebarInventory"
-                    class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
-                    title="Tồn kho">
-                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
-                    <span class="font-medium sidebar-text">Tồn kho</span>
-                </div>
-                <div onclick="window.location.href='index.html?link=hang_hoan'" id="sidebarHangHoan"
+                <div onclick="switchModule('hang_hoan')" id="sidebarHangHoan"
                     class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
                     title="Hàng hoàn">
                     <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -155,14 +128,80 @@
                     </svg>
                     <span class="font-medium sidebar-text">Hàng hoàn</span>
                 </div>
-                <div onclick="window.location.href='index.html?link=hh_shop_dien'" id="sidebarHHShopDien"
+                <div onclick="switchModule('ban_don')" id="sidebarBanDon"
                     class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
-                    title="HH SHOP ĐIỀN">
+                    title="Bắn đơn">
                     <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M7 8h10M7 12h6m-8 8h14a2 2 0 002-2V8l-4-4H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
-                    <span class="font-medium sidebar-text">HH SHOP ĐIỀN</span>
+                    <span class="font-medium sidebar-text">Bắn đơn</span>
+                </div>
+                <div onclick="switchModule('donhang_tong')" id="sidebarDonhangTong"
+                    class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
+                    title="Đơn hàng">
+                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                    <span class="font-medium sidebar-text">Đơn hàng</span>
+                </div>
+                <div onclick="switchModule('dhct')" id="sidebarDhct"
+                    class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
+                    title="Đơn hàng CT">
+                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <span class="font-medium sidebar-text">Đơn hàng CT</span>
+                </div>
+                <div onclick="switchModule('inventory')" id="sidebarInventory"
+                    class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
+                    title="Tồn kho">
+                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                    <span class="font-medium sidebar-text">Tồn kho</span>
+                </div>
+
+                <div class="my-2 border-t border-slate-100 mx-3"></div>
+
+                <div onclick="switchModule('bc_hang_hoan')" id="sidebarBCHangHoan"
+                    class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
+                    title="Báo cáo hàng hoàn">
+                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2 2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <span class="font-medium sidebar-text">BC Hàng hoàn</span>
+                </div>
+                <div onclick="switchModule('baocao')" id="sidebarBaocao"
+                    class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
+                    title="Báo cáo đơn hàng">
+                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2 2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <span class="font-medium sidebar-text">Báo cáo đơn hàng</span>
+                </div>
+                <div onclick="switchModule('baocao_tong')" id="sidebarBaocaoTong"
+                    class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
+                    title="Báo cáo tổng">
+                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2 2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <span class="font-medium sidebar-text">Báo cáo tổng</span>
+                </div>
+                <div onclick="switchModule('upmisa')" id="sidebarUpmisa"
+                    class="sidebar-item px-3 py-1.5 mx-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-slate-600 hover:bg-slate-50"
+                    title="UPMISA">
+                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span class="font-medium sidebar-text">UPMISA</span>
                 </div>
             </div>
             <div class="p-2.5 border-t border-slate-200">
@@ -210,12 +249,12 @@
                                     class="text-primary"></span>!</h1>
                             <p class="text-slate-500 mt-2">Chào mừng bạn đến với hệ thống quản lý</p>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <div onclick="switchModule('donhang')"
-                                class="module-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-lg transition-all">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            <!-- 1. UP Đơn chi tiết -->
+                            <div id="homeCardDonhang" onclick="switchModule('donhang')"
+                                class="module-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
                                 <div class="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                                    <svg class="w-7 h-7 text-blue-600" fill="none" viewBox="0 0 24 24"
-                                        stroke="currentColor">
+                                    <svg class="w-7 h-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                     </svg>
@@ -225,46 +264,199 @@
                                 <div class="mt-4 flex items-center text-primary text-sm font-medium">
                                     <span>Truy cập ngay</span>
                                     <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M9 5l7 7-7 7" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                                     </svg>
                                 </div>
                             </div>
-                            <div onclick="switchModule('sanpham')"
-                                class="module-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-lg transition-all">
+
+                            <!-- 2. Sản phẩm PM -->
+                            <div id="homeCardSanpham" onclick="switchModule('sanpham')"
+                                class="module-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
                                 <div class="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mb-4">
-                                    <svg class="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24"
-                                        stroke="currentColor">
+                                    <svg class="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                                     </svg>
                                 </div>
-                                <h3 class="text-lg font-bold text-slate-900 mb-2">Sản phẩm phần mềm</h3>
+                                <h3 class="text-lg font-bold text-slate-900 mb-2">Sản phẩm PM</h3>
                                 <p class="text-sm text-slate-500">Quản lý danh sách sản phẩm phần mềm</p>
                                 <div class="mt-4 flex items-center text-primary text-sm font-medium">
                                     <span>Truy cập ngay</span>
                                     <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M9 5l7 7-7 7" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                                     </svg>
                                 </div>
                             </div>
-                            <div onclick="switchModule('upmisa')"
-                                class="module-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-lg transition-all">
+
+                            <!-- 3. Hàng hoàn -->
+                            <div id="homeCardHangHoan" onclick="switchModule('hang_hoan')"
+                                class="module-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                                <div class="w-14 h-14 bg-rose-100 rounded-xl flex items-center justify-center mb-4">
+                                    <svg class="w-7 h-7 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M3 10h4l3 8 4-16 3 8h4" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-lg font-bold text-slate-900 mb-2">Hàng hoàn</h3>
+                                <p class="text-sm text-slate-500">Quản lý và xử lý dữ liệu hàng hoàn</p>
+                                <div class="mt-4 flex items-center text-primary text-sm font-medium">
+                                    <span>Truy cập ngay</span>
+                                    <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- 4. Bắn đơn -->
+                            <div id="homeCardBanDon" onclick="switchModule('ban_don')"
+                                class="module-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                                <div class="w-14 h-14 bg-amber-100 rounded-xl flex items-center justify-center mb-4">
+                                    <svg class="w-7 h-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-lg font-bold text-slate-900 mb-2">Bắn đơn</h3>
+                                <p class="text-sm text-slate-500">Bắn đơn xuất kho nhanh chóng</p>
+                                <div class="mt-4 flex items-center text-primary text-sm font-medium">
+                                    <span>Truy cập ngay</span>
+                                    <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- 5. Đơn hàng -->
+                            <div id="homeCardDonhangTong" onclick="switchModule('donhang_tong')"
+                                class="module-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                                <div class="w-14 h-14 bg-indigo-100 rounded-xl flex items-center justify-center mb-4">
+                                    <svg class="w-7 h-7 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-lg font-bold text-slate-900 mb-2">Đơn hàng</h3>
+                                <p class="text-sm text-slate-500">Quản lý tổng hợp danh sách đơn hàng</p>
+                                <div class="mt-4 flex items-center text-primary text-sm font-medium">
+                                    <span>Truy cập ngay</span>
+                                    <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- 6. Đơn hàng CT -->
+                            <div id="homeCardDhct" onclick="switchModule('dhct')"
+                                class="module-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                                <div class="w-14 h-14 bg-sky-100 rounded-xl flex items-center justify-center mb-4">
+                                    <svg class="w-7 h-7 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-lg font-bold text-slate-900 mb-2">Đơn hàng CT</h3>
+                                <p class="text-sm text-slate-500">Quản lý chi tiết từng đơn hàng</p>
+                                <div class="mt-4 flex items-center text-primary text-sm font-medium">
+                                    <span>Truy cập ngay</span>
+                                    <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- 7. Tồn kho -->
+                            <div id="homeCardInventory" onclick="switchModule('inventory')"
+                                class="module-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                                <div class="w-14 h-14 bg-teal-100 rounded-xl flex items-center justify-center mb-4">
+                                    <svg class="w-7 h-7 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-lg font-bold text-slate-900 mb-2">Tồn kho</h3>
+                                <p class="text-sm text-slate-500">Quản lý dữ liệu và định mức tồn kho</p>
+                                <div class="mt-4 flex items-center text-primary text-sm font-medium">
+                                    <span>Truy cập ngay</span>
+                                    <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- 8. BC Hàng hoàn -->
+                            <div id="homeCardBCHangHoan" onclick="switchModule('bc_hang_hoan')"
+                                class="module-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                                <div class="w-14 h-14 bg-pink-100 rounded-xl flex items-center justify-center mb-4">
+                                    <svg class="w-7 h-7 text-pink-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 19v-6a2 2 0 00-2 2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-lg font-bold text-slate-900 mb-2">BC Hàng hoàn</h3>
+                                <p class="text-sm text-slate-500">Báo cáo thống kê hàng hoàn chi tiết</p>
+                                <div class="mt-4 flex items-center text-primary text-sm font-medium">
+                                    <span>Truy cập ngay</span>
+                                    <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- 9. Báo cáo đơn hàng -->
+                            <div id="homeCardBaocao" onclick="switchModule('baocao')"
+                                class="module-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                                <div class="w-14 h-14 bg-violet-100 rounded-xl flex items-center justify-center mb-4">
+                                    <svg class="w-7 h-7 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 19v-6a2 2 0 00-2 2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-lg font-bold text-slate-900 mb-2">Báo cáo đơn hàng</h3>
+                                <p class="text-sm text-slate-500">Báo cáo doanh thu & đơn hàng</p>
+                                <div class="mt-4 flex items-center text-primary text-sm font-medium">
+                                    <span>Truy cập ngay</span>
+                                    <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- 10. Báo cáo tổng -->
+                            <div id="homeCardBaocaoTong" onclick="switchModule('baocao_tong')"
+                                class="module-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                                <div class="w-14 h-14 bg-cyan-100 rounded-xl flex items-center justify-center mb-4">
+                                    <svg class="w-7 h-7 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-lg font-bold text-slate-900 mb-2">Báo cáo tổng</h3>
+                                <p class="text-sm text-slate-500">Báo cáo tổng quan số liệu hệ thống</p>
+                                <div class="mt-4 flex items-center text-primary text-sm font-medium">
+                                    <span>Truy cập ngay</span>
+                                    <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- 11. UPMISA -->
+                            <div id="homeCardUpmisa" onclick="switchModule('upmisa')"
+                                class="module-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all">
                                 <div class="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
-                                    <svg class="w-7 h-7 text-purple-600" fill="none" viewBox="0 0 24 24"
-                                        stroke="currentColor">
+                                    <svg class="w-7 h-7 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                     </svg>
                                 </div>
                                 <h3 class="text-lg font-bold text-slate-900 mb-2">UPMISA</h3>
-                                <p class="text-sm text-slate-500">Xuất dữ liệu ra MISA</p>
+                                <p class="text-sm text-slate-500">Xuất dữ liệu đồng bộ MISA</p>
                                 <div class="mt-4 flex items-center text-primary text-sm font-medium">
                                     <span>Truy cập ngay</span>
                                     <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M9 5l7 7-7 7" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                                     </svg>
                                 </div>
                             </div>
@@ -1805,6 +1997,20 @@
                             <input type="hidden" id="hhEditAnh3" value="">
                         </div>
                     </div>
+                </div>
+
+                <!-- Lịch sử chỉnh sửa & Ghi chú -->
+                <div id="hhHistorySection" class="col-span-2 mt-2 pt-3 border-t border-slate-200">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Lịch sử chỉnh sửa & Ghi chú
+                        </span>
+                        <span id="hhLastUpdateBadge" class="text-[10px] text-slate-400 font-medium truncate max-w-[220px]"></span>
+                    </div>
+                    <div id="hhHistoryContent" class="bg-slate-50 rounded-xl p-2.5 border border-slate-200 text-xs text-slate-600 max-h-36 overflow-y-auto whitespace-pre-line font-mono text-[11px] leading-relaxed select-text">Chưa có lịch sử chỉnh sửa</div>
                 </div>
             </div>
         </div>

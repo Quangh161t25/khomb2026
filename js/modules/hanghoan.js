@@ -1,5 +1,26 @@
 // hanghoan - Module Pattern (IIFE)
 (function () {
+function formatDateTimeNow() {
+    const now = new Date();
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    const h = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const s = String(now.getSeconds()).padStart(2, '0');
+    return `${d}/${m}/${y} ${h}:${min}:${s}`;
+}
+
+function getEditorDisplayName() {
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        if (currentUser.name && currentUser.id && currentUser.name !== currentUser.id) {
+            return `${currentUser.name} (${currentUser.id})`;
+        }
+        return currentUser.name || currentUser.id || currentUser.role || 'User';
+    }
+    return 'User';
+}
+
 function fillHangHoanFilterOptions() {
     const fillSelect = (id, values, label) => {
         const el = document.getElementById(id);
@@ -77,22 +98,37 @@ function stepHhEditNgayNhan(step) {
     input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-function changeHangHoanDate(which, step) {
-    const input = document.getElementById(which === 'from' ? 'filterHHFrom' : 'filterHHTo');
-    if (!input) return;
-    if (!input.value) {
-        setHangHoanToday();
-        return;
+function shiftHHFilterDate(idOrWhich, delta) {
+    let input = document.getElementById(idOrWhich);
+    if (!input) {
+        if (idOrWhich === 'from') input = document.getElementById('filterHHFrom');
+        else if (idOrWhich === 'to') input = document.getElementById('filterHHTo');
     }
+    if (!input) return;
+
+    if (!input.value) {
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const d = String(today.getDate()).padStart(2, '0');
+        input.value = `${y}-${m}-${d}`;
+    }
+
     const parts = input.value.split('-');
     if (parts.length !== 3) return;
-    const dt = new Date(parts[0], parts[1] - 1, parts[2]);
-    dt.setDate(dt.getDate() + step);
+    const dt = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    dt.setDate(dt.getDate() + delta);
     const y = dt.getFullYear();
     const m = String(dt.getMonth() + 1).padStart(2, '0');
     const d = String(dt.getDate()).padStart(2, '0');
     input.value = `${y}-${m}-${d}`;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
     filterHangHoanData();
+}
+
+function changeHangHoanDate(which, step) {
+    shiftHHFilterDate(which, step);
 }
 
 function openImagePreview(url) {
@@ -259,6 +295,26 @@ function renderUdctSuggestionItem(item, idx, type) {
 function applyUdctItemToHangHoanForm(item, currentField) {
     if (!item) return;
 
+    const isKinhDoanh = currentUser && currentUser.role === 'kinhdoanh';
+    if (hhDrawerMode === 'edit' && isKinhDoanh) {
+        if (currentField === 'mvd2') {
+            const mvd2Input = document.getElementById('hhEditMVD2');
+            if (mvd2Input) mvd2Input.value = item.mvd || '';
+            const mdhInput = document.getElementById('hhEditMDH');
+            if (mdhInput && !mdhInput.value && item.mdh) mdhInput.value = item.mdh;
+        } else {
+            const mdhInput = document.getElementById('hhEditMDH');
+            if (mdhInput) mdhInput.value = item.mdh || '';
+            const mvd2Input = document.getElementById('hhEditMVD2');
+            if (mvd2Input && !mvd2Input.value && item.mvd) mvd2Input.value = item.mvd;
+        }
+        const mvd2Sug = document.getElementById('hhMvd2Suggestions');
+        if (mvd2Sug) mvd2Sug.classList.add('hidden');
+        const mdhSug = document.getElementById('hhMdhSuggestions');
+        if (mdhSug) mdhSug.classList.add('hidden');
+        return;
+    }
+
     if (currentField === 'mvd2') {
         const mvd2Input = document.getElementById('hhEditMVD2');
         if (mvd2Input) mvd2Input.value = item.mvd || '';
@@ -341,6 +397,7 @@ function handleHhMvd2Change(forceShow = false) {
     if (!input) return;
     const val = input.value.trim().toLowerCase();
     const sugBox = document.getElementById('hhMvd2Suggestions');
+    const maGianCurrent = (document.getElementById('hhEditMaGian')?.value || '').trim().toLowerCase();
 
     if ((!udctData || udctData.length === 0) && (val || forceShow)) {
         if (sugBox) {
@@ -354,7 +411,9 @@ function handleHhMvd2Change(forceShow = false) {
     if (sugBox) {
         if (val.length >= 1 || forceShow) {
             const seen = new Set();
-            const matches = [];
+            const matchesWithMaGian = [];
+            const otherMatches = [];
+
             for (const item of udctData) {
                 const mvd = (item.mvd || '').toString().trim();
                 const mdh = (item.mdh || '').toString().trim();
@@ -364,21 +423,38 @@ function handleHhMvd2Change(forceShow = false) {
                 const key = `${mvd}|${skuCt}|${mdh}`.toUpperCase();
                 if ((!mvd && !mdh) || seen.has(key)) continue;
 
-                if (!val || mvd.toLowerCase().includes(val) || mdh.toLowerCase().includes(val) || maGian.toLowerCase().includes(val) || skuCt.toLowerCase().includes(val) || tenSp.toLowerCase().includes(val)) {
+                const isMatchText = !val || mvd.toLowerCase().includes(val) || mdh.toLowerCase().includes(val) || maGian.toLowerCase().includes(val) || skuCt.toLowerCase().includes(val) || tenSp.toLowerCase().includes(val);
+                if (isMatchText) {
                     seen.add(key);
-                    matches.push(item);
+                    if (maGianCurrent && maGian.toLowerCase() === maGianCurrent) {
+                        matchesWithMaGian.push(item);
+                    } else {
+                        otherMatches.push(item);
+                    }
                 }
             }
 
-            matches.sort((a, b) => (b.mvd || b.mdh || '').toString().localeCompare((a.mvd || a.mdh || '').toString()));
-            hhCurrentMvd2Suggestions = matches.slice(0, 10);
+            let matches = [];
+            if (maGianCurrent) {
+                matchesWithMaGian.sort((a, b) => (b.mvd || b.mdh || '').toString().localeCompare((a.mvd || a.mdh || '').toString()));
+                matches = matchesWithMaGian;
+                if (matches.length === 0 && val) {
+                    otherMatches.sort((a, b) => (b.mvd || b.mdh || '').toString().localeCompare((a.mvd || a.mdh || '').toString()));
+                    matches = otherMatches;
+                }
+            } else {
+                otherMatches.sort((a, b) => (b.mvd || b.mdh || '').toString().localeCompare((a.mvd || a.mdh || '').toString()));
+                matches = otherMatches;
+            }
+
+            hhCurrentMvd2Suggestions = matches.slice(0, 15);
 
             if (hhCurrentMvd2Suggestions.length > 0) {
                 sugBox.innerHTML = hhCurrentMvd2Suggestions.map((item, idx) => renderUdctSuggestionItem(item, idx, 'mvd2')).join('');
                 sugBox.classList.remove('hidden');
             } else {
-                sugBox.innerHTML = '';
-                sugBox.classList.add('hidden');
+                sugBox.innerHTML = '<div class="px-3 py-2 text-xs text-slate-400 italic">Không tìm thấy MVD' + (maGianCurrent ? ` thuộc gian [${maGianCurrent.toUpperCase()}]` : '') + '</div>';
+                sugBox.classList.remove('hidden');
             }
         } else {
             sugBox.innerHTML = '';
@@ -403,6 +479,7 @@ function handleHhMdhChange(forceShow = false) {
     if (!input) return;
     const val = input.value.trim().toLowerCase();
     const sugBox = document.getElementById('hhMdhSuggestions');
+    const maGianCurrent = (document.getElementById('hhEditMaGian')?.value || '').trim().toLowerCase();
 
     if ((!udctData || udctData.length === 0) && (val || forceShow)) {
         if (sugBox) {
@@ -416,7 +493,9 @@ function handleHhMdhChange(forceShow = false) {
     if (sugBox) {
         if (val.length >= 1 || forceShow) {
             const seen = new Set();
-            const matches = [];
+            const matchesWithMaGian = [];
+            const otherMatches = [];
+
             for (const item of udctData) {
                 const mdh = (item.mdh || '').toString().trim();
                 const mvd = (item.mvd || '').toString().trim();
@@ -426,21 +505,38 @@ function handleHhMdhChange(forceShow = false) {
                 const key = `${mdh}|${skuCt}|${mvd}`.toUpperCase();
                 if ((!mdh && !mvd) || seen.has(key)) continue;
 
-                if (!val || mdh.toLowerCase().includes(val) || mvd.toLowerCase().includes(val) || maGian.toLowerCase().includes(val) || skuCt.toLowerCase().includes(val) || tenSp.toLowerCase().includes(val)) {
+                const isMatchText = !val || mdh.toLowerCase().includes(val) || mvd.toLowerCase().includes(val) || maGian.toLowerCase().includes(val) || skuCt.toLowerCase().includes(val) || tenSp.toLowerCase().includes(val);
+                if (isMatchText) {
                     seen.add(key);
-                    matches.push(item);
+                    if (maGianCurrent && maGian.toLowerCase() === maGianCurrent) {
+                        matchesWithMaGian.push(item);
+                    } else {
+                        otherMatches.push(item);
+                    }
                 }
             }
 
-            matches.sort((a, b) => (b.mdh || b.mvd || '').toString().localeCompare((a.mdh || a.mvd || '').toString()));
-            hhCurrentMdhSuggestions = matches.slice(0, 10);
+            let matches = [];
+            if (maGianCurrent) {
+                matchesWithMaGian.sort((a, b) => (b.mdh || b.mvd || '').toString().localeCompare((a.mdh || a.mvd || '').toString()));
+                matches = matchesWithMaGian;
+                if (matches.length === 0 && val) {
+                    otherMatches.sort((a, b) => (b.mdh || b.mvd || '').toString().localeCompare((a.mdh || a.mvd || '').toString()));
+                    matches = otherMatches;
+                }
+            } else {
+                otherMatches.sort((a, b) => (b.mdh || b.mvd || '').toString().localeCompare((a.mdh || a.mvd || '').toString()));
+                matches = otherMatches;
+            }
+
+            hhCurrentMdhSuggestions = matches.slice(0, 15);
 
             if (hhCurrentMdhSuggestions.length > 0) {
                 sugBox.innerHTML = hhCurrentMdhSuggestions.map((item, idx) => renderUdctSuggestionItem(item, idx, 'mdh')).join('');
                 sugBox.classList.remove('hidden');
             } else {
-                sugBox.innerHTML = '';
-                sugBox.classList.add('hidden');
+                sugBox.innerHTML = '<div class="px-3 py-2 text-xs text-slate-400 italic">Không tìm thấy đơn hàng' + (maGianCurrent ? ` thuộc gian [${maGianCurrent.toUpperCase()}]` : '') + '</div>';
+                sugBox.classList.remove('hidden');
             }
         } else {
             sugBox.innerHTML = '';
@@ -740,6 +836,25 @@ async function uploadImageHh(input, index) {
             const targetInput = document.getElementById(`hhEditAnh${index}`);
             if (targetInput) targetInput.value = result.data.url;
             refreshHhImagePreviews();
+    const historySection = document.getElementById('hhHistorySection');
+    const historyContent = document.getElementById('hhHistoryContent');
+    const lastUpdateBadge = document.getElementById('hhLastUpdateBadge');
+    if (historySection) historySection.classList.remove('hidden');
+    if (historyContent) {
+        if (item.ghi_chu && item.ghi_chu.trim()) {
+            historyContent.textContent = item.ghi_chu.trim();
+        } else {
+            historyContent.textContent = 'Chưa có ghi chú / lịch sử chỉnh sửa';
+        }
+    }
+    if (lastUpdateBadge) {
+        if (item.id_nv || item.udt) {
+            lastUpdateBadge.textContent = `${item.id_nv || 'NV'} • ${item.udt || ''}`;
+            lastUpdateBadge.title = `Người cập nhật: ${item.id_nv || ''} lúc ${item.udt || ''}`;
+        } else {
+            lastUpdateBadge.textContent = '';
+        }
+    }
             isUploading = false;
             await saveHhDetail();
         } else {
@@ -830,6 +945,9 @@ async function appendHangHoanQuickByMvd(mvdRaw) {
         }
     }
 
+    const nowStr = formatDateTimeNow();
+    const editor = getEditorDisplayName();
+    const initGhiChu = `[${nowStr} - ${editor}] Quét nhanh MVD`;
     const appendValues = [[
         `${Date.now()}`,
         today,
@@ -844,12 +962,12 @@ async function appendHangHoanQuickByMvd(mvdRaw) {
         skuCt,
         slg,
         tenSp,
+        initGhiChu,
         '',
         '',
         '',
-        '',
-        '',
-        '',
+        editor,
+        nowStr,
         (mvd && maGian) ? `${mvd}-${maGian}` : '',
         'KHO',
         '',
@@ -1087,7 +1205,7 @@ function openHhDetail(index) {
     currentHangHoanEditIndex = actualIndex;
     const isKinhDoanh = currentUser && currentUser.role === 'kinhdoanh';
     document.getElementById('hhDrawerTitle').textContent = 'Chi tiết hàng hoàn';
-    document.getElementById('hhSaveButton').textContent = isKinhDoanh ? 'Lưu MVD 2' : 'Lưu thay đổi';
+    document.getElementById('hhSaveButton').textContent = isKinhDoanh ? 'Lưu MVD 2 & MDH' : 'Lưu thay đổi';
     document.getElementById('hhDrawerRowId').textContent = `Row ID: ${item.id || item.ngay_nhan || '-'}`;
     document.getElementById('hhEditMVD').value = item.mvd || '';
     document.getElementById('hhEditMVD2').value = item.mvd_2 || '';
@@ -1108,11 +1226,52 @@ function openHhDetail(index) {
     populateHhFormOptions();
     renderHhKhoButtons(item.kho || 'KHO');
     refreshHhImagePreviews();
+    const historySection = document.getElementById('hhHistorySection');
+    const historyContent = document.getElementById('hhHistoryContent');
+    const lastUpdateBadge = document.getElementById('hhLastUpdateBadge');
+    if (historySection) historySection.classList.add('hidden');
+    if (historyContent) historyContent.textContent = '';
+    if (lastUpdateBadge) lastUpdateBadge.textContent = '';
     const noticeEl = document.getElementById('hhMvdDuplicateNotice');
     if (noticeEl) noticeEl.classList.add('hidden');
-    ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho', 'hhEditNgayNhan', 'hhEditMDH'].forEach(id => {
+    ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho', 'hhEditNgayNhan'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.disabled = isKinhDoanh;
+        if (el) {
+            el.disabled = isKinhDoanh;
+            const parent = el.closest('.group') || el.parentElement;
+            if (parent) {
+                const clearBtn = parent.querySelector('button[onclick*="clearHhInput"]');
+                if (clearBtn) {
+                    clearBtn.disabled = isKinhDoanh;
+                    clearBtn.style.display = isKinhDoanh ? 'none' : '';
+                }
+            }
+        }
+    });
+    ['hhEditMVD2', 'hhEditMDH'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.disabled = false;
+            const parent = el.closest('.group') || el.parentElement;
+            if (parent) {
+                const clearBtn = parent.querySelector('button[onclick*="clearHhInput"]');
+                if (clearBtn) {
+                    clearBtn.disabled = false;
+                    clearBtn.style.display = '';
+                }
+            }
+        }
+    });
+    const qrMvdBtn = document.querySelector('button[onclick*="scanQrForHhMvd()"]');
+    if (qrMvdBtn) {
+        qrMvdBtn.disabled = isKinhDoanh;
+        qrMvdBtn.style.opacity = isKinhDoanh ? '0.5' : '1';
+        qrMvdBtn.style.pointerEvents = isKinhDoanh ? 'none' : '';
+    }
+    document.querySelectorAll('button[onclick*="stepHhEditSLG"], button[onclick*="stepHhEditNgayNhan"]').forEach(btn => {
+        btn.disabled = isKinhDoanh;
+        btn.style.opacity = isKinhDoanh ? '0.5' : '1';
+        btn.style.pointerEvents = isKinhDoanh ? 'none' : '';
     });
     document.querySelectorAll('#hhEditKhoButtons button').forEach(btn => btn.disabled = isKinhDoanh);
     const copyBtn = document.getElementById('hhCopyButton');
@@ -1162,7 +1321,28 @@ function openNewHangHoanDrawer() {
     if (noticeEl) noticeEl.classList.add('hidden');
     ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho', 'hhEditNgayNhan', 'hhEditMDH'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.disabled = false;
+        if (el) {
+            el.disabled = false;
+            const parent = el.closest('.group') || el.parentElement;
+            if (parent) {
+                const clearBtn = parent.querySelector('button[onclick*="clearHhInput"]');
+                if (clearBtn) {
+                    clearBtn.disabled = false;
+                    clearBtn.style.display = '';
+                }
+            }
+        }
+    });
+    const qrMvdBtn = document.querySelector('button[onclick*="scanQrForHhMvd()"]');
+    if (qrMvdBtn) {
+        qrMvdBtn.disabled = false;
+        qrMvdBtn.style.opacity = '1';
+        qrMvdBtn.style.pointerEvents = '';
+    }
+    document.querySelectorAll('button[onclick*="stepHhEditSLG"], button[onclick*="stepHhEditNgayNhan"]').forEach(btn => {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = '';
     });
     document.querySelectorAll('#hhEditKhoButtons button').forEach(btn => btn.disabled = false);
     const copyBtn = document.getElementById('hhCopyButton');
@@ -1201,7 +1381,28 @@ function copyCurrentHangHoan() {
 
     ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho', 'hhEditNgayNhan', 'hhEditMDH'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.disabled = false;
+        if (el) {
+            el.disabled = false;
+            const parent = el.closest('.group') || el.parentElement;
+            if (parent) {
+                const clearBtn = parent.querySelector('button[onclick*="clearHhInput"]');
+                if (clearBtn) {
+                    clearBtn.disabled = false;
+                    clearBtn.style.display = '';
+                }
+            }
+        }
+    });
+    const qrMvdBtn = document.querySelector('button[onclick*="scanQrForHhMvd()"]');
+    if (qrMvdBtn) {
+        qrMvdBtn.disabled = false;
+        qrMvdBtn.style.opacity = '1';
+        qrMvdBtn.style.pointerEvents = '';
+    }
+    document.querySelectorAll('button[onclick*="stepHhEditSLG"], button[onclick*="stepHhEditNgayNhan"]').forEach(btn => {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = '';
     });
     document.querySelectorAll('#hhEditKhoButtons button').forEach(btn => btn.disabled = false);
 
@@ -1333,14 +1534,10 @@ async function deleteCurrentHangHoan() {
 }
 
 async function saveHhDetail() {
-    if (isUploading) {
-        console.warn('Đang upload ảnh, vui lòng đợi...');
-        return;
-    }
     const isKinhDoanh = currentUser && currentUser.role === 'kinhdoanh';
     if (isKinhDoanh) {
         if (hhDrawerMode === 'create' || currentHangHoanEditIndex === -1) {
-            alert('Tài khoản KINHDOANH chỉ được sửa MVD 2 trên dòng Hàng hoàn đã có.');
+            alert('Tài khoản KINHDOANH chỉ được sửa MVD 2 và MDH trên dòng Hàng hoàn đã có.');
             return;
         }
         const item = hangHoanData[currentHangHoanEditIndex];
@@ -1350,29 +1547,61 @@ async function saveHhDetail() {
         try {
             const token = await getAccessToken();
             const rowIndex = item.rowIndex || (hangHoanData.indexOf(item) + 2);
-            const mvd2 = document.getElementById('hhEditMVD2').value || '';
+            const mvd2 = (document.getElementById('hhEditMVD2')?.value || '').trim();
+            const mdh = (document.getElementById('hhEditMDH')?.value || '').trim();
+
+            const oldMvd2 = (item.mvd_2 || '').trim();
+            const oldMdh = (item.id_dh || '').trim();
+
+            const diffs = [];
+            if (mvd2 !== oldMvd2) {
+                diffs.push(`MVD 2: "${oldMvd2}" ➔ "${mvd2}"`);
+            }
+            if (mdh !== oldMdh) {
+                diffs.push(`MDH: "${oldMdh}" ➔ "${mdh}"`);
+            }
+
+            const nowStr = formatDateTimeNow();
+            const editor = getEditorDisplayName();
+
+            let newGhiChu = item.ghi_chu || '';
+            if (diffs.length > 0) {
+                const logEntry = `[${nowStr} - ${editor}] Sửa: ${diffs.join(', ')}`;
+                newGhiChu = newGhiChu.trim() ? `${logEntry}\n${newGhiChu.trim()}` : logEntry;
+            }
+
             const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchUpdate`;
             const resp = await fetch(url, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     valueInputOption: 'USER_ENTERED',
-                    data: [{ range: `${CONFIG.hhbhSheetName}!D${rowIndex}`, values: [[mvd2]] }]
+                    data: [
+                        { range: `${CONFIG.hhbhSheetName}!D${rowIndex}`, values: [[mvd2]] },
+                        { range: `${CONFIG.hhbhSheetName}!N${rowIndex}`, values: [[newGhiChu]] },
+                        { range: `${CONFIG.hhbhSheetName}!R${rowIndex}`, values: [[editor]] },
+                        { range: `${CONFIG.hhbhSheetName}!S${rowIndex}`, values: [[nowStr]] },
+                        { range: `${CONFIG.hhbhSheetName}!W${rowIndex}`, values: [[mdh]] }
+                    ]
                 })
             });
             if (resp.ok) {
                 item.mvd_2 = mvd2;
+                item.id_dh = mdh;
+                item.ghi_chu = newGhiChu;
+                item.id_nv = editor;
+                item.udt = nowStr;
                 filterHangHoanData();
                 closeHhDetailDrawer();
-                showToast('Đã lưu MVD 2 thành công!', 'success');
+                showToast('Đã lưu MVD 2 & MDH và ghi nhận lịch sử thành công!', 'success');
             } else {
                 const errText = await resp.text();
-                console.error('Save HH MVD 2 error:', errText);
-                alert('Lỗi khi lưu MVD 2.');
+                console.error('Save HH MVD 2 & MDH error:', errText);
+                alert('Lỗi khi lưu MVD 2 & MDH.');
             }
         } catch (err) {
-            console.error('Save HH MVD 2 Error:', err);
-            alert('Đã xảy ra lỗi khi lưu MVD 2: ' + (err.message || 'Lỗi không xác định'));
+            console.error('Save HH MVD 2 & MDH Error:', err);
+            alert('Đã xảy ra lỗi khi lưu MVD 2 & MDH: ' + (err.message || 'Lỗi không xác định'));
         } finally {
             loadingOverlay.classList.add('hidden');
         }
@@ -1389,19 +1618,19 @@ async function saveHhDetail() {
         const today = new Date().toISOString().split('T')[0];
         const newData = {
             ngay_nhan: document.getElementById('hhEditNgayNhan')?.value || today,
-            mvd: document.getElementById('hhEditMVD').value,
-            mvd_2: document.getElementById('hhEditMVD2').value,
-            ma_gian: document.getElementById('hhEditMaGian').value,
-            sku: document.getElementById('hhEditSKU').value,
-            sku_ct: document.getElementById('hhEditSKUCT').value,
-            slg: document.getElementById('hhEditSLG').value,
-            tinh_trang: document.getElementById('hhEditTinhTrang').value,
-            ten_sp: document.getElementById('hhEditTenSP').value,
-            kho: document.getElementById('hhEditKho').value,
-            anh_1: document.getElementById('hhEditAnh1').value,
-            anh_2: document.getElementById('hhEditAnh2').value,
-            anh_3: document.getElementById('hhEditAnh3').value,
-            id_dh: document.getElementById('hhEditMDH')?.value || ''
+            mvd: (document.getElementById('hhEditMVD').value || '').trim(),
+            mvd_2: (document.getElementById('hhEditMVD2').value || '').trim(),
+            ma_gian: (document.getElementById('hhEditMaGian').value || '').trim(),
+            sku: (document.getElementById('hhEditSKU').value || '').trim(),
+            sku_ct: (document.getElementById('hhEditSKUCT').value || '').trim(),
+            slg: (document.getElementById('hhEditSLG').value || '1').trim(),
+            tinh_trang: (document.getElementById('hhEditTinhTrang').value || '').trim(),
+            ten_sp: (document.getElementById('hhEditTenSP').value || '').trim(),
+            kho: (document.getElementById('hhEditKho').value || 'KHO').trim(),
+            anh_1: (document.getElementById('hhEditAnh1').value || '').trim(),
+            anh_2: (document.getElementById('hhEditAnh2').value || '').trim(),
+            anh_3: (document.getElementById('hhEditAnh3').value || '').trim(),
+            id_dh: (document.getElementById('hhEditMDH')?.value || '').trim()
         };
         if (newData.sku_ct) {
             const matchedSp = sanphamData.find(i => (i.sku_con || '').toString().trim().toUpperCase() === newData.sku_ct.toString().trim().toUpperCase());
@@ -1416,11 +1645,15 @@ async function saveHhDetail() {
             const skuInput = document.getElementById('hhEditSKU');
             if (skuInput) skuInput.value = '';
         }
+
+        const nowStr = formatDateTimeNow();
+        const editor = getEditorDisplayName();
+
         if (isCreateMode) {
-            const today = new Date().toISOString().split('T')[0];
             const mvd = (newData.mvd || '').trim();
             const mvd2 = (newData.mvd_2 || '').trim();
             const maGian = (newData.ma_gian || '').trim();
+            const initGhiChu = `[${nowStr} - ${editor}] Tạo mới`;
             const appendValues = [[
                 `${Date.now()}`,
                 newData.ngay_nhan || today,
@@ -1435,12 +1668,12 @@ async function saveHhDetail() {
                 newData.sku_ct || '',
                 newData.slg || '1',
                 newData.ten_sp || '',
-                '', // ghi_chu
+                initGhiChu, // ghi_chu
                 newData.tinh_trang || '',
                 '', // trang_thai
                 '', // sku_slg
-                '', // id_nv
-                '', // udt
+                editor, // id_nv
+                nowStr, // udt
                 mvd && maGian ? `${mvd}-${maGian}` : '',
                 newData.kho || '',
                 '', // lb3
@@ -1463,8 +1696,47 @@ async function saveHhDetail() {
             }
             await fetchHangHoanData();
             closeHhDetailDrawer();
+            showToast('Đã thêm mới và ghi nhận lịch sử thành công!', 'success');
             return;
         }
+
+        const oldNgayNhan = (item.ngay_nhan || '').trim();
+        const oldMvd = (item.mvd || '').trim();
+        const oldMvd2 = (item.mvd_2 || '').trim();
+        const oldMaGian = (item.ma_gian || '').trim();
+        const oldSku = (item.sku || '').trim();
+        const oldSkuCt = (item.sku_ct || '').trim();
+        const oldSlg = (item.slg || '').toString().trim();
+        const oldTinhTrang = (item.tinh_trang || '').trim();
+        const oldTenSp = (item.ten_sp || '').trim();
+        const oldKho = (item.kho || '').trim();
+        const oldMdh = (item.id_dh || '').trim();
+        const oldAnh1 = (item.anh_1 || '').trim();
+        const oldAnh2 = (item.anh_2 || '').trim();
+        const oldAnh3 = (item.anh_3 || '').trim();
+
+        const diffs = [];
+        if (newData.ngay_nhan !== oldNgayNhan) diffs.push(`Ngày nhận: "${oldNgayNhan}" ➔ "${newData.ngay_nhan}"`);
+        if (newData.mvd !== oldMvd) diffs.push(`MVD: "${oldMvd}" ➔ "${newData.mvd}"`);
+        if (newData.mvd_2 !== oldMvd2) diffs.push(`MVD 2: "${oldMvd2}" ➔ "${newData.mvd_2}"`);
+        if (newData.ma_gian !== oldMaGian) diffs.push(`Mã gian: "${oldMaGian}" ➔ "${newData.ma_gian}"`);
+        if (newData.sku !== oldSku) diffs.push(`SKU: "${oldSku}" ➔ "${newData.sku}"`);
+        if (newData.sku_ct !== oldSkuCt) diffs.push(`SKU CT: "${oldSkuCt}" ➔ "${newData.sku_ct}"`);
+        if (newData.slg !== oldSlg) diffs.push(`SLG: "${oldSlg}" ➔ "${newData.slg}"`);
+        if (newData.tinh_trang !== oldTinhTrang) diffs.push(`Tình trạng: "${oldTinhTrang}" ➔ "${newData.tinh_trang}"`);
+        if (newData.ten_sp !== oldTenSp) diffs.push(`Tên SP: "${oldTenSp}" ➔ "${newData.ten_sp}"`);
+        if (newData.kho !== oldKho) diffs.push(`Kho: "${oldKho}" ➔ "${newData.kho}"`);
+        if (newData.id_dh !== oldMdh) diffs.push(`MDH: "${oldMdh}" ➔ "${newData.id_dh}"`);
+        if (newData.anh_1 !== oldAnh1 || newData.anh_2 !== oldAnh2 || newData.anh_3 !== oldAnh3) {
+            diffs.push('Ảnh: Cập nhật ảnh');
+        }
+
+        let newGhiChu = item.ghi_chu || '';
+        if (diffs.length > 0) {
+            const logEntry = `[${nowStr} - ${editor}] Sửa: ${diffs.join(', ')}`;
+            newGhiChu = newGhiChu.trim() ? `${logEntry}\n${newGhiChu.trim()}` : logEntry;
+        }
+
         const rowIndex = item.rowIndex || (hangHoanData.indexOf(item) + 2);
         const batchUpdates = [
             { range: `${CONFIG.hhbhSheetName}!B${rowIndex}`, values: [[newData.ngay_nhan]] },
@@ -1478,7 +1750,10 @@ async function saveHhDetail() {
             { range: `${CONFIG.hhbhSheetName}!K${rowIndex}`, values: [[newData.sku_ct]] },
             { range: `${CONFIG.hhbhSheetName}!L${rowIndex}`, values: [[newData.slg]] },
             { range: `${CONFIG.hhbhSheetName}!M${rowIndex}`, values: [[newData.ten_sp]] },
+            { range: `${CONFIG.hhbhSheetName}!N${rowIndex}`, values: [[newGhiChu]] },
             { range: `${CONFIG.hhbhSheetName}!O${rowIndex}`, values: [[newData.tinh_trang]] },
+            { range: `${CONFIG.hhbhSheetName}!R${rowIndex}`, values: [[editor]] },
+            { range: `${CONFIG.hhbhSheetName}!S${rowIndex}`, values: [[nowStr]] },
             { range: `${CONFIG.hhbhSheetName}!T${rowIndex}`, values: [[(newData.mvd && newData.ma_gian) ? `${newData.mvd}-${newData.ma_gian}` : '']] },
             { range: `${CONFIG.hhbhSheetName}!U${rowIndex}`, values: [[newData.kho]] },
             { range: `${CONFIG.hhbhSheetName}!W${rowIndex}`, values: [[newData.id_dh]] }
@@ -1486,9 +1761,10 @@ async function saveHhDetail() {
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchUpdate`;
         const resp = await fetch(url, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: batchUpdates }) });
         if (resp.ok) {
-            Object.assign(item, newData, { rowIndex });
+            Object.assign(item, newData, { ghi_chu: newGhiChu, id_nv: editor, udt: nowStr, rowIndex });
             filterHangHoanData();
             closeHhDetailDrawer();
+            showToast('Đã lưu thay đổi và ghi nhận lịch sử thành công!', 'success');
         } else {
             const errText = await resp.text();
             console.error('Save HH error:', errText);
@@ -1571,7 +1847,7 @@ function renderHangHoanTable() {
         const maGian = getMaGianForItem(item, skuTongMap);
         const displayNgay = formatYmdToDmy(item.ngay_nhan) || item.ngay_nhan;
         return `
-                    <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer" ondblclick="openHhDetail(${index})">
+                    <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer" ondblclick="openHhDetail(${index})" title="${escapeHtml(item.ghi_chu ? `Lịch sử / Ghi chú:\n${item.ghi_chu}` : '')}">
                         <td class="px-3 py-2 text-sm text-slate-700">${escapeHtml(displayNgay)}</td>
                         <td class="px-3 py-2 text-sm font-medium text-slate-900">${escapeHtml(item.mvd)}</td>
                         <td class="px-3 py-2 text-sm text-slate-700">${escapeHtml(item.mvd_2)}</td>
@@ -1743,6 +2019,7 @@ function exportHangHoanToMisa() {
     window.fillHangHoanFilterOptions = fillHangHoanFilterOptions;
     window.setHHKhoFilter = setHHKhoFilter;
     window.setHangHoanToday = setHangHoanToday;
+    window.shiftHHFilterDate = shiftHHFilterDate;
     window.changeHangHoanDate = changeHangHoanDate;
     window.stepHhEditNgayNhan = stepHhEditNgayNhan;
     window.stepHhEditSLG = stepHhEditSLG;

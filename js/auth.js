@@ -4,14 +4,16 @@ function applyRoleUI(role) {
     const isDemo = role === 'demo';
     const isKinhDoanh = role === 'kinhdoanh';
     const isRestricted = isDemo || isKinhDoanh;
-    const hideIds = ['sidebarUpmisa', 'sidebarBaocao', 'sidebarInventory', 'sidebarDHCT'];
+    const hideIds = ['sidebarUpmisa', 'sidebarBaocao', 'sidebarInventory', 'sidebarDHCT', 'homeCardUpmisa', 'homeCardBaocao', 'homeCardInventory', 'homeCardDhct'];
     hideIds.forEach(hid => {
         const el = document.getElementById(hid);
         if (el) el.style.display = isRestricted ? 'none' : '';
     });
 
-    const hangHoanModule = document.getElementById('sidebarHangHoan');
-    if (hangHoanModule) hangHoanModule.style.display = isDemo ? 'none' : '';
+    ['sidebarHangHoan', 'homeCardHangHoan'].forEach(hid => {
+        const el = document.getElementById(hid);
+        if (el) el.style.display = isDemo ? 'none' : '';
+    });
 
     if (isKinhDoanh) {
         const hhActions = [

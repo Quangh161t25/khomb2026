@@ -26,7 +26,7 @@ function escapeHtml(value) {
 
 function clearHhInput(id) {
     const el = document.getElementById(id);
-    if (!el) return;
+    if (!el || el.disabled || el.readOnly) return;
     el.value = '';
     el.focus();
     el.dispatchEvent(new Event('input', { bubbles: true }));
