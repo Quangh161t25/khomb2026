@@ -43,6 +43,40 @@ function setHangHoanToday() {
     filterHangHoanData();
 }
 
+function stepHhEditSLG(step) {
+    const input = document.getElementById('hhEditSLG');
+    if (!input) return;
+    let currentVal = parseInt(input.value, 10);
+    if (isNaN(currentVal) || currentVal < 1) currentVal = 1;
+    currentVal = Math.max(1, currentVal + step);
+    input.value = currentVal;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function stepHhEditNgayNhan(step) {
+    const input = document.getElementById('hhEditNgayNhan');
+    if (!input) return;
+    if (!input.value) {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        input.value = `${y}-${m}-${d}`;
+        return;
+    }
+    const parts = input.value.split('-');
+    if (parts.length !== 3) return;
+    const dt = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    dt.setDate(dt.getDate() + step);
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const d = String(dt.getDate()).padStart(2, '0');
+    input.value = `${y}-${m}-${d}`;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
 function changeHangHoanDate(which, step) {
     const input = document.getElementById(which === 'from' ? 'filterHHFrom' : 'filterHHTo');
     if (!input) return;
@@ -84,8 +118,10 @@ function renderHhKhoButtons(value) {
     const buttons = document.querySelectorAll('#hhEditKhoButtons button');
     buttons.forEach(btn => {
         const active = btn.textContent.trim().toUpperCase() === current;
-        btn.classList.toggle('bg-slate-100', active);
-        btn.classList.toggle('bg-white', !active);
+        btn.classList.toggle('bg-white', active);
+        btn.classList.toggle('text-slate-800', active);
+        btn.classList.toggle('shadow-sm', active);
+        btn.classList.toggle('text-slate-500', !active);
     });
 }
 
@@ -174,6 +210,244 @@ function renderHhSkuSuggestions(forceShow = false) {
     } else {
         sugBox.innerHTML = '';
         sugBox.classList.add('hidden');
+    }
+}
+
+let hhUdctLoadPromise = null;
+let hhCurrentMvd2Suggestions = [];
+let hhCurrentMdhSuggestions = [];
+
+function ensureHhUdctLoaded(callback) {
+    if (udctData && udctData.length > 0) {
+        if (typeof callback === 'function') callback();
+        return;
+    }
+    if (!hhUdctLoadPromise) {
+        hhUdctLoadPromise = typeof loadUDCTData === 'function' ? loadUDCTData(true) : Promise.resolve();
+    }
+    hhUdctLoadPromise.then(() => {
+        hhUdctLoadPromise = null;
+        if (typeof callback === 'function') callback();
+    }).catch(err => {
+        hhUdctLoadPromise = null;
+        console.error('HH UDCT load error:', err);
+    });
+}
+
+function renderUdctSuggestionItem(item, idx, type) {
+    const fnName = type === 'mvd2' ? 'selectHhUdctForMvd2ByIndex' : 'selectHhUdctForMdhByIndex';
+    const mainCode = type === 'mvd2' ? (item.mvd || item.mdh || '-') : (item.mdh || item.mvd || '-');
+    const subCode = type === 'mvd2' ? (item.mdh ? `MDH: ${escapeHtml(item.mdh)}` : '') : (item.mvd ? `MVD: ${escapeHtml(item.mvd)}` : '');
+    const slg = item.slg_xuat || item.so_luong || '1';
+    const skuDisplay = item.id_sp_ct || item.id_sp || '';
+
+    return `
+        <div class="px-3 py-2 border-b border-slate-100 last:border-0 hover:bg-blue-50/70 active:bg-blue-100/70 cursor-pointer transition-colors"
+            onmousedown="event.preventDefault(); ${fnName}(${idx});"
+            onclick="${fnName}(${idx});">
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="font-bold text-slate-900 text-xs truncate">${escapeHtml(mainCode)}</span>
+                    ${subCode ? `<span class="text-[10px] text-blue-600 bg-blue-50 border border-blue-200/60 px-1.5 py-0.5 rounded font-medium shrink-0">${subCode}</span>` : ''}
+                </div>
+                <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.5 rounded shrink-0">SL: ${escapeHtml(slg)}</span>
+            </div>
+            <div class="flex items-center gap-1.5 text-[11px] text-slate-500 mt-1 truncate">
+                ${item.ma_gian ? `<span class="font-semibold text-slate-700 shrink-0">${escapeHtml(item.ma_gian)}</span>` : ''}
+                ${item.ma_gian && skuDisplay ? `<span class="text-slate-300">•</span>` : ''}
+                ${skuDisplay ? `<span class="text-indigo-600 font-medium shrink-0">${escapeHtml(skuDisplay)}</span>` : ''}
+                ${item.ten_sp ? `<span class="text-slate-300">•</span><span class="truncate text-slate-600" title="${escapeHtml(item.ten_sp)}">${escapeHtml(item.ten_sp)}</span>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function applyUdctItemToHangHoanForm(item, currentField) {
+    if (!item) return;
+
+    if (currentField === 'mvd2') {
+        const mvd2Input = document.getElementById('hhEditMVD2');
+        if (mvd2Input) mvd2Input.value = item.mvd || '';
+        const mdhInput = document.getElementById('hhEditMDH');
+        if (mdhInput && !mdhInput.value && item.mdh) mdhInput.value = item.mdh;
+    } else {
+        const mdhInput = document.getElementById('hhEditMDH');
+        if (mdhInput) mdhInput.value = item.mdh || '';
+        const mvd2Input = document.getElementById('hhEditMVD2');
+        if (mvd2Input && !mvd2Input.value && item.mvd) mvd2Input.value = item.mvd;
+    }
+
+    const maGianInput = document.getElementById('hhEditMaGian');
+    if (maGianInput && item.ma_gian) {
+        maGianInput.value = item.ma_gian;
+    }
+
+    const skuCt = (item.id_sp_ct || item.sku_shop_up || '').toString().trim();
+    const skuCtInput = document.getElementById('hhEditSKUCT');
+    if (skuCtInput) {
+        skuCtInput.value = skuCt;
+    }
+
+    let skuVal = (item.id_sp || '').toString().trim();
+    let tenSpVal = item.ten_sp || '';
+    if (skuCt && typeof sanphamData !== 'undefined' && sanphamData.length) {
+        const matchedSp = sanphamData.find(i => (i.sku_con || '').toString().trim().toUpperCase() === skuCt.toUpperCase());
+        if (matchedSp) {
+            skuVal = matchedSp.id_sp || matchedSp.sku_con.substring(0, 4) || skuVal;
+            tenSpVal = matchedSp.ten_sp || matchedSp.ten || tenSpVal;
+        }
+    }
+
+    const skuInput = document.getElementById('hhEditSKU');
+    if (skuInput) {
+        skuInput.value = skuVal;
+    }
+
+    const slgInput = document.getElementById('hhEditSLG');
+    if (slgInput) {
+        slgInput.value = item.slg_xuat || item.so_luong || '1';
+    }
+
+    const tenSpInput = document.getElementById('hhEditTenSP');
+    if (tenSpInput && tenSpVal) {
+        tenSpInput.value = tenSpVal;
+    }
+
+    const mvd2Sug = document.getElementById('hhMvd2Suggestions');
+    if (mvd2Sug) mvd2Sug.classList.add('hidden');
+    const mdhSug = document.getElementById('hhMdhSuggestions');
+    if (mdhSug) mdhSug.classList.add('hidden');
+    const skuCtSug = document.getElementById('hhSkuCtSuggestions');
+    if (skuCtSug) skuCtSug.classList.add('hidden');
+}
+
+function selectHhUdctForMvd2ByIndex(index) {
+    const item = hhCurrentMvd2Suggestions[index];
+    applyUdctItemToHangHoanForm(item, 'mvd2');
+}
+
+function selectHhUdctForMdhByIndex(index) {
+    const item = hhCurrentMdhSuggestions[index];
+    applyUdctItemToHangHoanForm(item, 'mdh');
+}
+
+function setHhMvd2(value) {
+    const input = document.getElementById('hhEditMVD2');
+    if (input) {
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    const sugBox = document.getElementById('hhMvd2Suggestions');
+    if (sugBox) sugBox.classList.add('hidden');
+}
+
+function handleHhMvd2Change(forceShow = false) {
+    const input = document.getElementById('hhEditMVD2');
+    if (!input) return;
+    const val = input.value.trim().toLowerCase();
+    const sugBox = document.getElementById('hhMvd2Suggestions');
+
+    if ((!udctData || udctData.length === 0) && (val || forceShow)) {
+        if (sugBox) {
+            sugBox.innerHTML = '<div class="px-3 py-2 text-xs text-slate-500">Đang tải dữ liệu UD_CT...</div>';
+            sugBox.classList.remove('hidden');
+        }
+        ensureHhUdctLoaded(() => handleHhMvd2Change(forceShow));
+        return;
+    }
+
+    if (sugBox) {
+        if (val.length >= 1 || forceShow) {
+            const seen = new Set();
+            hhCurrentMvd2Suggestions = [];
+            for (const item of udctData) {
+                const mvd = (item.mvd || '').toString().trim();
+                const mdh = (item.mdh || '').toString().trim();
+                const maGian = (item.ma_gian || '').toString().trim();
+                const skuCt = (item.id_sp_ct || '').toString().trim();
+                const tenSp = (item.ten_sp || '').toString().trim();
+                const key = `${mvd}|${skuCt}|${mdh}`.toUpperCase();
+                if ((!mvd && !mdh) || seen.has(key)) continue;
+
+                if (!val || mvd.toLowerCase().includes(val) || mdh.toLowerCase().includes(val) || maGian.toLowerCase().includes(val) || skuCt.toLowerCase().includes(val) || tenSp.toLowerCase().includes(val)) {
+                    seen.add(key);
+                    hhCurrentMvd2Suggestions.push(item);
+                    if (hhCurrentMvd2Suggestions.length >= 10) break;
+                }
+            }
+
+            if (hhCurrentMvd2Suggestions.length > 0) {
+                sugBox.innerHTML = hhCurrentMvd2Suggestions.map((item, idx) => renderUdctSuggestionItem(item, idx, 'mvd2')).join('');
+                sugBox.classList.remove('hidden');
+            } else {
+                sugBox.innerHTML = '';
+                sugBox.classList.add('hidden');
+            }
+        } else {
+            sugBox.innerHTML = '';
+            sugBox.classList.add('hidden');
+        }
+    }
+}
+
+function setHhMdh(value) {
+    const input = document.getElementById('hhEditMDH');
+    if (input) {
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    const sugBox = document.getElementById('hhMdhSuggestions');
+    if (sugBox) sugBox.classList.add('hidden');
+}
+
+function handleHhMdhChange(forceShow = false) {
+    const input = document.getElementById('hhEditMDH');
+    if (!input) return;
+    const val = input.value.trim().toLowerCase();
+    const sugBox = document.getElementById('hhMdhSuggestions');
+
+    if ((!udctData || udctData.length === 0) && (val || forceShow)) {
+        if (sugBox) {
+            sugBox.innerHTML = '<div class="px-3 py-2 text-xs text-slate-500">Đang tải dữ liệu UD_CT...</div>';
+            sugBox.classList.remove('hidden');
+        }
+        ensureHhUdctLoaded(() => handleHhMdhChange(forceShow));
+        return;
+    }
+
+    if (sugBox) {
+        if (val.length >= 1 || forceShow) {
+            const seen = new Set();
+            hhCurrentMdhSuggestions = [];
+            for (const item of udctData) {
+                const mdh = (item.mdh || '').toString().trim();
+                const mvd = (item.mvd || '').toString().trim();
+                const maGian = (item.ma_gian || '').toString().trim();
+                const skuCt = (item.id_sp_ct || '').toString().trim();
+                const tenSp = (item.ten_sp || '').toString().trim();
+                const key = `${mdh}|${skuCt}|${mvd}`.toUpperCase();
+                if ((!mdh && !mvd) || seen.has(key)) continue;
+
+                if (!val || mdh.toLowerCase().includes(val) || mvd.toLowerCase().includes(val) || maGian.toLowerCase().includes(val) || skuCt.toLowerCase().includes(val) || tenSp.toLowerCase().includes(val)) {
+                    seen.add(key);
+                    hhCurrentMdhSuggestions.push(item);
+                    if (hhCurrentMdhSuggestions.length >= 10) break;
+                }
+            }
+
+            if (hhCurrentMdhSuggestions.length > 0) {
+                sugBox.innerHTML = hhCurrentMdhSuggestions.map((item, idx) => renderUdctSuggestionItem(item, idx, 'mdh')).join('');
+                sugBox.classList.remove('hidden');
+            } else {
+                sugBox.innerHTML = '';
+                sugBox.classList.add('hidden');
+            }
+        } else {
+            sugBox.innerHTML = '';
+            sugBox.classList.add('hidden');
+        }
     }
 }
 
@@ -410,6 +684,10 @@ function handleHhMvdInputChange(val) {
         if (skuEl && !skuEl.value) skuEl.value = (udctMatch.id_sp || '').toString().toUpperCase();
         if (slgEl && (!slgEl.value || slgEl.value === '1')) slgEl.value = udctMatch.slg_xuat || '';
         if (tenSpEl && !tenSpEl.value) tenSpEl.value = udctMatch.ten_sp || '';
+        const mdhEl = document.getElementById('hhEditMDH');
+        if (mdhEl && !mdhEl.value) mdhEl.value = (udctMatch.mdh || '').toString().trim();
+        const ngayEl = document.getElementById('hhEditNgayNhan');
+        if (ngayEl && !ngayEl.value && udctMatch.ngay) ngayEl.value = toYMD(udctMatch.ngay);
     }
 
     if (!noticeEl) return;
@@ -530,14 +808,16 @@ async function appendHangHoanQuickByMvd(mvdRaw) {
     let skuCt = '';
     let slg = '1';
     let tenSp = '';
+    let mdh = '';
 
     const udctMatch = udctData.find(item => (item.mvd || '').toString().trim() === mvd);
     if (udctMatch) {
         maGian = (udctMatch.ma_gian || '').toString().toUpperCase();
-        sku = (udctMatch.id_sp || '').toString().toUpperCase();
         skuCt = (udctMatch.id_sp_ct || '').toString().toUpperCase();
+        sku = skuCt ? (udctMatch.id_sp || '').toString().toUpperCase() : '';
         slg = udctMatch.slg_xuat || '1';
         tenSp = udctMatch.ten_sp || '';
+        mdh = (udctMatch.mdh || '').toString().trim();
     }
 
     if (skuCt) {
@@ -789,7 +1069,7 @@ function filterHangHoanData() {
         if (fKho && item.kho !== fKho) return false;
         if (fGian && item.ma_gian !== fGian) return false;
         if (search) {
-            const rowText = `${item.mvd || ''} ${item.mvd_2 || ''} ${item.ma_gian || ''} ${item.sku || ''} ${item.sku_ct || ''} ${item.ten_sp || ''} ${item.tinh_trang || ''}`.toLowerCase();
+            const rowText = `${item.mvd || ''} ${item.mvd_2 || ''} ${item.ma_gian || ''} ${item.sku || ''} ${item.sku_ct || ''} ${item.ten_sp || ''} ${item.tinh_trang || ''} ${item.id_dh || ''}`.toLowerCase();
             if (!rowText.includes(search)) return false;
         }
         return true;
@@ -819,12 +1099,16 @@ function openHhDetail(index) {
     document.getElementById('hhEditTinhTrang').value = item.tinh_trang || '';
     document.getElementById('hhEditTenSP').value = item.ten_sp || '';
     document.getElementById('hhEditKho').value = item.kho || '';
+    const ngayNhanInput = document.getElementById('hhEditNgayNhan');
+    if (ngayNhanInput) ngayNhanInput.value = item.ngay_nhan || '';
+    const mdhInput = document.getElementById('hhEditMDH');
+    if (mdhInput) mdhInput.value = item.id_dh || '';
     populateHhFormOptions();
     renderHhKhoButtons(item.kho || 'KHO');
     refreshHhImagePreviews();
     const noticeEl = document.getElementById('hhMvdDuplicateNotice');
     if (noticeEl) noticeEl.classList.add('hidden');
-    ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho'].forEach(id => {
+    ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho', 'hhEditNgayNhan', 'hhEditMDH'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = isKinhDoanh;
     });
@@ -859,12 +1143,17 @@ function openNewHangHoanDrawer() {
     document.getElementById('hhEditTinhTrang').value = '';
     document.getElementById('hhEditTenSP').value = '';
     document.getElementById('hhEditKho').value = 'KHO';
+    const defaultDate = document.getElementById('filterHHTo')?.value || document.getElementById('filterHHFrom')?.value || new Date().toISOString().split('T')[0];
+    const ngayNhanInput = document.getElementById('hhEditNgayNhan');
+    if (ngayNhanInput) ngayNhanInput.value = defaultDate;
+    const mdhInput = document.getElementById('hhEditMDH');
+    if (mdhInput) mdhInput.value = '';
     populateHhFormOptions();
     renderHhKhoButtons('KHO');
     refreshHhImagePreviews();
     const noticeEl = document.getElementById('hhMvdDuplicateNotice');
     if (noticeEl) noticeEl.classList.add('hidden');
-    ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho'].forEach(id => {
+    ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho', 'hhEditNgayNhan', 'hhEditMDH'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = false;
     });
@@ -898,7 +1187,7 @@ function copyCurrentHangHoan() {
     if (skuCtInput) skuCtInput.value = '';
     if (skuInput) skuInput.value = '';
 
-    ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho'].forEach(id => {
+    ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho', 'hhEditNgayNhan', 'hhEditMDH'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = false;
     });
@@ -923,6 +1212,14 @@ function copyCurrentHangHoan() {
 function closeHhDetailDrawer() {
     document.getElementById('hhDrawerOverlay').classList.add('hidden');
     document.getElementById('hhDrawer').classList.remove('open');
+    const mvd2Sug = document.getElementById('hhMvd2Suggestions');
+    if (mvd2Sug) mvd2Sug.classList.add('hidden');
+    const mdhSug = document.getElementById('hhMdhSuggestions');
+    if (mdhSug) mdhSug.classList.add('hidden');
+    const skuSug = document.getElementById('hhSkuSuggestions');
+    if (skuSug) skuSug.classList.add('hidden');
+    const skuCtSug = document.getElementById('hhSkuCtSuggestions');
+    if (skuCtSug) skuCtSug.classList.add('hidden');
     currentHangHoanEditIndex = -1;
     hhDrawerMode = 'edit';
 }
@@ -981,7 +1278,9 @@ async function saveHhDetail() {
     loadingOverlay.classList.remove('hidden');
     try {
         const token = await getAccessToken();
+        const today = new Date().toISOString().split('T')[0];
         const newData = {
+            ngay_nhan: document.getElementById('hhEditNgayNhan')?.value || today,
             mvd: document.getElementById('hhEditMVD').value,
             mvd_2: document.getElementById('hhEditMVD2').value,
             ma_gian: document.getElementById('hhEditMaGian').value,
@@ -993,7 +1292,8 @@ async function saveHhDetail() {
             kho: document.getElementById('hhEditKho').value,
             anh_1: document.getElementById('hhEditAnh1').value,
             anh_2: document.getElementById('hhEditAnh2').value,
-            anh_3: document.getElementById('hhEditAnh3').value
+            anh_3: document.getElementById('hhEditAnh3').value,
+            id_dh: document.getElementById('hhEditMDH')?.value || ''
         };
         if (newData.sku_ct) {
             const matchedSp = sanphamData.find(i => (i.sku_con || '').toString().trim().toUpperCase() === newData.sku_ct.toString().trim().toUpperCase());
@@ -1015,7 +1315,7 @@ async function saveHhDetail() {
             const maGian = (newData.ma_gian || '').trim();
             const appendValues = [[
                 `${Date.now()}`,
-                today,
+                newData.ngay_nhan || today,
                 mvd,
                 mvd2,
                 maGian,
@@ -1027,18 +1327,19 @@ async function saveHhDetail() {
                 newData.sku_ct || '',
                 newData.slg || '1',
                 newData.ten_sp || '',
-                '',
+                '', // ghi_chu
                 newData.tinh_trang || '',
-                '',
-                '',
-                '',
-                '',
+                '', // trang_thai
+                '', // sku_slg
+                '', // id_nv
+                '', // udt
                 mvd && maGian ? `${mvd}-${maGian}` : '',
                 newData.kho || '',
-                '',
-                '',
-                '',
-                ''
+                '', // lb3
+                newData.id_dh || '', // id_dh / MDH
+                '', // id_dh_ct
+                '', // stt
+                ''  // danh_dau
             ]];
             const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values/${CONFIG.hhbhSheetName}!A:A:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
             const appendResp = await fetch(appendUrl, {
@@ -1058,6 +1359,7 @@ async function saveHhDetail() {
         }
         const rowIndex = item.rowIndex || (hangHoanData.indexOf(item) + 2);
         const batchUpdates = [
+            { range: `${CONFIG.hhbhSheetName}!B${rowIndex}`, values: [[newData.ngay_nhan]] },
             { range: `${CONFIG.hhbhSheetName}!C${rowIndex}`, values: [[newData.mvd]] },
             { range: `${CONFIG.hhbhSheetName}!D${rowIndex}`, values: [[newData.mvd_2]] },
             { range: `${CONFIG.hhbhSheetName}!E${rowIndex}`, values: [[newData.ma_gian]] },
@@ -1070,7 +1372,8 @@ async function saveHhDetail() {
             { range: `${CONFIG.hhbhSheetName}!M${rowIndex}`, values: [[newData.ten_sp]] },
             { range: `${CONFIG.hhbhSheetName}!O${rowIndex}`, values: [[newData.tinh_trang]] },
             { range: `${CONFIG.hhbhSheetName}!T${rowIndex}`, values: [[(newData.mvd && newData.ma_gian) ? `${newData.mvd}-${newData.ma_gian}` : '']] },
-            { range: `${CONFIG.hhbhSheetName}!U${rowIndex}`, values: [[newData.kho]] }
+            { range: `${CONFIG.hhbhSheetName}!U${rowIndex}`, values: [[newData.kho]] },
+            { range: `${CONFIG.hhbhSheetName}!W${rowIndex}`, values: [[newData.id_dh]] }
         ];
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchUpdate`;
         const resp = await fetch(url, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: batchUpdates }) });
@@ -1333,6 +1636,25 @@ function exportHangHoanToMisa() {
     window.setHHKhoFilter = setHHKhoFilter;
     window.setHangHoanToday = setHangHoanToday;
     window.changeHangHoanDate = changeHangHoanDate;
+    window.stepHhEditNgayNhan = stepHhEditNgayNhan;
+    window.stepHhEditSLG = stepHhEditSLG;
+    window.selectHhUdctForMvd2ByIndex = selectHhUdctForMvd2ByIndex;
+    window.selectHhUdctForMdhByIndex = selectHhUdctForMdhByIndex;
+    window.setHhMvd2 = setHhMvd2;
+    window.handleHhMvd2Change = handleHhMvd2Change;
+    window.setHhMdh = setHhMdh;
+    window.handleHhMdhChange = handleHhMdhChange;
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#hhEditMVD2') && !e.target.closest('#hhMvd2Suggestions')) {
+        const box = document.getElementById('hhMvd2Suggestions');
+        if (box) box.classList.add('hidden');
+    }
+    if (!e.target.closest('#hhEditMDH') && !e.target.closest('#hhMdhSuggestions')) {
+        const box = document.getElementById('hhMdhSuggestions');
+        if (box) box.classList.add('hidden');
+    }
+});
+
     window.openImagePreview = openImagePreview;
     window.closeImagePreview = closeImagePreview;
         window.renderHhKhoButtons = renderHhKhoButtons;
