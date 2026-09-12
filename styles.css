@@ -261,6 +261,10 @@ body {
 }
 
 @keyframes toast-out {
-    from { transform: translateX(0); opacity: 1; opacity: 1; transform: translateX(0); }
+    from { transform: translateX(0); opacity: 1; }
     to { transform: translateX(100%); opacity: 0; }
+}
+
+#hhDrawerFooter {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }

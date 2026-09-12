@@ -219,13 +219,11 @@ function handleHhSkuChange() {
                     <span class="item-name">${escapeHtml(item.ten_sp)}</span>
                 </div>
             `).join('');
-            // sugBox.classList.remove('hidden'); // Để người dùng tự focus hoặc gõ SKU CT thì hiện
         } else {
             sugBox.innerHTML = '';
             sugBox.classList.add('hidden');
         }
 
-        // Hiển thị dạng nút chọn nhanh
         if (skuCtBtns) {
             const uniqueIds = [...new Set(filteredItems.map(i => i.sku_con))].slice(0, 10);
             if (sku && uniqueIds.length > 0) {
@@ -248,7 +246,6 @@ function setHhSkuCt(value) {
         input.value = value;
         handleHhSkuCtChange();
     }
-    // Ẩn gợi ý và xóa các nút sau khi chọn
     const sugBox = document.getElementById('hhSkuCtSuggestions');
     if (sugBox) sugBox.classList.add('hidden');
     const skuCtBtns = document.getElementById('hhSkuCtButtons');
@@ -275,7 +272,6 @@ function handleHhSkuCtChange(forceShow = false) {
     if (sugBox) {
         if (val.length >= 1 || sku || forceShow) {
             const search = val.toLowerCase();
-            // Tìm kiếm theo cả ID và Tên
             const suggestions = sanphamData.filter(item =>
                 search
                     ? (item.sku_con || '').toLowerCase().includes(search) ||
@@ -304,9 +300,12 @@ function handleHhSkuCtChange(forceShow = false) {
         }
     }
 
-    if (!val) return;
+    if (!val) {
+        const skuInput = document.getElementById('hhEditSKU');
+        if (skuInput) skuInput.value = '';
+        return;
+    }
 
-    // Kiểm tra nếu có mã khớp hoàn toàn để điền các thông tin khác
     const match = sanphamData.find(item => (item.sku_con || '').toString().toUpperCase() === val.toUpperCase());
     if (match) {
         const skuInput = document.getElementById('hhEditSKU');
@@ -830,7 +829,9 @@ function openHhDetail(index) {
         if (el) el.disabled = isKinhDoanh;
     });
     document.querySelectorAll('#hhEditKhoButtons button').forEach(btn => btn.disabled = isKinhDoanh);
-    const footer = document.querySelector('#hhDrawer .pt-4.border-t.border-slate-200.flex.gap-3');
+    const copyBtn = document.getElementById('hhCopyButton');
+    if (copyBtn) copyBtn.style.display = isKinhDoanh ? 'none' : 'inline-flex';
+    const footer = document.getElementById('hhDrawerFooter') || document.querySelector('#hhDrawer .pt-4.border-t.border-slate-200.flex.gap-3');
     if (footer) footer.style.display = '';
     document.getElementById('hhDrawerOverlay').classList.remove('hidden');
     document.getElementById('hhDrawer').classList.add('open');
@@ -868,16 +869,55 @@ function openNewHangHoanDrawer() {
         if (el) el.disabled = false;
     });
     document.querySelectorAll('#hhEditKhoButtons button').forEach(btn => btn.disabled = false);
-    const footer = document.querySelector('#hhDrawer .pt-4.border-t.border-slate-200.flex.gap-3');
+    const copyBtn = document.getElementById('hhCopyButton');
+    if (copyBtn) copyBtn.style.display = 'none';
+    const footer = document.getElementById('hhDrawerFooter') || document.querySelector('#hhDrawer .pt-4.border-t.border-slate-200.flex.gap-3');
     if (footer) footer.style.display = '';
     document.getElementById('hhDrawerOverlay').classList.remove('hidden');
     document.getElementById('hhDrawer').classList.add('open');
 
-    // Tự động focus vào ô MVD
     setTimeout(() => {
         const mvdInput = document.getElementById('hhEditMVD');
         if (mvdInput) mvdInput.focus();
     }, 400);
+}
+
+function copyCurrentHangHoan() {
+    if (currentUser && currentUser.role === 'kinhdoanh') {
+        alert('Tài khoản KINHDOANH không được thêm mới Dữ liệu Hàng hoàn.');
+        return;
+    }
+    hhDrawerMode = 'create';
+    currentHangHoanEditIndex = -1;
+    document.getElementById('hhDrawerTitle').textContent = 'Sao chép hàng hoàn';
+    document.getElementById('hhSaveButton').textContent = 'Thêm mới';
+    document.getElementById('hhDrawerRowId').textContent = `Row ID: NEW-${Date.now()}`;
+    
+    const skuCtInput = document.getElementById('hhEditSKUCT');
+    const skuInput = document.getElementById('hhEditSKU');
+    if (skuCtInput) skuCtInput.value = '';
+    if (skuInput) skuInput.value = '';
+
+    ['hhEditMVD', 'hhEditMaGian', 'hhEditSKU', 'hhEditSKUCT', 'hhEditSLG', 'hhEditTinhTrang', 'hhEditTenSP', 'hhEditKho'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = false;
+    });
+    document.querySelectorAll('#hhEditKhoButtons button').forEach(btn => btn.disabled = false);
+
+    const copyBtn = document.getElementById('hhCopyButton');
+    if (copyBtn) copyBtn.style.display = 'none';
+
+    const noticeEl = document.getElementById('hhMvdDuplicateNotice');
+    if (noticeEl) noticeEl.classList.add('hidden');
+
+    const skuCtBtns = document.getElementById('hhSkuCtButtons');
+    if (skuCtBtns) skuCtBtns.innerHTML = '';
+    const sugBox = document.getElementById('hhSkuCtSuggestions');
+    if (sugBox) sugBox.classList.add('hidden');
+
+    if (typeof showToast === 'function') {
+        showToast('Đã sao chép đơn hàng hoàn. SKU CT được để trống.', 'info');
+    }
 }
 
 function closeHhDetailDrawer() {
@@ -963,13 +1003,11 @@ async function saveHhDetail() {
                 const skuInput = document.getElementById('hhEditSKU');
                 if (skuInput) skuInput.value = newData.sku;
             }
+        } else {
+            newData.sku = '';
+            const skuInput = document.getElementById('hhEditSKU');
+            if (skuInput) skuInput.value = '';
         }
-        const skuCatalog = new Set(sanphamData.map(i => (i.id_sp || '').trim()).filter(Boolean));
-        if (newData.sku && skuCatalog.size && !skuCatalog.has(newData.sku.trim())) {
-            alert('SKU không tồn tại trong DS_SP_CT (cột id_sp).');
-            return;
-        }
-        // Bỏ chặn lưu khi thiếu SKU/SKU_CT theo yêu cầu người dùng
         if (isCreateMode) {
             const today = new Date().toISOString().split('T')[0];
             const mvd = (newData.mvd || '').trim();
@@ -1322,6 +1360,7 @@ function exportHangHoanToMisa() {
     window.filterHangHoanData = filterHangHoanData;
     window.openHhDetail = openHhDetail;
     window.openNewHangHoanDrawer = openNewHangHoanDrawer;
+    window.copyCurrentHangHoan = copyCurrentHangHoan;
     window.closeHhDetailDrawer = closeHhDetailDrawer;
     window.saveHhDetail = saveHhDetail;
     window.buildSkuTongMap = buildSkuTongMap;
