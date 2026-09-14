@@ -149,6 +149,28 @@ function closeImagePreview() {
 }
 
 
+function renderHhHoanTraButtons(value) {
+    const current = (value || '').toString().trim().toLowerCase();
+    const isTra = current === 'trả' || current === 'tra';
+    const isHoan = !isTra;
+    const buttons = document.querySelectorAll('#hhEditHoanTraButtons button');
+    buttons.forEach(btn => {
+        const text = btn.textContent.trim().toLowerCase();
+        const active = (isHoan && (text === 'hoàn' || text === 'hoan')) || (isTra && (text === 'trả' || text === 'tra'));
+        btn.classList.toggle('bg-white', active);
+        btn.classList.toggle('text-slate-800', active);
+        btn.classList.toggle('shadow-sm', active);
+        btn.classList.toggle('text-slate-500', !active);
+    });
+}
+
+function setHhHoanTra(value) {
+    const normalized = (value || 'Hoàn').toString().trim();
+    const input = document.getElementById('hhEditHoanTra');
+    if (input) input.value = normalized;
+    renderHhHoanTraButtons(normalized);
+}
+
 function renderHhKhoButtons(value) {
     const current = (value || '').toString().trim().toUpperCase() || 'KHO';
     const buttons = document.querySelectorAll('#hhEditKhoButtons button');
@@ -369,6 +391,7 @@ function applyUdctItemToHangHoanForm(item, currentField) {
     if (mdhSug) mdhSug.classList.add('hidden');
     const skuCtSug = document.getElementById('hhSkuCtSuggestions');
     if (skuCtSug) skuCtSug.classList.add('hidden');
+    if (hhDrawerMode === 'create') setHhHoanTra('Hoàn');
 }
 
 function selectHhUdctForMvd2ByIndex(index) {
@@ -786,6 +809,9 @@ function handleHhMvdInputChange(val) {
         if (mdhEl && !mdhEl.value) mdhEl.value = (udctMatch.mdh || '').toString().trim();
         const ngayEl = document.getElementById('hhEditNgayNhan');
         if (ngayEl && !ngayEl.value && udctMatch.ngay) ngayEl.value = toYMD(udctMatch.ngay);
+            setHhHoanTra('Hoàn');
+    } else if (!udctMatch && hhDrawerMode === 'create') {
+        setHhHoanTra('Trả');
     }
 
     if (!noticeEl) return;
@@ -926,9 +952,11 @@ async function appendHangHoanQuickByMvd(mvdRaw) {
     let slg = '1';
     let tenSp = '';
     let mdh = '';
+    let hoanTraVal = 'Trả';
 
     const udctMatch = udctData.find(item => (item.mvd || '').toString().trim() === mvd);
     if (udctMatch) {
+        hoanTraVal = 'Hoàn';
         maGian = (udctMatch.ma_gian || '').toString().toUpperCase();
         skuCt = (udctMatch.id_sp_ct || '').toString().toUpperCase();
         sku = skuCt ? (udctMatch.id_sp || '').toString().toUpperCase() : '';
@@ -963,8 +991,8 @@ async function appendHangHoanQuickByMvd(mvdRaw) {
         slg,
         tenSp,
         initGhiChu,
-        '',
-        '',
+        '', // tinh_trang
+        hoanTraVal, // trang_thai (Hoàn / Trả)
         '',
         editor,
         nowStr,
@@ -1119,7 +1147,7 @@ async function fetchHangHoanData() {
     const loadingOverlay = document.getElementById('loadingOverlay');
     const tbody = document.getElementById('hangHoanTableBody');
     if (loadingOverlay) loadingOverlay.classList.remove('hidden');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-slate-500">Đang tải dữ liệu...</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="13" class="text-center py-8 text-slate-500">Đang tải dữ liệu...</td></tr>`;
 
     try {
         const token = await getAccessToken();
@@ -1165,11 +1193,11 @@ async function fetchHangHoanData() {
         } else {
             hangHoanData = [];
             filteredHangHoanData = [];
-            if (tbody) tbody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-slate-500">Không có dữ liệu hàng hoàn.</td></tr>`;
+            if (tbody) tbody.innerHTML = `<tr><td colspan="13" class="text-center py-8 text-slate-500">Không có dữ liệu hàng hoàn.</td></tr>`;
         }
     } catch (err) {
         console.error("Lỗi tải HH_BH:", err);
-        if (tbody) tbody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-slate-500">Không thể tải dữ liệu từ HH_BH.</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="13" class="text-center py-8 text-slate-500">Không thể tải dữ liệu từ HH_BH.</td></tr>`;
     } finally {
         if (loadingOverlay) loadingOverlay.classList.add('hidden');
     }
@@ -1189,7 +1217,7 @@ function filterHangHoanData() {
         if (fKho && item.kho !== fKho) return false;
         if (fGian && item.ma_gian !== fGian) return false;
         if (search) {
-            const rowText = `${item.mvd || ''} ${item.mvd_2 || ''} ${item.ma_gian || ''} ${item.sku || ''} ${item.sku_ct || ''} ${item.ten_sp || ''} ${item.tinh_trang || ''} ${item.id_dh || ''}`.toLowerCase();
+            const rowText = `${item.mvd || ''} ${item.mvd_2 || ''} ${item.ma_gian || ''} ${item.sku || ''} ${item.sku_ct || ''} ${item.ten_sp || ''} ${item.tinh_trang || ''} ${item.trang_thai || ''} ${item.id_dh || ''}`.toLowerCase();
             if (!rowText.includes(search)) return false;
         }
         return true;
@@ -1217,6 +1245,9 @@ function openHhDetail(index) {
     document.getElementById('hhEditSKUCT').value = item.sku_ct || '';
     document.getElementById('hhEditSLG').value = item.slg || '';
     document.getElementById('hhEditTinhTrang').value = item.tinh_trang || '';
+    const hoanTraVal = item.trang_thai || 'Hoàn';
+    document.getElementById('hhEditHoanTra').value = hoanTraVal;
+    renderHhHoanTraButtons(hoanTraVal);
     document.getElementById('hhEditTenSP').value = item.ten_sp || '';
     document.getElementById('hhEditKho').value = item.kho || '';
     const ngayNhanInput = document.getElementById('hhEditNgayNhan');
@@ -1273,7 +1304,7 @@ function openHhDetail(index) {
         btn.style.opacity = isKinhDoanh ? '0.5' : '1';
         btn.style.pointerEvents = isKinhDoanh ? 'none' : '';
     });
-    document.querySelectorAll('#hhEditKhoButtons button').forEach(btn => btn.disabled = isKinhDoanh);
+    document.querySelectorAll('#hhEditKhoButtons button, #hhEditHoanTraButtons button').forEach(btn => btn.disabled = isKinhDoanh);
     const copyBtn = document.getElementById('hhCopyButton');
     if (copyBtn) copyBtn.style.display = isKinhDoanh ? 'none' : 'inline-flex';
     const deleteBtn = document.getElementById('hhDeleteButton');
@@ -1307,6 +1338,8 @@ function openNewHangHoanDrawer() {
     document.getElementById('hhEditSKUCT').value = '';
     document.getElementById('hhEditSLG').value = '1';
     document.getElementById('hhEditTinhTrang').value = '';
+    document.getElementById('hhEditHoanTra').value = 'Hoàn';
+    renderHhHoanTraButtons('Hoàn');
     document.getElementById('hhEditTenSP').value = '';
     document.getElementById('hhEditKho').value = 'KHO';
     const defaultDate = document.getElementById('filterHHTo')?.value || document.getElementById('filterHHFrom')?.value || new Date().toISOString().split('T')[0];
@@ -1316,6 +1349,7 @@ function openNewHangHoanDrawer() {
     if (mdhInput) mdhInput.value = '';
     populateHhFormOptions();
     renderHhKhoButtons('KHO');
+    renderHhHoanTraButtons(document.getElementById('hhEditHoanTra')?.value || 'Hoàn');
     refreshHhImagePreviews();
     const noticeEl = document.getElementById('hhMvdDuplicateNotice');
     if (noticeEl) noticeEl.classList.add('hidden');
@@ -1344,7 +1378,7 @@ function openNewHangHoanDrawer() {
         btn.style.opacity = '1';
         btn.style.pointerEvents = '';
     });
-    document.querySelectorAll('#hhEditKhoButtons button').forEach(btn => btn.disabled = false);
+    document.querySelectorAll('#hhEditKhoButtons button, #hhEditHoanTraButtons button').forEach(btn => btn.disabled = false);
     const copyBtn = document.getElementById('hhCopyButton');
     if (copyBtn) copyBtn.style.display = 'none';
     const deleteBtn = document.getElementById('hhDeleteButton');
@@ -1404,7 +1438,8 @@ function copyCurrentHangHoan() {
         btn.style.opacity = '1';
         btn.style.pointerEvents = '';
     });
-    document.querySelectorAll('#hhEditKhoButtons button').forEach(btn => btn.disabled = false);
+    document.querySelectorAll('#hhEditKhoButtons button, #hhEditHoanTraButtons button').forEach(btn => btn.disabled = false);
+    renderHhHoanTraButtons(document.getElementById('hhEditHoanTra')?.value || 'Hoàn');
 
     const copyBtn = document.getElementById('hhCopyButton');
     if (copyBtn) copyBtn.style.display = 'none';
@@ -1625,6 +1660,7 @@ async function saveHhDetail() {
             sku_ct: (document.getElementById('hhEditSKUCT').value || '').trim(),
             slg: (document.getElementById('hhEditSLG').value || '1').trim(),
             tinh_trang: (document.getElementById('hhEditTinhTrang').value || '').trim(),
+            trang_thai: (document.getElementById('hhEditHoanTra')?.value || 'Hoàn').trim(),
             ten_sp: (document.getElementById('hhEditTenSP').value || '').trim(),
             kho: (document.getElementById('hhEditKho').value || 'KHO').trim(),
             anh_1: (document.getElementById('hhEditAnh1').value || '').trim(),
@@ -1670,7 +1706,7 @@ async function saveHhDetail() {
                 newData.ten_sp || '',
                 initGhiChu, // ghi_chu
                 newData.tinh_trang || '',
-                '', // trang_thai
+                newData.trang_thai || 'Hoàn', // trang_thai (Hoàn / Trả)
                 '', // sku_slg
                 editor, // id_nv
                 nowStr, // udt
@@ -1752,6 +1788,7 @@ async function saveHhDetail() {
             { range: `${CONFIG.hhbhSheetName}!M${rowIndex}`, values: [[newData.ten_sp]] },
             { range: `${CONFIG.hhbhSheetName}!N${rowIndex}`, values: [[newGhiChu]] },
             { range: `${CONFIG.hhbhSheetName}!O${rowIndex}`, values: [[newData.tinh_trang]] },
+            { range: `${CONFIG.hhbhSheetName}!P${rowIndex}`, values: [[newData.trang_thai]] },
             { range: `${CONFIG.hhbhSheetName}!R${rowIndex}`, values: [[editor]] },
             { range: `${CONFIG.hhbhSheetName}!S${rowIndex}`, values: [[nowStr]] },
             { range: `${CONFIG.hhbhSheetName}!T${rowIndex}`, values: [[(newData.mvd && newData.ma_gian) ? `${newData.mvd}-${newData.ma_gian}` : '']] },
@@ -1832,7 +1869,7 @@ function renderHangHoanTable() {
     if (!tbody) return;
     if (stats) stats.textContent = `Số đơn: ${filteredHangHoanData.length.toLocaleString('vi-VN')}`;
     if (!filteredHangHoanData.length) {
-        tbody.innerHTML = '<tr><td colspan="11" class="text-center py-8 text-slate-500">Không có dữ liệu phù hợp bộ lọc.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="text-center py-8 text-slate-500">Không có dữ liệu phù hợp bộ lọc.</td></tr>';
         return;
     }
 
@@ -1858,6 +1895,7 @@ function renderHangHoanTable() {
                         <td class="px-3 py-2 text-sm text-slate-700 max-w-[240px] truncate" title="${escapeHtml(item.ten_sp)}">${escapeHtml(item.ten_sp)}</td>
                         <td class="px-3 py-2 text-sm text-slate-700">${escapeHtml(item.kho)}</td>
                         <td class="px-3 py-2 text-sm text-slate-700">${escapeHtml(item.tinh_trang)}</td>
+                        <td class="px-3 py-2 text-sm">${item.trang_thai ? (item.trang_thai.toLowerCase() === 'trả' || item.trang_thai.toLowerCase() === 'tra' ? '<span class="px-2 py-0.5 rounded-md text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">Trả</span>' : '<span class="px-2 py-0.5 rounded-md text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">Hoàn</span>') : '<span class="text-slate-400">-</span>'}</td>
                         <td class="px-3 py-2 text-sm text-slate-700 max-w-[260px] truncate" title="${escapeHtml(skuTong)}">${escapeHtml(skuTong || '-')}</td>
                         <td class="px-3 py-2 text-sm">${imgHtml}</td>
                     </tr>
@@ -2042,7 +2080,9 @@ document.addEventListener('click', (e) => {
 
     window.openImagePreview = openImagePreview;
     window.closeImagePreview = closeImagePreview;
-        window.renderHhKhoButtons = renderHhKhoButtons;
+        window.renderHhHoanTraButtons = renderHhHoanTraButtons;
+    window.setHhHoanTra = setHhHoanTra;
+    window.renderHhKhoButtons = renderHhKhoButtons;
     window.setHhKho = setHhKho;
     window.populateHhFormOptions = populateHhFormOptions;
     window.ensureHhCatalogLoaded = ensureHhCatalogLoaded;
